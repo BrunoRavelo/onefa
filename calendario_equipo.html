@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario por equipo — ONEFA 14G</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 4.5rem; }
+    .navbar-brand { font-weight: 600; }
+    .match-card { border-left: 4px solid #0d6efd; }
+    .card-played   { background-color: var(--bs-success-bg-subtle); }
+    .card-upcoming { background-color: var(--bs-body-bg); }
+    .badge-season-active   { background-color: #0d6efd; color: #fff; }
+    .badge-season-inactive { background-color: #6c757d; color: #fff; }
+    .season-badge { cursor: pointer; font-size: .85rem; padding: .3em .75em; border-radius: 999px;
+                    border: none; font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" id="navBrand" href="#">ONEFA 14 Grandes</a>
+      <div class="d-flex gap-2 mx-2">
+        <a id="btn2026" class="season-badge" href="#">2026</a>
+        <a id="btn2025" class="season-badge" href="#">2025</a>
+      </div>
+      <a class="btn btn-outline-light btn-sm" id="btnVolver" href="#">Volver</a>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    <h1 id="titulo" class="mb-4"></h1>
+    <div id="listaPartidos" class="row g-3"></div>
+  </div>
+
+  <script>
+    function getParam(name) {
+      return new URLSearchParams(window.location.search).get(name);
+    }
+
+    // Leer params
+    const rawTemp = getParam('temporada');
+    const TEMPORADA = (rawTemp === '2025') ? 2025 : 2026;
+    const DATA_FILE = `./onefa_data_${TEMPORADA}.json`;
+    const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
+
+    let equipos = [];
+    let juegos  = [];
+    let JORNADAS_JUGADAS = 0;
+
+    // Inicializar UI de season
+    function initSeasonUI() {
+      document.title = `Calendario — ONEFA 14G ${TEMPORADA}`;
+      document.getElementById('navBrand').textContent = `ONEFA 14 Grandes ${TEMPORADA}`;
+
+      const equipo = getParam('equipo') || '';
+      const btn26  = document.getElementById('btn2026');
+      const btn25  = document.getElementById('btn2025');
+      btn26.href = `?equipo=${encodeURIComponent(equipo)}&temporada=2026`;
+      btn25.href = `?equipo=${encodeURIComponent(equipo)}&temporada=2025`;
+
+      if (TEMPORADA === 2026) {
+        btn26.className = 'season-badge badge-season-active';
+        btn25.className = 'season-badge badge-season-inactive';
+      } else {
+        btn25.className = 'season-badge badge-season-active';
+        btn26.className = 'season-badge badge-season-inactive';
+      }
+
+      document.getElementById('btnVolver').href =
+        `./simulador_onefa_colley.html?temporada=${TEMPORADA}`;
+    }
+
+    async function cargarDatos() {
+      try {
+        const res  = await fetch(DATA_FILE, { cache: 'no-store' });
+        const data = await res.json();
+        equipos = data.equipos || [];
+        juegos  = data.juegos  || [];
+        JORNADAS_JUGADAS = Number(data.jornadas_jugadas) || 0;
+      } catch (e) {
+        equipos = [];
+        juegos  = [];
+        JORNADAS_JUGADAS = 0;
+      }
+
+      // Merge con simulaciones guardadas (solo 0–0 del JSON)
+      function toKey(g) { return `${g.jornada}#${g.local}#${g.visita}`; }
+      function mergeOnlyZeroBase(base, lsArr) {
+        if (!Array.isArray(base) || !Array.isArray(lsArr)) return base;
+        const m = new Map(lsArr.map(g => [toKey(g), g]));
+        return base.map(g => {
+          const sl = Number(g.scoreLocal)  || 0;
+          const sv = Number(g.scoreVisita) || 0;
+          if ((sl + sv) > 0) return g;
+          const s = m.get(toKey(g));
+          if (!s) return g;
+          return {
+            ...g,
+            scoreLocal:  Number.isFinite(s.scoreLocal)  ? s.scoreLocal  : sl,
+            scoreVisita: Number.isFinite(s.scoreVisita) ? s.scoreVisita : sv
+          };
+        });
+      }
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) juegos = mergeOnlyZeroBase(juegos, arr);
+        }
+      } catch (_) {}
+
+      renderCalendarioEquipo();
+    }
+
+    function jugado(g) {
+      return g.jornada <= JORNADAS_JUGADAS;
+    }
+
+    function renderCalendarioEquipo() {
+      const equipo = getParam('equipo');
+      const titulo = document.getElementById('titulo');
+      const lista  = document.getElementById('listaPartidos');
+
+      if (!equipo || !equipos.includes(equipo)) {
+        titulo.textContent = 'Equipo no encontrado';
+        return;
+      }
+
+      titulo.textContent = `Calendario ${TEMPORADA} — ${equipo}`;
+      lista.innerHTML = '';
+
+      const partidos = juegos
+        .filter(g => g.local === equipo || g.visita === equipo)
+        .sort((a, b) => a.jornada - b.jornada);
+
+      partidos.forEach(p => {
+        const esLocal  = p.local === equipo;
+        const rival    = esLocal ? p.visita    : p.local;
+        const miScore  = esLocal ? p.scoreLocal  : p.scoreVisita;
+        const rvScore  = esLocal ? p.scoreVisita : p.scoreLocal;
+        const yaJugado = jugado(p);
+
+        const card = document.createElement('div');
+        card.className = 'col-12';
+        card.innerHTML = `
+          <div class="card shadow-sm match-card ${yaJugado ? 'card-played' : 'card-upcoming'}">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="small text-muted">Jornada ${p.jornada} • ${esLocal ? 'Local' : 'Visita'}</div>
+                <div class="fw-bold">${equipo} ${miScore} — ${rival} ${rvScore}</div>
+              </div>
+              <div class="text-end">
+                <span class="badge ${yaJugado ? 'bg-success' : 'bg-secondary'}">
+                  ${yaJugado ? 'Jugado' : 'Pendiente'}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+        lista.appendChild(card);
+      });
+    }
+
+    initSeasonUI();
+    cargarDatos();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

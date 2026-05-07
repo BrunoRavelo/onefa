@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pronósticos ONEFA 14 Grandes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 4.5rem; }
+    .navbar-brand { font-weight: 600; }
+    .dropdown-menu-end { right: 0; left: auto; }
+    .badge-season-active   { background-color: #0d6efd; color: #fff; }
+    .badge-season-inactive { background-color: #6c757d; color: #fff; }
+    .season-badge { cursor: pointer; font-size: .85rem; padding: .3em .75em; border-radius: 999px; border: none; font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" id="navBrand" href="#">ONEFA 14 Grandes</a>
+
+      <!-- Selector de temporada -->
+      <div class="d-flex gap-2 mx-2">
+        <a id="btn2026" class="season-badge" href="?temporada=2026">2026</a>
+        <a id="btn2025" class="season-badge" href="?temporada=2025">2025</a>
+      </div>
+
+      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTeams"
+              aria-controls="navbarTeams" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse justify-content-end" id="navbarTeams">
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="equiposMenu" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">Equipos</a>
+            <ul class="dropdown-menu dropdown-menu-end" id="listaEquipos">
+              <!-- poblado por JS -->
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    <h1 id="tituloMain" class="text-center mb-4"></h1>
+    <p id="textoCorte" class="text-center text-muted"></p>
+
+    <!-- Banner histórico -->
+    <div id="bannerHistorico" class="alert alert-warning d-none" role="alert">
+      <strong>Temporada 2025 — Histórico.</strong>
+      Los resultados reales están cargados. Puedes simular jornadas pendientes.
+      <a href="?temporada=2026" class="alert-link ms-2">Ver temporada 2026 →</a>
+    </div>
+
+    <h2 class="mt-4">Calendario y Pronósticos</h2>
+    <div class="accordion" id="calendarioAccordion"></div>
+
+    <div class="my-3 d-grid d-md-flex justify-content-end">
+      <button id="btnClearAll" type="button" class="btn btn-danger">
+        Borrar todos los pronósticos
+      </button>
+    </div>
+
+    <h2 class="mt-5">Tabla de Posiciones</h2>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover" id="tablaPosiciones">
+        <thead class="table-dark">
+          <tr>
+            <th>Pos</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PP</th><th>Pct</th><th>PF</th><th>PC</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h2 class="mt-5">Tabla no oficial — Matriz de Colley</h2>
+    <p class="text-muted">Ranking calculado con el método de Colley (solo informativo).</p>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover" id="tablaColley">
+        <thead class="table-dark">
+          <tr>
+            <th>Pos</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PP</th><th>Colley</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // === Temporada activa desde URL ===
+    function getTemporada() {
+      const p = new URLSearchParams(window.location.search).get('temporada');
+      return (p === '2025') ? 2025 : 2026; // 2026 por defecto
+    }
+    const TEMPORADA = getTemporada();
+
+    // localStorage key específico por temporada (2025 mantiene clave legacy)
+    const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
+    const DATA_FILE   = `./onefa_data_${TEMPORADA}.json`;
+
+    let equipos = [];
+    let juegos  = [];
+    let JORNADAS_JUGADAS = 0;
+    let J_SIM_MIN = 0;
+
+    // === Inicializar UI de temporada ===
+    function initSeasonUI() {
+      document.title = `Pronósticos ONEFA 14 Grandes ${TEMPORADA}`;
+      document.getElementById('navBrand').textContent = `ONEFA 14 Grandes ${TEMPORADA}`;
+      document.getElementById('tituloMain').textContent =
+        `Pronósticos Liga Mayor ONEFA — Conferencia 14 Grandes ${TEMPORADA}`;
+
+      const btn26 = document.getElementById('btn2026');
+      const btn25 = document.getElementById('btn2025');
+      if (TEMPORADA === 2026) {
+        btn26.className = 'season-badge badge-season-active';
+        btn25.className = 'season-badge badge-season-inactive';
+      } else {
+        btn25.className = 'season-badge badge-season-active';
+        btn26.className = 'season-badge badge-season-inactive';
+        document.getElementById('bannerHistorico').classList.remove('d-none');
+      }
+    }
+
+    // === Carga de datos: JSON externo + merge con simulación previa (solo 0–0) ===
+    async function cargarDatos() {
+      try {
+        const res = await fetch(DATA_FILE, { cache: 'no-store' });
+        const data = await res.json();
+        equipos = data.equipos || [];
+        juegos  = data.juegos  || [];
+        JORNADAS_JUGADAS = Number(data.jornadas_jugadas) || 0;
+      } catch (e) {
+        console.error('Error cargando JSON', e);
+        equipos = [];
+        juegos  = [];
+        JORNADAS_JUGADAS = 0;
+      }
+
+      function toKey(g) { return `${g.jornada}#${g.local}#${g.visita}`; }
+      function mergeOnlyZeroBase(base, lsArr) {
+        if (!Array.isArray(base) || !Array.isArray(lsArr)) return base;
+        const m = new Map(lsArr.map(g => [toKey(g), g]));
+        return base.map(g => {
+          const sl = Number(g.scoreLocal)  || 0;
+          const sv = Number(g.scoreVisita) || 0;
+          if ((sl + sv) > 0) return g;
+          const s = m.get(toKey(g));
+          if (!s) return g;
+          return {
+            ...g,
+            scoreLocal:  Number.isFinite(s.scoreLocal)  ? s.scoreLocal  : sl,
+            scoreVisita: Number.isFinite(s.scoreVisita) ? s.scoreVisita : sv
+          };
+        });
+      }
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) juegos = mergeOnlyZeroBase(juegos, arr);
+        }
+      } catch (_) {}
+
+      document.getElementById('textoCorte').textContent =
+        JORNADAS_JUGADAS > 0
+          ? `Ingresa marcadores para actualizar la tabla automáticamente. Basado en resultados hasta Jornada ${JORNADAS_JUGADAS}.`
+          : `Temporada ${TEMPORADA} — Ingresa marcadores para simular la tabla de posiciones.`;
+
+      generarMenuEquipos();
+      generarCalendario();
+      calcularStandings();
+      computeAndRenderColley();
+    }
+
+    function saveSimulacion() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch (_) {}
+    }
+
+    // === Navbar equipos ===
+    function generarMenuEquipos() {
+      const ul = document.getElementById('listaEquipos');
+      ul.innerHTML = '';
+      equipos.forEach(eq => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.className = 'dropdown-item';
+        a.href = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMPORADA}`;
+        a.textContent = eq;
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+    }
+
+    // === Calendario editable / readonly por jornada ===
+    function generarCalendario() {
+      const accordion = document.getElementById('calendarioAccordion');
+      accordion.innerHTML = '';
+      const jornadas = {};
+      juegos.forEach((juego, index) => {
+        if (!jornadas[juego.jornada]) jornadas[juego.jornada] = [];
+        jornadas[juego.jornada].push({ ...juego, index });
+      });
+
+      Object.keys(jornadas).sort((a, b) => Number(a) - Number(b)).forEach(jStr => {
+        const j = Number(jStr);
+        const headerId   = `jornada${j}Header`;
+        const collapseId = `jornada${j}Collapse`;
+
+        let html = `
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="${headerId}">
+              <button class="accordion-button ${j === JORNADAS_JUGADAS ? '' : 'collapsed'}"
+                      type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                Jornada ${j}
+              </button>
+            </h2>
+            <div id="${collapseId}" class="accordion-collapse collapse ${j === JORNADAS_JUGADAS ? 'show' : ''}"
+                 data-bs-parent="#calendarioAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm">
+                  <thead><tr><th>Local</th><th>Score</th><th>Visita</th><th>Score</th></tr></thead>
+                  <tbody>`;
+
+        jornadas[j].forEach(juego => {
+          const readOnly = j <= JORNADAS_JUGADAS ? 'readonly' : '';
+          html += `
+            <tr>
+              <td>${juego.local}</td>
+              <td><input type="number" class="form-control form-control-sm score-input"
+                         data-index="${juego.index}" data-team="local" min="0"
+                         value="${juego.scoreLocal}" ${readOnly}></td>
+              <td>${juego.visita}</td>
+              <td><input type="number" class="form-control form-control-sm score-input"
+                         data-index="${juego.index}" data-team="visita" min="0"
+                         value="${juego.scoreVisita}" ${readOnly}></td>
+            </tr>`;
+        });
+
+        html += `
+                  </tbody>
+                </table>
+                ${j >= J_SIM_MIN ? `
+                <div class="d-flex justify-content-end">
+                  <button type="button" class="btn btn-outline-danger btn-sm mt-2 btn-clear-jornada"
+                          data-jornada="${j}">
+                    Borrar pronósticos de la jornada
+                  </button>
+                </div>` : ``}
+              </div>
+            </div>
+          </div>`;
+        accordion.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    // === Standings ===
+    function getGameResult(team1, team2) {
+      const g = juegos.find(x =>
+        (x.local === team1 && x.visita === team2) || (x.local === team2 && x.visita === team1)
+      );
+      if (!g) return null;
+      const sl = g.scoreLocal, sv = g.scoreVisita;
+      if (sl + sv <= 0 || sl === sv) return null;
+      return g.local === team1 ? (sl > sv ? 1 : -1) : (sv > sl ? 1 : -1);
+    }
+
+    function calcularStandings() {
+      document.querySelectorAll('.score-input').forEach(input => {
+        const i   = Number(input.dataset.index);
+        const key = input.dataset.team === 'local' ? 'scoreLocal' : 'scoreVisita';
+        juegos[i][key] = Number(input.value) || 0;
+      });
+
+      const stats = {};
+      equipos.forEach(eq => { stats[eq] = { pj: 0, pg: 0, pf: 0, pc: 0 }; });
+      juegos.forEach(g => {
+        const sl = g.scoreLocal, sv = g.scoreVisita;
+        if (sl + sv > 0 && sl !== sv) {
+          const L = g.local, V = g.visita;
+          stats[L].pj++; stats[V].pj++;
+          stats[L].pf += sl; stats[L].pc += sv;
+          stats[V].pf += sv; stats[V].pc += sl;
+          if (sl > sv) stats[L].pg++; else stats[V].pg++;
+        }
+      });
+
+      const rows = Object.entries(stats).map(([equipo, s]) => ({
+        equipo, pj: s.pj, pg: s.pg, pp: s.pj - s.pg,
+        pct: s.pj ? (s.pg / s.pj) : 0, pf: s.pf, pc: s.pc
+      })).sort((a, b) => b.pct - a.pct);
+
+      let i = 0;
+      while (i < rows.length) {
+        const start = i, p = rows[i].pct;
+        while (i < rows.length && rows[i].pct === p) i++;
+        const group = rows.slice(start, i);
+        if (group.length > 1) {
+          let undefeated = null;
+          for (const t of group) {
+            let ok = true;
+            for (const o of group) {
+              if (t.equipo === o.equipo) continue;
+              if (getGameResult(t.equipo, o.equipo) !== 1) { ok = false; break; }
+            }
+            if (ok) { undefeated = t; break; }
+          }
+          group.sort((a, b) => {
+            if (undefeated) {
+              if (a.equipo === undefeated.equipo) return -1;
+              if (b.equipo === undefeated.equipo) return  1;
+            }
+            return a.pc - b.pc;
+          });
+          rows.splice(start, group.length, ...group);
+        }
+      }
+
+      const tbody = document.querySelector('#tablaPosiciones tbody');
+      tbody.innerHTML = '';
+      rows.forEach((r, idx) => {
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td>${idx + 1}</td><td>${r.equipo}</td><td>${r.pj}</td><td>${r.pg}</td>
+            <td>${r.pp}</td><td>${r.pct.toFixed(3)}</td><td>${r.pf}</td><td>${r.pc}</td>
+          </tr>`);
+      });
+    }
+
+    // === Colley ===
+    function computeAndRenderColley() {
+      const n   = equipos.length;
+      const idx = Object.fromEntries(equipos.map((e, i) => [e, i]));
+      const pj  = Array(n).fill(0), pg = Array(n).fill(0), pp = Array(n).fill(0);
+      const C   = Array.from({ length: n }, () => Array(n).fill(0));
+      const b   = Array(n).fill(1);
+
+      juegos.forEach(g => {
+        const sl = g.scoreLocal, sv = g.scoreVisita;
+        if (sl + sv > 0 && sl !== sv) {
+          const iL = idx[g.local], iV = idx[g.visita];
+          pj[iL]++; pj[iV]++;
+          if (sl > sv) { pg[iL]++; pp[iV]++; } else { pg[iV]++; pp[iL]++; }
+          C[iL][iL] += 1; C[iV][iV] += 1; C[iL][iV] -= 1; C[iV][iL] -= 1;
+        }
+      });
+
+      for (let i = 0; i < n; i++) { C[i][i] += 2; b[i] = 1 + (pg[i] - pp[i]) / 2; }
+
+      const r = solveLinearSystem(C, b);
+      const rows = equipos.map((name, i) => ({
+        equipo: name, pj: pj[i], pg: pg[i], pp: pp[i],
+        colley: Number.isFinite(r[i]) ? r[i] : 0
+      })).sort((a, b) => b.colley - a.colley);
+
+      const tbody = document.querySelector('#tablaColley tbody');
+      tbody.innerHTML = '';
+      rows.forEach((row, k) => {
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td>${k + 1}</td><td>${row.equipo}</td><td>${row.pj}</td><td>${row.pg}</td>
+            <td>${row.pp}</td><td>${row.colley.toFixed(3)}</td>
+          </tr>`);
+      });
+    }
+
+    function solveLinearSystem(Ain, bin) {
+      const n = bin.length, A = Ain.map(r => r.slice()), b = bin.slice();
+      for (let col = 0; col < n; col++) {
+        let piv = col;
+        for (let i = col + 1; i < n; i++) if (Math.abs(A[i][col]) > Math.abs(A[piv][col])) piv = i;
+        if (Math.abs(A[piv][col]) < 1e-12) continue;
+        if (piv !== col) { [A[col], A[piv]] = [A[piv], A[col]]; [b[col], b[piv]] = [b[piv], b[col]]; }
+        const d = A[col][col];
+        for (let j = col; j < n; j++) A[col][j] /= d; b[col] /= d;
+        for (let i = 0; i < n; i++) {
+          if (i === col) continue;
+          const f = A[i][col]; if (!f) continue;
+          for (let j = col; j < n; j++) A[i][j] -= f * A[col][j];
+          b[i] -= f * b[col];
+        }
+      }
+      return b;
+    }
+
+    // === Borrados ===
+    function clearJornada(j) {
+      if (j < J_SIM_MIN) return;
+      let changed = false;
+      juegos.forEach((g, i) => {
+        if (g.jornada === j) {
+          if (g.scoreLocal !== 0 || g.scoreVisita !== 0) { g.scoreLocal = 0; g.scoreVisita = 0; changed = true; }
+          const inL = document.querySelector(`.score-input[data-index="${i}"][data-team="local"]`);
+          const inV = document.querySelector(`.score-input[data-index="${i}"][data-team="visita"]`);
+          if (inL && !inL.readOnly) inL.value = 0;
+          if (inV && !inV.readOnly) inV.value = 0;
+        }
+      });
+      if (changed) { calcularStandings(); computeAndRenderColley(); saveSimulacion(); }
+    }
+
+    function clearAllPronosticos() {
+      let changed = false;
+      juegos.forEach((g, i) => {
+        if (g.jornada >= J_SIM_MIN) {
+          if (g.scoreLocal !== 0 || g.scoreVisita !== 0) { g.scoreLocal = 0; g.scoreVisita = 0; changed = true; }
+          const inL = document.querySelector(`.score-input[data-index="${i}"][data-team="local"]`);
+          const inV = document.querySelector(`.score-input[data-index="${i}"][data-team="visita"]`);
+          if (inL && !inL.readOnly) inL.value = 0;
+          if (inV && !inV.readOnly) inV.value = 0;
+        }
+      });
+      if (changed) { calcularStandings(); computeAndRenderColley(); saveSimulacion(); }
+    }
+
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.btn-clear-jornada');
+      if (btn) clearJornada(Number(btn.dataset.jornada));
+      if (e.target && e.target.id === 'btnClearAll') {
+        if (confirm('¿Borrar TODOS los pronósticos simulados?')) clearAllPronosticos();
+      }
+    });
+
+    document.addEventListener('input', e => {
+      if (!e.target.classList.contains('score-input')) return;
+      const i   = Number(e.target.dataset.index);
+      const key = e.target.dataset.team === 'local' ? 'scoreLocal' : 'scoreVisita';
+      juegos[i][key] = Number(e.target.value) || 0;
+      calcularStandings();
+      computeAndRenderColley();
+      saveSimulacion();
+    });
+
+    // Init
+    initSeasonUI();
+    cargarDatos();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
