@@ -3,174 +3,570 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pronósticos ONEFA 14 Grandes</title>
+  <title>ONEFA 14 Grandes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { padding-top: 4.5rem; }
-    .navbar-brand { font-weight: 600; }
-    .dropdown-menu-end { right: 0; left: auto; }
-    .badge-season-active   { background-color: #0d6efd; color: #fff; }
-    .badge-season-inactive { background-color: #6c757d; color: #fff; }
-    .season-badge { cursor: pointer; font-size: .85rem; padding: .3em .75em; border-radius: 999px; border: none; font-weight: 600; text-decoration: none; }
+    /* ============================
+       VARIABLES & BASE
+    ============================ */
+    :root {
+      --bg-deep:        #05080F;
+      --bg-surface:     #0B1220;
+      --bg-card:        #101828;
+      --bg-card-2:      #182035;
+      --gold:           #F5A31A;
+      --gold-dim:       #A87215;
+      --gold-glow:      rgba(245,163,26,0.12);
+      --red:            #C0392B;
+      --green:          #1B8C4A;
+      --text:           #EBF0FF;
+      --text-muted:     #5E738A;
+      --border:         #182035;
+      --border-lt:      #1E2D45;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================
+       NAVBAR
+    ============================ */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: #030610;
+      border-bottom: 2px solid var(--gold);
+      padding: 0;
+    }
+
+    .topbar-inner {
+      display: flex; align-items: stretch;
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 1rem;
+      gap: 0;
+    }
+
+    /* Brand */
+    .brand {
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 0.45rem 1.2rem 0.45rem 0;
+      border-right: 1px solid var(--border-lt);
+      text-decoration: none;
+      line-height: 1;
+    }
+    .brand-main {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.55rem;
+      color: var(--gold);
+      letter-spacing: 3px;
+    }
+    .brand-sub {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* Season toggle */
+    .season-strip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 1rem;
+      border-right: 1px solid var(--border-lt);
+    }
+    .season-btn {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.95rem;
+      letter-spacing: 1.5px;
+      padding: 0.2em 0.7em;
+      border-radius: 3px;
+      text-decoration: none;
+      transition: all 0.15s;
+      display: inline-block;
+    }
+    .season-btn.active   { background: var(--gold); color: #000; }
+    .season-btn.inactive { background: transparent; color: var(--text-muted); border: 1px solid var(--border-lt); }
+    .season-btn.inactive:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* Equipos dropdown */
+    .nav-right { display: flex; align-items: center; margin-left: auto; gap: 4px; }
+
+    .nav-toggle {
+      background: transparent; border: none; cursor: pointer;
+      padding: 0.5rem 0.75rem;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.15s;
+    }
+    .nav-toggle:hover { color: var(--gold); }
+    .nav-toggle svg { width: 14px; height: 14px; transition: transform 0.15s; }
+    .nav-toggle.open svg { transform: rotate(180deg); }
+
+    .hamburger { display: none; background: transparent; border: 1px solid var(--border-lt); color: var(--text-muted); padding: 0.35rem 0.6rem; border-radius: 3px; cursor: pointer; font-size: 1rem; }
+
+    .dropdown-panel {
+      display: none; position: absolute; top: calc(100% + 2px); right: 0;
+      background: #070C1A;
+      border: 1px solid var(--border-lt);
+      border-radius: 4px;
+      min-width: 200px;
+      padding: 0.4rem 0;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
+    .dropdown-panel.open { display: block; }
+    .dropdown-panel a {
+      display: block; padding: 0.45rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem; font-weight: 500; letter-spacing: 0.3px;
+      text-decoration: none;
+      transition: all 0.1s;
+    }
+    .dropdown-panel a:hover { background: var(--gold-glow); color: var(--gold); }
+
+    .dropdown-wrapper { position: relative; }
+
+    /* Mobile nav */
+    .mobile-menu { display: none; background: #050A18; border-top: 1px solid var(--border); padding: 0.5rem 0; }
+    .mobile-menu a { display: block; padding: 0.5rem 1.25rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; text-decoration: none; }
+    .mobile-menu a:hover { color: var(--gold); }
+    .mobile-menu.open { display: block; }
+
+    /* ============================
+       HERO
+    ============================ */
+    .hero {
+      margin-top: 56px;
+      background:
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.018) 59px, rgba(255,255,255,0.018) 60px),
+        linear-gradient(160deg, #08112A 0%, #040A18 45%, #07111F 100%);
+      border-bottom: 1px solid var(--border-lt);
+      padding: 2.25rem 1rem 1.75rem;
+      position: relative; overflow: hidden;
+    }
+    .hero::after {
+      content: '';
+      position: absolute; top: -40px; right: -60px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(245,163,26,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-inner { max-width: 1100px; margin: 0 auto; position: relative; }
+
+    .hero-eyebrow {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 5px;
+      text-transform: uppercase; color: var(--gold-dim);
+      margin-bottom: 0.4rem;
+    }
+    .hero-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.6rem, 7vw, 4.8rem);
+      letter-spacing: 4px; line-height: 0.88;
+      color: var(--text); margin-bottom: 0.5rem;
+    }
+    .hero-title em { color: var(--gold); font-style: normal; }
+
+    .hero-bar { width: 44px; height: 3px; background: var(--gold); margin: 0.7rem 0; }
+
+    .hero-meta { font-size: 0.82rem; color: var(--text-muted); letter-spacing: 0.5px; }
+
+    /* ============================
+       MAIN LAYOUT
+    ============================ */
+    .main-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+    /* Section label */
+    .section-label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.5rem; letter-spacing: 3px;
+      color: var(--text);
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 1rem;
+    }
+    .section-label::before {
+      content: ''; display: block; width: 4px; height: 1.5rem;
+      background: var(--gold); border-radius: 2px; flex-shrink: 0;
+    }
+
+    /* Banner histórico */
+    .banner-historico {
+      background: rgba(192,57,43,0.08);
+      border: 1px solid rgba(192,57,43,0.25);
+      border-left: 4px solid var(--red);
+      border-radius: 4px;
+      padding: 0.7rem 1rem;
+      color: #ffaaaa;
+      font-size: 0.88rem;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+    }
+    .banner-historico a { color: var(--gold); }
+    .banner-historico.d-none { display: none !important; }
+
+    /* ============================
+       JORNADA ACCORDION
+    ============================ */
+    .jornadas-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .jornada-item { border-radius: 4px; overflow: hidden; }
+
+    .jornada-btn {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.05rem; letter-spacing: 2.5px;
+      padding: 0.7rem 1.1rem;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      text-align: left;
+    }
+    .jornada-btn:hover { background: var(--bg-card-2); color: var(--text); }
+    .jornada-btn.open {
+      background: var(--bg-card-2);
+      border-color: var(--gold);
+      border-left: 4px solid var(--gold);
+      color: var(--gold);
+    }
+    .jornada-btn .chevron { transition: transform 0.2s; }
+    .jornada-btn.open .chevron { transform: rotate(180deg); }
+
+    .jornada-body {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: none;
+      display: none;
+      padding: 0 1rem 0.8rem;
+    }
+    .jornada-body.open { display: block; }
+
+    /* Match table */
+    .match-table { width: 100%; border-collapse: separate; border-spacing: 0 3px; margin-top: 0.5rem; }
+    .match-table thead th {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 0.35rem 0.5rem; border: none; background: transparent;
+    }
+    .match-table thead th:nth-child(2),
+    .match-table thead th:nth-child(4) { text-align: center; width: 80px; }
+
+    .match-table tbody tr { background: var(--bg-surface); }
+    .match-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .match-table td { padding: 0.45rem 0.5rem; border: none; vertical-align: middle; }
+
+    .t-name {
+      font-weight: 600; font-size: 0.95rem; color: var(--text); letter-spacing: 0.2px;
+    }
+    .score-input {
+      background: #070C1A !important;
+      border: 1px solid var(--border-lt) !important;
+      border-radius: 3px !important;
+      color: var(--gold) !important;
+      font-family: 'Bebas Neue', sans-serif !important;
+      font-size: 1.35rem !important;
+      letter-spacing: 1px;
+      text-align: center !important;
+      width: 66px !important;
+      padding: 0.2rem 0.25rem !important;
+      display: block; margin: 0 auto;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .score-input:focus {
+      border-color: var(--gold) !important;
+      box-shadow: 0 0 0 2px var(--gold-glow) !important;
+      outline: none;
+    }
+    .score-input[readonly] {
+      color: var(--text-muted) !important;
+      border-color: var(--border) !important;
+      opacity: 0.65; cursor: not-allowed;
+    }
+
+    .vs-sep { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-align: center; letter-spacing: 1px; }
+
+    .btn-clear-j {
+      background: transparent; border: 1px solid var(--border-lt);
+      color: var(--text-muted); border-radius: 3px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; padding: 0.25rem 0.65rem; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-clear-j:hover { border-color: var(--red); color: #f99; }
+
+    .clear-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+
+    /* Clear all */
+    .btn-clear-all {
+      background: transparent; cursor: pointer;
+      border: 1px solid rgba(192,57,43,0.35); border-radius: 3px;
+      color: #e08080; font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+      padding: 0.4rem 1rem; transition: all 0.15s;
+    }
+    .btn-clear-all:hover { background: rgba(192,57,43,0.12); border-color: var(--red); color: #f99; }
+
+    /* ============================
+       STANDINGS
+    ============================ */
+    .standings-wrap { overflow-x: auto; border-radius: 4px; }
+
+    .standings-tbl { width: 100%; border-collapse: separate; border-spacing: 0 2px; }
+
+    .standings-tbl thead th {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 0.5rem 0.75rem; border: none;
+      border-bottom: 2px solid var(--border-lt);
+      background: transparent; white-space: nowrap;
+    }
+
+    .standings-tbl tbody tr { background: var(--bg-card); transition: background 0.1s; }
+    .standings-tbl tbody tr:hover { background: var(--bg-card-2); }
+
+    .standings-tbl tbody tr.s-first {
+      background: rgba(245,163,26,0.06);
+      border-left: 3px solid var(--gold);
+    }
+    .standings-tbl tbody tr.s-playoff {
+      border-left: 3px solid var(--green);
+    }
+    .standings-tbl tbody tr.s-cutoff td { border-bottom: 2px dashed rgba(27,140,74,0.35) !important; }
+
+    .standings-tbl td { padding: 0.55rem 0.75rem; border: none; vertical-align: middle; }
+
+    .pos-num {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 3px;
+      background: var(--bg-surface); color: var(--text-muted);
+    }
+    .pos-num.gold { background: var(--gold); color: #000; }
+
+    .s-equipo { font-weight: 600; font-size: 1rem; color: var(--text); }
+
+    .s-pct {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem;
+      color: var(--text); letter-spacing: 1px;
+    }
+
+    .s-num { font-size: 0.95rem; color: var(--text-muted); font-weight: 500; }
+
+    .playoff-legend {
+      display: flex; align-items: center; gap: 1.5rem;
+      margin-top: 0.75rem; font-size: 0.75rem;
+      color: var(--text-muted); letter-spacing: 0.5px;
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    /* ============================
+       SECTION DIVIDER
+    ============================ */
+    .s-divider { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+    /* ============================
+       COLLEY NOTE
+    ============================ */
+    .colley-note { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; letter-spacing: 0.3px; }
+
+    /* ============================
+       RESPONSIVE
+    ============================ */
+    @media (max-width: 640px) {
+      .hero-title { font-size: 2.4rem; }
+      .brand-main { font-size: 1.25rem; }
+      .hamburger { display: block; }
+      .season-strip { padding: 0 0.5rem; }
+      .standings-tbl .hide-sm { display: none; }
+      .score-input { width: 54px !important; font-size: 1.1rem !important; }
+    }
   </style>
 </head>
-<body class="bg-light">
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-    <div class="container">
-      <a class="navbar-brand" id="navBrand" href="#">ONEFA 14 Grandes</a>
+<body>
 
-      <!-- Selector de temporada -->
-      <div class="d-flex gap-2 mx-2">
-        <a id="btn2026" class="season-badge" href="?temporada=2026">2026</a>
-        <a id="btn2025" class="season-badge" href="?temporada=2025">2025</a>
+  <!-- ===== NAVBAR ===== -->
+  <nav class="topbar" id="topbar">
+    <div class="topbar-inner">
+      <a class="brand" id="navBrand" href="#">
+        <span class="brand-main">ONEFA</span>
+        <span class="brand-sub">14 Grandes</span>
+      </a>
+
+      <div class="season-strip">
+        <a id="btn2026" class="season-btn" href="?temporada=2026">2026</a>
+        <a id="btn2025" class="season-btn" href="?temporada=2025">2025</a>
       </div>
 
-      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTeams"
-              aria-controls="navbarTeams" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse justify-content-end" id="navbarTeams">
-        <ul class="navbar-nav">
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="equiposMenu" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">Equipos</a>
-            <ul class="dropdown-menu dropdown-menu-end" id="listaEquipos">
-              <!-- poblado por JS -->
-            </ul>
-          </li>
-        </ul>
+      <div class="nav-right">
+        <div class="dropdown-wrapper">
+          <button class="nav-toggle" id="dropdownToggle">
+            Equipos
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div class="dropdown-panel" id="dropdownPanel">
+            <div id="listaEquipos"></div>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger">☰</button>
       </div>
     </div>
+    <div class="mobile-menu" id="mobileMenu"></div>
   </nav>
 
-  <div class="container my-4">
-    <h1 id="tituloMain" class="text-center mb-4"></h1>
-    <p id="textoCorte" class="text-center text-muted"></p>
+  <!-- ===== HERO ===== -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Liga Mayor ONEFA — Conferencia</div>
+      <h1 class="hero-title" id="tituloMain">
+        14 GRANDES<br><em id="heroYear">2026</em>
+      </h1>
+      <div class="hero-bar"></div>
+      <p class="hero-meta" id="textoCorte"></p>
+    </div>
+  </header>
 
-    <!-- Banner histórico -->
-    <div id="bannerHistorico" class="alert alert-warning d-none" role="alert">
+  <!-- ===== MAIN ===== -->
+  <main class="main-wrap">
+
+    <!-- Histórico banner -->
+    <div id="bannerHistorico" class="banner-historico d-none">
       <strong>Temporada 2025 — Histórico.</strong>
-      Los resultados reales están cargados. Puedes simular jornadas pendientes.
-      <a href="?temporada=2026" class="alert-link ms-2">Ver temporada 2026 →</a>
+      Resultados oficiales cargados. Puedes simular las jornadas pendientes.
+      <a href="?temporada=2026">Ver temporada 2026 →</a>
     </div>
 
-    <h2 class="mt-4">Calendario y Pronósticos</h2>
-    <div class="accordion" id="calendarioAccordion"></div>
+    <!-- Calendario -->
+    <div class="section-label">Calendario y Pronósticos</div>
+    <div class="jornadas-list" id="calendarioAccordion"></div>
 
-    <div class="my-3 d-grid d-md-flex justify-content-end">
-      <button id="btnClearAll" type="button" class="btn btn-danger">
-        Borrar todos los pronósticos
-      </button>
+    <div style="display:flex; justify-content:flex-end; margin-top:1rem;">
+      <button id="btnClearAll" class="btn-clear-all">Borrar todos los pronósticos</button>
     </div>
 
-    <h2 class="mt-5">Tabla de Posiciones</h2>
-    <div class="table-responsive">
-      <table class="table table-striped table-hover" id="tablaPosiciones">
-        <thead class="table-dark">
+    <hr class="s-divider">
+
+    <!-- Standings -->
+    <div class="section-label">Tabla de Posiciones</div>
+    <div class="standings-wrap">
+      <table class="standings-tbl" id="tablaPosiciones">
+        <thead>
           <tr>
-            <th>Pos</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PP</th><th>Pct</th><th>PF</th><th>PC</th>
+            <th style="width:40px">#</th>
+            <th>Equipo</th>
+            <th class="hide-sm">PJ</th>
+            <th>PG</th>
+            <th class="hide-sm">PP</th>
+            <th>PCT</th>
+            <th class="hide-sm">PF</th>
+            <th class="hide-sm">PC</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
+    <div class="playoff-legend">
+      <span><span class="legend-dot" style="background:var(--gold)"></span> &nbsp;1° lugar</span>
+      <span><span class="legend-dot" style="background:var(--green)"></span> &nbsp;Zona playoffs (Top 8)</span>
+    </div>
 
-    <h2 class="mt-5">Tabla no oficial — Matriz de Colley</h2>
-    <p class="text-muted">Ranking calculado con el método de Colley (solo informativo).</p>
-    <div class="table-responsive">
-      <table class="table table-striped table-hover" id="tablaColley">
-        <thead class="table-dark">
+    <hr class="s-divider">
+
+    <!-- Colley -->
+    <div class="section-label">Ranking Colley <span style="font-size:0.9rem;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:400;letter-spacing:1px">(no oficial)</span></div>
+    <p class="colley-note">Ranking matemático calculado con el método matricial de Colley. Solo informativo.</p>
+    <div class="standings-wrap">
+      <table class="standings-tbl" id="tablaColley">
+        <thead>
           <tr>
-            <th>Pos</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PP</th><th>Colley</th>
+            <th style="width:40px">#</th>
+            <th>Equipo</th>
+            <th class="hide-sm">PJ</th>
+            <th>PG</th>
+            <th class="hide-sm">PP</th>
+            <th>Colley</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
-  </div>
+  </main>
 
   <script>
     // === Temporada activa desde URL ===
     function getTemporada() {
       const p = new URLSearchParams(window.location.search).get('temporada');
-      return (p === '2025') ? 2025 : 2026; // 2026 por defecto
+      return (p === '2025') ? 2025 : 2026;
     }
     const TEMPORADA = getTemporada();
-
-    // localStorage key específico por temporada (2025 mantiene clave legacy)
     const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
     const DATA_FILE   = `./onefa_data_${TEMPORADA}.json`;
 
-    let equipos = [];
-    let juegos  = [];
-    let JORNADAS_JUGADAS = 0;
-    let J_SIM_MIN = 0;
+    let equipos = [], juegos = [], JORNADAS_JUGADAS = 0, J_SIM_MIN = 0;
 
-    // === Inicializar UI de temporada ===
+    // === Season UI ===
     function initSeasonUI() {
-      document.title = `Pronósticos ONEFA 14 Grandes ${TEMPORADA}`;
-      document.getElementById('navBrand').textContent = `ONEFA 14 Grandes ${TEMPORADA}`;
-      document.getElementById('tituloMain').textContent =
-        `Pronósticos Liga Mayor ONEFA — Conferencia 14 Grandes ${TEMPORADA}`;
+      document.title = `ONEFA 14 Grandes ${TEMPORADA}`;
+      document.getElementById('heroYear').textContent = TEMPORADA;
+      document.getElementById('navBrand').href = `?temporada=${TEMPORADA}`;
 
       const btn26 = document.getElementById('btn2026');
       const btn25 = document.getElementById('btn2025');
       if (TEMPORADA === 2026) {
-        btn26.className = 'season-badge badge-season-active';
-        btn25.className = 'season-badge badge-season-inactive';
+        btn26.className = 'season-btn active';
+        btn25.className = 'season-btn inactive';
       } else {
-        btn25.className = 'season-badge badge-season-active';
-        btn26.className = 'season-badge badge-season-inactive';
+        btn25.className = 'season-btn active';
+        btn26.className = 'season-btn inactive';
         document.getElementById('bannerHistorico').classList.remove('d-none');
       }
     }
 
-    // === Carga de datos: JSON externo + merge con simulación previa (solo 0–0) ===
+    // === Carga de datos ===
     async function cargarDatos() {
       try {
-        const res = await fetch(DATA_FILE, { cache: 'no-store' });
+        const res  = await fetch(DATA_FILE, { cache: 'no-store' });
         const data = await res.json();
         equipos = data.equipos || [];
         juegos  = data.juegos  || [];
         JORNADAS_JUGADAS = Number(data.jornadas_jugadas) || 0;
-      } catch (e) {
-        console.error('Error cargando JSON', e);
-        equipos = [];
-        juegos  = [];
-        JORNADAS_JUGADAS = 0;
-      }
+      } catch (e) { equipos = []; juegos = []; JORNADAS_JUGADAS = 0; }
 
       function toKey(g) { return `${g.jornada}#${g.local}#${g.visita}`; }
       function mergeOnlyZeroBase(base, lsArr) {
         if (!Array.isArray(base) || !Array.isArray(lsArr)) return base;
         const m = new Map(lsArr.map(g => [toKey(g), g]));
         return base.map(g => {
-          const sl = Number(g.scoreLocal)  || 0;
-          const sv = Number(g.scoreVisita) || 0;
+          const sl = Number(g.scoreLocal) || 0, sv = Number(g.scoreVisita) || 0;
           if ((sl + sv) > 0) return g;
           const s = m.get(toKey(g));
           if (!s) return g;
-          return {
-            ...g,
+          return { ...g,
             scoreLocal:  Number.isFinite(s.scoreLocal)  ? s.scoreLocal  : sl,
-            scoreVisita: Number.isFinite(s.scoreVisita) ? s.scoreVisita : sv
-          };
+            scoreVisita: Number.isFinite(s.scoreVisita) ? s.scoreVisita : sv };
         });
       }
-
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) juegos = mergeOnlyZeroBase(juegos, arr);
-        }
+        if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) juegos = mergeOnlyZeroBase(juegos, arr); }
       } catch (_) {}
 
-      document.getElementById('textoCorte').textContent =
-        JORNADAS_JUGADAS > 0
-          ? `Ingresa marcadores para actualizar la tabla automáticamente. Basado en resultados hasta Jornada ${JORNADAS_JUGADAS}.`
-          : `Temporada ${TEMPORADA} — Ingresa marcadores para simular la tabla de posiciones.`;
+      document.getElementById('textoCorte').textContent = JORNADAS_JUGADAS > 0
+        ? `Resultados oficiales cargados hasta la Jornada ${JORNADAS_JUGADAS}. Simula las restantes.`
+        : `Temporada ${TEMPORADA} — Ingresa marcadores para ver la tabla de posiciones en tiempo real.`;
 
       generarMenuEquipos();
       generarCalendario();
@@ -182,88 +578,95 @@
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch (_) {}
     }
 
-    // === Navbar equipos ===
+    // === Menú equipos ===
     function generarMenuEquipos() {
-      const ul = document.getElementById('listaEquipos');
-      ul.innerHTML = '';
+      const panel  = document.getElementById('listaEquipos');
+      const mobile = document.getElementById('mobileMenu');
+      panel.innerHTML = ''; mobile.innerHTML = '';
       equipos.forEach(eq => {
-        const li = document.createElement('li');
-        const a  = document.createElement('a');
-        a.className = 'dropdown-item';
-        a.href = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMPORADA}`;
-        a.textContent = eq;
-        li.appendChild(a);
-        ul.appendChild(li);
+        const url = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMPORADA}`;
+        panel.insertAdjacentHTML('beforeend', `<a href="${url}">${eq}</a>`);
+        mobile.insertAdjacentHTML('beforeend', `<a href="${url}">${eq}</a>`);
       });
     }
 
-    // === Calendario editable / readonly por jornada ===
+    // === Calendario ===
     function generarCalendario() {
-      const accordion = document.getElementById('calendarioAccordion');
-      accordion.innerHTML = '';
-      const jornadas = {};
-      juegos.forEach((juego, index) => {
-        if (!jornadas[juego.jornada]) jornadas[juego.jornada] = [];
-        jornadas[juego.jornada].push({ ...juego, index });
+      const container = document.getElementById('calendarioAccordion');
+      container.innerHTML = '';
+      const jMap = {};
+      juegos.forEach((g, i) => {
+        if (!jMap[g.jornada]) jMap[g.jornada] = [];
+        jMap[g.jornada].push({ ...g, index: i });
       });
 
-      Object.keys(jornadas).sort((a, b) => Number(a) - Number(b)).forEach(jStr => {
-        const j = Number(jStr);
-        const headerId   = `jornada${j}Header`;
-        const collapseId = `jornada${j}Collapse`;
+      Object.keys(jMap).sort((a, b) => +a - +b).forEach(jStr => {
+        const j   = Number(jStr);
+        const isOpen = (j === JORNADAS_JUGADAS + 1) || (JORNADAS_JUGADAS === 0 && j === 1);
 
-        let html = `
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="${headerId}">
-              <button class="accordion-button ${j === JORNADAS_JUGADAS ? '' : 'collapsed'}"
-                      type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                Jornada ${j}
-              </button>
-            </h2>
-            <div id="${collapseId}" class="accordion-collapse collapse ${j === JORNADAS_JUGADAS ? 'show' : ''}"
-                 data-bs-parent="#calendarioAccordion">
-              <div class="accordion-body">
-                <table class="table table-sm">
-                  <thead><tr><th>Local</th><th>Score</th><th>Visita</th><th>Score</th></tr></thead>
-                  <tbody>`;
-
-        jornadas[j].forEach(juego => {
-          const readOnly = j <= JORNADAS_JUGADAS ? 'readonly' : '';
-          html += `
+        let rows = '';
+        jMap[j].forEach(g => {
+          const ro = j <= JORNADAS_JUGADAS ? 'readonly' : '';
+          rows += `
             <tr>
-              <td>${juego.local}</td>
-              <td><input type="number" class="form-control form-control-sm score-input"
-                         data-index="${juego.index}" data-team="local" min="0"
-                         value="${juego.scoreLocal}" ${readOnly}></td>
-              <td>${juego.visita}</td>
-              <td><input type="number" class="form-control form-control-sm score-input"
-                         data-index="${juego.index}" data-team="visita" min="0"
-                         value="${juego.scoreVisita}" ${readOnly}></td>
+              <td><span class="t-name">${g.local}</span></td>
+              <td style="text-align:center">
+                <input type="number" class="score-input"
+                       data-index="${g.index}" data-team="local"
+                       min="0" value="${g.scoreLocal}" ${ro}>
+              </td>
+              <td class="vs-sep">VS</td>
+              <td style="text-align:center">
+                <input type="number" class="score-input"
+                       data-index="${g.index}" data-team="visita"
+                       min="0" value="${g.scoreVisita}" ${ro}>
+              </td>
+              <td><span class="t-name" style="text-align:right;display:block">${g.visita}</span></td>
             </tr>`;
         });
 
-        html += `
-                  </tbody>
-                </table>
-                ${j >= J_SIM_MIN ? `
-                <div class="d-flex justify-content-end">
-                  <button type="button" class="btn btn-outline-danger btn-sm mt-2 btn-clear-jornada"
-                          data-jornada="${j}">
-                    Borrar pronósticos de la jornada
-                  </button>
-                </div>` : ``}
-              </div>
+        const clearBtn = j >= J_SIM_MIN
+          ? `<div class="clear-row"><button class="btn-clear-j btn-clear-jornada" data-jornada="${j}">Borrar jornada</button></div>`
+          : '';
+
+        container.insertAdjacentHTML('beforeend', `
+          <div class="jornada-item">
+            <button class="jornada-btn${isOpen ? ' open' : ''}" data-target="j${j}">
+              <span>Jornada ${j}</span>
+              <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="jornada-body${isOpen ? ' open' : ''}" id="j${j}">
+              <table class="match-table">
+                <thead>
+                  <tr>
+                    <th>Local</th><th style="text-align:center">PTS</th>
+                    <th style="text-align:center;width:40px"></th>
+                    <th style="text-align:center">PTS</th><th style="text-align:right">Visita</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+              ${clearBtn}
             </div>
-          </div>`;
-        accordion.insertAdjacentHTML('beforeend', html);
+          </div>`);
+      });
+
+      // Accordion toggle
+      container.addEventListener('click', e => {
+        const btn = e.target.closest('.jornada-btn');
+        if (!btn) return;
+        const id   = btn.dataset.target;
+        const body = document.getElementById(id);
+        const open = btn.classList.contains('open');
+        btn.classList.toggle('open', !open);
+        body.classList.toggle('open', !open);
       });
     }
 
     // === Standings ===
     function getGameResult(team1, team2) {
       const g = juegos.find(x =>
-        (x.local === team1 && x.visita === team2) || (x.local === team2 && x.visita === team1)
-      );
+        (x.local === team1 && x.visita === team2) || (x.local === team2 && x.visita === team1));
       if (!g) return null;
       const sl = g.scoreLocal, sv = g.scoreVisita;
       if (sl + sv <= 0 || sl === sv) return null;
@@ -292,7 +695,7 @@
 
       const rows = Object.entries(stats).map(([equipo, s]) => ({
         equipo, pj: s.pj, pg: s.pg, pp: s.pj - s.pg,
-        pct: s.pj ? (s.pg / s.pj) : 0, pf: s.pf, pc: s.pc
+        pct: s.pj ? s.pg / s.pj : 0, pf: s.pf, pc: s.pc
       })).sort((a, b) => b.pct - a.pct);
 
       let i = 0;
@@ -324,10 +727,19 @@
       const tbody = document.querySelector('#tablaPosiciones tbody');
       tbody.innerHTML = '';
       rows.forEach((r, idx) => {
+        const rowClass = idx === 0 ? 's-first' : idx < 8 ? 's-playoff' : '';
+        const cutClass = idx === 7 ? 's-cutoff' : '';
+        const numClass = idx === 0 ? 'pos-num gold' : 'pos-num';
         tbody.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td>${idx + 1}</td><td>${r.equipo}</td><td>${r.pj}</td><td>${r.pg}</td>
-            <td>${r.pp}</td><td>${r.pct.toFixed(3)}</td><td>${r.pf}</td><td>${r.pc}</td>
+          <tr class="${rowClass} ${cutClass}">
+            <td><span class="${numClass}">${idx + 1}</span></td>
+            <td class="s-equipo">${r.equipo}</td>
+            <td class="s-num hide-sm">${r.pj}</td>
+            <td class="s-num">${r.pg}</td>
+            <td class="s-num hide-sm">${r.pp}</td>
+            <td class="s-pct">${r.pct.toFixed(3)}</td>
+            <td class="s-num hide-sm">${r.pf}</td>
+            <td class="s-num hide-sm">${r.pc}</td>
           </tr>`);
       });
     }
@@ -349,22 +761,26 @@
           C[iL][iL] += 1; C[iV][iV] += 1; C[iL][iV] -= 1; C[iV][iL] -= 1;
         }
       });
-
       for (let i = 0; i < n; i++) { C[i][i] += 2; b[i] = 1 + (pg[i] - pp[i]) / 2; }
 
       const r = solveLinearSystem(C, b);
-      const rows = equipos.map((name, i) => ({
+      const colRows = equipos.map((name, i) => ({
         equipo: name, pj: pj[i], pg: pg[i], pp: pp[i],
         colley: Number.isFinite(r[i]) ? r[i] : 0
       })).sort((a, b) => b.colley - a.colley);
 
       const tbody = document.querySelector('#tablaColley tbody');
       tbody.innerHTML = '';
-      rows.forEach((row, k) => {
+      colRows.forEach((row, k) => {
+        const numClass = k === 0 ? 'pos-num gold' : 'pos-num';
         tbody.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td>${k + 1}</td><td>${row.equipo}</td><td>${row.pj}</td><td>${row.pg}</td>
-            <td>${row.pp}</td><td>${row.colley.toFixed(3)}</td>
+          <tr class="${k === 0 ? 's-first' : ''}">
+            <td><span class="${numClass}">${k + 1}</span></td>
+            <td class="s-equipo">${row.equipo}</td>
+            <td class="s-num hide-sm">${row.pj}</td>
+            <td class="s-num">${row.pg}</td>
+            <td class="s-num hide-sm">${row.pp}</td>
+            <td class="s-pct">${row.colley.toFixed(3)}</td>
           </tr>`);
       });
     }
@@ -418,11 +834,30 @@
       if (changed) { calcularStandings(); computeAndRenderColley(); saveSimulacion(); }
     }
 
+    // === Event listeners ===
     document.addEventListener('click', e => {
-      const btn = e.target.closest('.btn-clear-jornada');
-      if (btn) clearJornada(Number(btn.dataset.jornada));
-      if (e.target && e.target.id === 'btnClearAll') {
+      const clearBtn = e.target.closest('.btn-clear-jornada');
+      if (clearBtn) { clearJornada(Number(clearBtn.dataset.jornada)); return; }
+      if (e.target.id === 'btnClearAll') {
         if (confirm('¿Borrar TODOS los pronósticos simulados?')) clearAllPronosticos();
+        return;
+      }
+      // Dropdown toggle
+      if (e.target.closest('#dropdownToggle')) {
+        const panel = document.getElementById('dropdownPanel');
+        const toggle = document.getElementById('dropdownToggle');
+        const open = panel.classList.toggle('open');
+        toggle.classList.toggle('open', open);
+        return;
+      }
+      // Close dropdown on outside click
+      if (!e.target.closest('.dropdown-wrapper')) {
+        document.getElementById('dropdownPanel').classList.remove('open');
+        document.getElementById('dropdownToggle').classList.remove('open');
+      }
+      // Hamburger
+      if (e.target.id === 'hamburger') {
+        document.getElementById('mobileMenu').classList.toggle('open');
       }
     });
 
