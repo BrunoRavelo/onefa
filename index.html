@@ -5,625 +5,388 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ONEFA 14 Grandes</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* ===== VARIABLES ===== */
-    :root {
-      --navy:       #0B1220;
-      --navy-2:     #152035;
-      --gold:       #B8780A;
-      --gold-bg:    #FEF9EE;
-      --gold-border:#F5D78E;
-      --green:      #166534;
-      --green-bg:   #F0FDF4;
-      --red:        #991B1B;
-      --bg:         #F3F4F6;
-      --surface:    #FFFFFF;
-      --border:     #E5E7EB;
-      --border-s:   #D1D5DB;
-      --text:       #111827;
-      --muted:      #6B7280;
-      --light:      #9CA3AF;
-      --shadow:     0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
-      --shadow-md:  0 4px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.05);
-    }
-    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ===== NAVBAR ===== */
-    .topbar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      background: var(--navy);
-      border-bottom: 3px solid var(--gold);
-    }
-    .topbar-inner {
-      max-width: 1100px; margin: 0 auto;
-      display: flex; align-items: center;
-      padding: 0 1rem; gap: 0; height: 56px;
-    }
-
-    /* Brand */
-    .brand {
-      display: flex; flex-direction: column; justify-content: center;
-      text-decoration: none; padding-right: 1rem;
-      border-right: 1px solid rgba(255,255,255,0.1);
-      flex-shrink: 0;
-    }
-    .brand-main { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--gold); letter-spacing: 3px; line-height:1; }
-    .brand-sub  { font-size: 0.58rem; font-weight:700; letter-spacing: 4px; color: rgba(255,255,255,0.35); text-transform:uppercase; }
-
-    /* Conference tabs */
-    .conf-tabs {
-      display: flex; align-items: stretch; height: 100%;
-      padding: 0 0.5rem; border-right: 1px solid rgba(255,255,255,0.1);
-    }
-    .conf-tab {
-      display: flex; align-items: center;
-      padding: 0 0.9rem; text-decoration: none;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 0.88rem; letter-spacing: 2px;
-      color: rgba(255,255,255,0.45);
-      border-bottom: 3px solid transparent;
-      margin-bottom: -3px;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-    .conf-tab:hover { color: rgba(255,255,255,0.8); }
-    .conf-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-
-    /* Season select */
-    .season-wrap { padding: 0 0.75rem; border-right: 1px solid rgba(255,255,255,0.1); flex-shrink:0; }
-    .season-select {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-      color: #fff; border-radius: 4px; padding: 0.2rem 0.5rem;
-      font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; letter-spacing: 1px;
-      cursor: pointer; appearance: none;
-    }
-    .season-select option { background: var(--navy); color: #fff; }
-
-    /* Equipos dropdown */
-    .nav-right { margin-left: auto; display:flex; align-items:center; }
-    .eq-wrapper { position: relative; }
-    .eq-btn {
-      background: transparent; border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 4px; color: rgba(255,255,255,0.7);
-      padding: 0.3rem 0.75rem;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 0.85rem; font-weight:600; letter-spacing: 1.5px;
-      text-transform: uppercase; cursor: pointer;
-      display: flex; align-items: center; gap: 5px;
-      transition: all 0.15s;
-    }
-    .eq-btn:hover { color:#fff; border-color: rgba(255,255,255,0.35); }
-    .eq-btn svg { width:12px; height:12px; transition: transform 0.15s; flex-shrink:0; }
-    .eq-btn.open svg { transform: rotate(180deg); }
-
-    .eq-panel {
-      display: none; position: absolute; top: calc(100% + 6px); right: 0;
-      background: #111827; border: 1px solid #374151;
-      border-radius: 6px; min-width: 200px;
-      padding: 0.35rem 0; z-index: 100;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-      max-height: 70vh; overflow-y: auto;
-    }
-    .eq-panel.open { display: block; }
-    .eq-panel a {
-      display: block; padding: 0.45rem 1rem;
-      color: #D1D5DB; font-size: 0.9rem; font-weight:500; text-decoration: none;
-      transition: all 0.1s;
-    }
-    .eq-panel a:hover { background: rgba(184,120,10,0.12); color: var(--gold); }
-
-    /* ===== HERO ===== */
-    .hero {
-      margin-top: 56px;
-      background: var(--navy);
-      padding: 2rem 1rem 1.75rem;
-      position: relative; overflow: hidden;
-    }
-    .hero::before {
-      content:'';
-      position:absolute; inset:0;
-      background: repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,0.015) 59px,rgba(255,255,255,0.015) 60px);
-      pointer-events:none;
-    }
-    .hero::after {
-      content:''; position:absolute; top:-60px; right:-80px;
-      width:300px; height:300px;
-      background: radial-gradient(circle, rgba(184,120,10,0.1) 0%, transparent 70%);
-      pointer-events:none;
-    }
-    .hero-inner { max-width:1100px; margin:0 auto; position:relative; }
-    .hero-eye { font-size:0.7rem; font-weight:700; letter-spacing:5px; text-transform:uppercase; color:rgba(184,120,10,0.7); margin-bottom:0.3rem; }
-    .hero-title {
-      font-family:'Bebas Neue',sans-serif;
-      font-size: clamp(2.8rem, 8vw, 5rem);
-      line-height: 0.9; letter-spacing:4px;
-      color:#fff; margin-bottom:0.5rem;
-    }
-    .hero-title em { color: var(--gold); font-style:normal; }
-    .hero-bar { width:40px; height:3px; background:var(--gold); margin:0.7rem 0; }
-    .hero-meta { font-size:0.85rem; color:rgba(255,255,255,0.45); letter-spacing:0.3px; }
-
-    /* Banner histórico */
-    .banner-historico {
-      background: #FEF2F2; border-left:4px solid var(--red);
-      border-radius:4px; padding:0.75rem 1rem;
-      color:#7F1D1D; font-size:0.9rem; font-weight:500;
-      margin-bottom:1.5rem;
-    }
-    .banner-historico a { color:var(--red); font-weight:700; }
-    .d-none { display:none !important; }
-
-    /* ===== MAIN WRAP ===== */
-    .main-wrap { max-width:1100px; margin:0 auto; padding:2rem 1rem 4rem; }
-
-    /* Section label */
-    .s-label {
-      font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:3px;
-      color:var(--text); display:flex; align-items:center; gap:10px; margin-bottom:1rem;
-    }
-    .s-label::before { content:''; display:block; width:4px; height:1.4rem; background:var(--gold); border-radius:2px; flex-shrink:0; }
-    .s-label small { font-family:'Barlow Condensed',sans-serif; font-size:0.85rem; font-weight:400; color:var(--muted); letter-spacing:1px; }
-
-    /* ===== ACCORDION ===== */
-    .j-list { display:flex; flex-direction:column; gap:3px; }
-    .j-item { border-radius:6px; overflow:hidden; box-shadow:var(--shadow); }
-    .j-btn {
-      width:100%; background:var(--surface); border:1px solid var(--border);
-      border-radius:6px; color:var(--muted); cursor:pointer;
-      font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:2px;
-      padding:0.65rem 1rem; display:flex; align-items:center; justify-content:space-between;
-      transition:all 0.15s; text-align:left;
-    }
-    .j-btn:hover { background:var(--gold-bg); border-color:var(--gold-border); color:var(--gold); }
-    .j-btn.open {
-      background:var(--gold-bg); border-color:var(--gold); border-left:4px solid var(--gold);
-      color:var(--gold); border-radius:6px 6px 0 0;
-    }
-    .j-btn .chev { transition:transform 0.2s; }
-    .j-btn.open .chev { transform:rotate(180deg); }
-    .j-body {
-      background:var(--surface); border:1px solid var(--border); border-top:none;
-      border-radius:0 0 6px 6px; display:none; padding:0.25rem 0.75rem 0.75rem;
-    }
-    .j-body.open { display:block; }
-
-    /* Match table */
-    .m-tbl { width:100%; border-collapse:separate; border-spacing:0 2px; margin-top:0.4rem; }
-    .m-tbl thead th {
-      font-size:0.65rem; font-weight:700; letter-spacing:2px; text-transform:uppercase;
-      color:var(--light); padding:0.3rem 0.4rem; border:none; background:transparent;
-    }
-    .m-tbl thead th:nth-child(2), .m-tbl thead th:nth-child(4) { text-align:center; width:76px; }
-    .m-tbl tbody tr { background:var(--bg); border-radius:4px; }
-    .m-tbl tbody tr:hover { background:#EEF2FF; }
-    .m-tbl td { padding:0.4rem 0.4rem; border:none; vertical-align:middle; }
-    .t-name { font-weight:600; font-size:1rem; color:var(--text); }
-    .vs-sep { text-align:center; color:var(--light); font-size:0.75rem; font-weight:700; letter-spacing:1px; }
-
-    /* Score input — keep dark "scoreboard" look */
-    .score-inp {
-      background:#111827 !important; border:1.5px solid #374151 !important;
-      border-radius:4px !important; color:#F5A31A !important;
-      font-family:'Bebas Neue',sans-serif !important; font-size:1.4rem !important;
-      letter-spacing:1px; text-align:center !important;
-      width:64px !important; padding:0.15rem 0.25rem !important;
-      display:block; margin:0 auto; transition:border-color 0.15s, box-shadow 0.15s;
-    }
-    .score-inp:focus { border-color:#F5A31A !important; box-shadow:0 0 0 2px rgba(245,163,26,0.15) !important; outline:none; }
-    .score-inp[readonly] { color:#4B5563 !important; border-color:#374151 !important; cursor:not-allowed; opacity:0.6; }
-
-    .btn-clr-j {
-      background:transparent; border:1px solid var(--border-s); border-radius:4px;
-      color:var(--muted); font-family:'Barlow Condensed',sans-serif;
-      font-size:0.75rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
-      padding:0.25rem 0.65rem; cursor:pointer; transition:all 0.15s;
-    }
-    .btn-clr-j:hover { border-color:var(--red); color:var(--red); }
-    .clr-row { display:flex; justify-content:flex-end; margin-top:0.5rem; }
-    .btn-clr-all {
-      background:transparent; cursor:pointer; border:1px solid #FECACA; border-radius:4px;
-      color:var(--red); font-family:'Barlow Condensed',sans-serif;
-      font-size:0.8rem; font-weight:600; letter-spacing:2px; text-transform:uppercase;
-      padding:0.4rem 1rem; transition:all 0.15s;
-    }
-    .btn-clr-all:hover { background:#FEF2F2; border-color:var(--red); }
-
-    /* ===== STANDINGS ===== */
-    .s-wrap { overflow-x:auto; border-radius:6px; box-shadow:var(--shadow); }
-    .s-tbl { width:100%; border-collapse:separate; border-spacing:0; }
-    .s-tbl thead th {
-      font-size:0.68rem; font-weight:700; letter-spacing:2px; text-transform:uppercase;
-      color:var(--muted); padding:0.6rem 0.85rem; background:var(--navy); color:rgba(255,255,255,0.6);
-      border:none; white-space:nowrap;
-    }
-    .s-tbl thead th:first-child { border-radius:6px 0 0 0; }
-    .s-tbl thead th:last-child  { border-radius:0 6px 0 0; }
-    .s-tbl tbody tr { background:var(--surface); transition:background 0.1s; border-bottom:1px solid var(--border); }
-    .s-tbl tbody tr:last-child { border-bottom:none; }
-    .s-tbl tbody tr:hover { background:var(--gold-bg); }
-    .s-tbl tbody tr.r-first { background:var(--gold-bg); border-left:4px solid var(--gold); }
-    .s-tbl tbody tr.r-playoff { border-left:4px solid var(--green); }
-    .s-tbl tbody tr.r-cutoff td { border-bottom:2px dashed rgba(22,101,52,0.3) !important; }
-    .s-tbl td { padding:0.55rem 0.85rem; border:none; vertical-align:middle; }
-    .pos-n {
-      font-family:'Bebas Neue',sans-serif; font-size:1rem;
-      width:26px; height:26px; border-radius:3px;
-      display:inline-flex; align-items:center; justify-content:center;
-      background:var(--bg); color:var(--muted); font-weight:normal;
-    }
-    .pos-n.gold { background:var(--gold); color:#fff; }
-    .s-eq { font-weight:700; font-size:1rem; color:var(--text); }
-    .s-pct { font-family:'Bebas Neue',sans-serif; font-size:1.15rem; color:var(--text); }
-    .s-num { font-size:0.95rem; color:var(--muted); font-weight:500; }
-
-    .legend { display:flex; gap:1.25rem; margin-top:0.75rem; flex-wrap:wrap; font-size:0.78rem; color:var(--muted); }
-    .legend-dot { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:4px; }
-    .s-divider { border:none; border-top:1px solid var(--border); margin:2.5rem 0; }
-    .colley-note { font-size:0.85rem; color:var(--muted); margin-bottom:0.75rem; }
-
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 640px) {
-      .conf-tab { padding:0 0.5rem; font-size:0.75rem; }
-      .brand-main { font-size:1.15rem; }
-      .s-tbl .hide-sm { display:none; }
-      .m-tbl .hide-sm { display:none; }
-      .score-inp { width:52px !important; font-size:1.15rem !important; }
-      .t-name { font-size:0.88rem; }
-    }
-  </style>
+  <link rel="stylesheet" href="onefa.css">
 </head>
 <body>
 
-  <!-- ===== NAVBAR ===== -->
-  <nav class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="index.html">
-        <span class="brand-main">ONEFA</span>
-        <span class="brand-sub">Pronósticos</span>
-      </a>
-
-      <!-- Conference tabs -->
-      <div class="conf-tabs">
-        <a class="conf-tab active" href="index.html">14 Grandes</a>
-        <a class="conf-tab" href="nacional.html">Nacional</a>
-      </div>
-
-      <!-- Season -->
-      <div class="season-wrap">
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-main">ONEFA</span>
+      <span class="brand-sub">Pronósticos</span>
+    </a>
+    <div class="conf-tabs">
+      <a class="conf-tab active" href="index.html">14 Grandes</a>
+      <a class="conf-tab"        href="nacional.html">Nacional</a>
+    </div>
+    <div class="season-wrap">
+      <div class="select-arrow-wrap">
         <select class="season-select" id="seasonSelect" onchange="cambiarTemporada(this.value)">
           <option value="2026">2026</option>
           <option value="2025">2025</option>
         </select>
+        <span class="select-arrow">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
       </div>
+    </div>
+    <div class="nav-right">
+      <div class="eq-wrapper">
+        <button class="eq-btn" id="eqBtn" type="button">
+          Equipos
+          <svg class="chev-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="eq-panel" id="eqPanel"></div>
+      </div>
+    </div>
+  </div>
+</nav>
 
-      <!-- Equipos -->
-      <div class="nav-right">
-        <div class="eq-wrapper">
-          <button class="eq-btn" id="eqBtn">
-            Equipos
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="eq-panel" id="eqPanel">
-            <div id="listaEquipos"></div>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-eye">Liga Mayor ONEFA — Conferencia</div>
+    <h1 class="hero-title">14 GRANDES<br><em id="heroYear">2026</em></h1>
+    <div class="hero-bar"></div>
+    <p class="hero-meta" id="textoCorte"></p>
+  </div>
+</header>
+
+<main class="main-wrap">
+  <div id="bannerHistorico" class="banner-historico d-none">
+    <strong>Temporada 2025 — Histórico.</strong>
+    Resultados oficiales hasta J10 cargados.
+    <a href="index.html?temporada=2026">Ver temporada 2026 →</a>
+  </div>
+
+  <div class="s-label">Calendario y Pronósticos</div>
+  <div class="j-list" id="calendarioAccordion"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+    <button id="btnClearAll" class="btn-clr-all" type="button">Borrar todos los pronósticos</button>
+  </div>
+
+  <hr class="s-divider">
+
+  <div class="s-label">Tabla de Posiciones</div>
+  <div class="s-wrap">
+    <table class="s-tbl" id="tablaPosiciones">
+      <thead><tr>
+        <th style="width:36px">#</th>
+        <th>Equipo</th>
+        <th class="hide-sm">PJ</th>
+        <th>PG</th>
+        <th class="hide-sm">PP</th>
+        <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
+        <th class="hide-md">PF</th>
+        <th class="hide-md">PC</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <span><span class="legend-dot" style="background:var(--onefa-green)"></span>1.° lugar</span>
+    <span><span class="legend-dot" style="background:var(--onefa-mid)"></span>Zona playoffs (Top 8)</span>
+    <span style="color:var(--light);font-size:.75rem">% Vict = victorias ÷ jugados</span>
+  </div>
+
+  <hr class="s-divider">
+
+  <div class="s-label">Ranking Colley <small>(no oficial)</small></div>
+  <p class="colley-note">Método matricial de Colley — clasifica por calidad de rivales, no solo W/L.</p>
+  <div class="s-wrap">
+    <table class="s-tbl" id="tablaColley">
+      <thead><tr>
+        <th style="width:36px">#</th>
+        <th>Equipo</th>
+        <th class="hide-sm">PJ</th>
+        <th>PG</th>
+        <th class="hide-sm">PP</th>
+        <th>Colley</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+function getTemporada() {
+  return new URLSearchParams(window.location.search).get('temporada') === '2025' ? 2025 : 2026;
+}
+const TEMPORADA   = getTemporada();
+const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
+const DATA_FILE   = `./onefa_data_${TEMPORADA}.json`;
+
+let equipos = [], juegos = [], JORNADAS_JUGADAS = 0;
+
+document.getElementById('seasonSelect').value = String(TEMPORADA);
+document.getElementById('heroYear').textContent = TEMPORADA;
+document.title = `ONEFA 14 Grandes ${TEMPORADA}`;
+if (TEMPORADA === 2025) document.getElementById('bannerHistorico').classList.remove('d-none');
+
+function cambiarTemporada(v) { window.location.href = `index.html?temporada=${v}`; }
+
+async function cargarDatos() {
+  try {
+    const res = await fetch(DATA_FILE, { cache:'no-store' });
+    const d   = await res.json();
+    equipos = d.equipos || [];
+    juegos  = d.juegos  || [];
+    JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
+  } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; }
+
+  const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const ls = JSON.parse(raw);
+      const m  = new Map(ls.map(g => [toKey(g), g]));
+      juegos = juegos.map(g => {
+        if ((g.scoreLocal||0) + (g.scoreVisita||0) > 0) return g;
+        const s = m.get(toKey(g)); if (!s) return g;
+        return { ...g, scoreLocal: s.scoreLocal||0, scoreVisita: s.scoreVisita||0 };
+      });
+    }
+  } catch {}
+
+  document.getElementById('textoCorte').innerHTML = JORNADAS_JUGADAS > 0
+    ? `Resultados oficiales hasta <strong>Jornada ${JORNADAS_JUGADAS}</strong>. Simula las restantes.`
+    : `Temporada ${TEMPORADA} — ingresa marcadores para actualizar la tabla.`;
+
+  generarMenu();
+  generarCalendario();
+  recalcular();
+}
+
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch {} }
+
+function generarMenu() {
+  const panel = document.getElementById('eqPanel');
+  panel.innerHTML = '';
+  equipos.forEach(eq => {
+    const a = document.createElement('a');
+    a.href = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMPORADA}`;
+    a.textContent = eq;
+    panel.appendChild(a);
+  });
+}
+
+function generarCalendario() {
+  const acc = document.getElementById('calendarioAccordion');
+  acc.innerHTML = '';
+  const jMap = {};
+  juegos.forEach((g, i) => { (jMap[g.jornada] = jMap[g.jornada]||[]).push({ ...g, index:i }); });
+
+  Object.keys(jMap).sort((a,b) => +a - +b).forEach(jStr => {
+    const j      = Number(jStr);
+    const locked = j <= JORNADAS_JUGADAS;
+    const isOpen = j === JORNADAS_JUGADAS + 1 || (JORNADAS_JUGADAS === 0 && j === 1);
+
+    let rows = '';
+    jMap[j].forEach(g => {
+      const ro = locked ? 'readonly' : '';
+      rows += `<tr>
+        <td><span class="t-name">${g.local}</span></td>
+        <td><input type="number" class="score-inp ta-c" data-idx="${g.index}" data-team="local"  min="0" value="${g.scoreLocal}"  ${ro}></td>
+        <td class="vs-sep hide-sm">VS</td>
+        <td><input type="number" class="score-inp ta-c" data-idx="${g.index}" data-team="visita" min="0" value="${g.scoreVisita}" ${ro}></td>
+        <td><span class="t-name" style="display:block;text-align:right">${g.visita}</span></td>
+      </tr>`;
+    });
+
+    const bodyId = `jb${j}`;
+    acc.insertAdjacentHTML('beforeend', `
+      <div class="j-item">
+        <button class="j-btn${isOpen?' open':''}" data-target="${bodyId}" type="button">
+          <span>Jornada ${j}${locked?' ✓':''}</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="j-body${isOpen?' open':''}" id="${bodyId}">
+          <table class="m-tbl">
+            <thead><tr>
+              <th>Local</th><th class="ta-c">Pts</th>
+              <th class="hide-sm ta-c"></th>
+              <th class="ta-c">Pts</th><th class="ta-r">Visita</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="clr-row">
+            <button class="btn-clr-j" data-clearj="${j}" type="button">Borrar jornada</button>
           </div>
         </div>
-      </div>
-    </div>
-  </nav>
+      </div>`);
+  });
+}
 
-  <!-- ===== HERO ===== -->
-  <header class="hero">
-    <div class="hero-inner">
-      <div class="hero-eye">Liga Mayor ONEFA — Conferencia</div>
-      <h1 class="hero-title">14 GRANDES<br><em id="heroYear">2026</em></h1>
-      <div class="hero-bar"></div>
-      <p class="hero-meta" id="textoCorte"></p>
-    </div>
-  </header>
+function leerScores() {
+  document.querySelectorAll('.score-inp').forEach(inp => {
+    const i = Number(inp.dataset.idx);
+    const k = inp.dataset.team === 'local' ? 'scoreLocal' : 'scoreVisita';
+    juegos[i][k] = Number(inp.value) || 0;
+  });
+}
 
-  <!-- ===== MAIN ===== -->
-  <main class="main-wrap">
-    <div id="bannerHistorico" class="banner-historico d-none">
-      <strong>Temporada 2025 — Histórico.</strong>
-      Resultados reales cargados. Simula las jornadas pendientes.
-      <a href="index.html?temporada=2026">Ver temporada 2026 →</a>
-    </div>
+function getDirecto(t1, t2) {
+  const g = juegos.find(x => (x.local===t1&&x.visita===t2)||(x.local===t2&&x.visita===t1));
+  if (!g || (g.scoreLocal+g.scoreVisita)===0 || g.scoreLocal===g.scoreVisita) return null;
+  return g.local===t1 ? (g.scoreLocal>g.scoreVisita?1:-1) : (g.scoreVisita>g.scoreLocal?1:-1);
+}
 
-    <div class="s-label">Calendario y Pronósticos</div>
-    <div class="j-list" id="calendarioAccordion"></div>
-    <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
-      <button id="btnClearAll" class="btn-clr-all">Borrar todos los pronósticos</button>
-    </div>
-
-    <hr class="s-divider">
-
-    <div class="s-label">Tabla de Posiciones</div>
-    <div class="s-wrap">
-      <table class="s-tbl" id="tablaPosiciones">
-        <thead><tr>
-          <th style="width:38px">#</th><th>Equipo</th>
-          <th class="hide-sm">PJ</th><th>PG</th><th class="hide-sm">PP</th>
-          <th>PCT</th><th class="hide-sm">PF</th><th class="hide-sm">PC</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="legend">
-      <span><span class="legend-dot" style="background:var(--gold)"></span>1.° lugar</span>
-      <span><span class="legend-dot" style="background:var(--green)"></span>Zona playoffs (Top 8)</span>
-    </div>
-
-    <hr class="s-divider">
-
-    <div class="s-label">Ranking Colley <small>(no oficial)</small></div>
-    <p class="colley-note">Método matricial de Colley. Informativo.</p>
-    <div class="s-wrap">
-      <table class="s-tbl" id="tablaColley">
-        <thead><tr>
-          <th style="width:38px">#</th><th>Equipo</th>
-          <th class="hide-sm">PJ</th><th>PG</th><th class="hide-sm">PP</th><th>Colley</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </main>
-
-  <script>
-    function getTemporada() {
-      const p = new URLSearchParams(window.location.search).get('temporada');
-      return (p === '2025') ? 2025 : 2026;
+function calcStandings() {
+  const stats = {};
+  equipos.forEach(e => { stats[e] = { pj:0, pg:0, pf:0, pc:0 }; });
+  juegos.forEach(g => {
+    const sl=g.scoreLocal, sv=g.scoreVisita;
+    if (sl+sv>0 && sl!==sv) {
+      stats[g.local].pj++; stats[g.visita].pj++;
+      stats[g.local].pf+=sl; stats[g.local].pc+=sv;
+      stats[g.visita].pf+=sv; stats[g.visita].pc+=sl;
+      if (sl>sv) stats[g.local].pg++; else stats[g.visita].pg++;
     }
-    const TEMPORADA = getTemporada();
-    const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
-    const DATA_FILE   = `./onefa_data_${TEMPORADA}.json`;
+  });
+  const rows = equipos.map(eq => ({
+    equipo:eq, ...stats[eq], pp:stats[eq].pj-stats[eq].pg,
+    pct: stats[eq].pj ? stats[eq].pg/stats[eq].pj : 0
+  })).sort((a,b) => b.pct-a.pct);
 
-    let equipos = [], juegos = [], JORNADAS_JUGADAS = 0;
-
-    document.getElementById('seasonSelect').value = String(TEMPORADA);
-
-    function cambiarTemporada(v) {
-      window.location.href = `index.html?temporada=${v}`;
-    }
-
-    function initUI() {
-      document.title = `ONEFA 14 Grandes ${TEMPORADA}`;
-      document.getElementById('heroYear').textContent = TEMPORADA;
-      if (TEMPORADA === 2025) document.getElementById('bannerHistorico').classList.remove('d-none');
-    }
-
-    async function cargarDatos() {
-      try {
-        const res = await fetch(DATA_FILE, { cache:'no-store' });
-        const d   = await res.json();
-        equipos = d.equipos || []; juegos = d.juegos || [];
-        JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
-      } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; }
-
-      const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
-      const merge = (base, ls) => {
-        if (!Array.isArray(ls)) return base;
-        const m = new Map(ls.map(g=>[toKey(g),g]));
-        return base.map(g => {
-          if ((g.scoreLocal||0)+(g.scoreVisita||0) > 0) return g;
-          const s = m.get(toKey(g)); if (!s) return g;
-          return {...g, scoreLocal: s.scoreLocal||0, scoreVisita: s.scoreVisita||0};
-        });
-      };
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) juegos = merge(juegos, JSON.parse(raw));
-      } catch {}
-
-      document.getElementById('textoCorte').textContent = JORNADAS_JUGADAS > 0
-        ? `Resultados oficiales hasta Jornada ${JORNADAS_JUGADAS}. Simula las restantes.`
-        : `Temporada ${TEMPORADA} — ingresa marcadores para actualizar la tabla.`;
-
-      generarMenu(); generarCalendario(); calcStandings(); calcColley();
-    }
-
-    function save() {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch {}
-    }
-
-    /* ---- Menú ---- */
-    function generarMenu() {
-      const panel = document.getElementById('listaEquipos');
-      panel.innerHTML = '';
-      equipos.forEach(eq => {
-        const a = document.createElement('a');
-        a.href = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMPORADA}`;
-        a.textContent = eq;
-        panel.appendChild(a);
-      });
-    }
-
-    /* ---- Calendario ---- */
-    function generarCalendario() {
-      const acc = document.getElementById('calendarioAccordion');
-      acc.innerHTML = '';
-      const jMap = {};
-      juegos.forEach((g,i) => { (jMap[g.jornada] = jMap[g.jornada]||[]).push({...g,index:i}); });
-
-      Object.keys(jMap).sort((a,b)=>+a-+b).forEach(jStr => {
-        const j = Number(jStr);
-        const isOpen = j === JORNADAS_JUGADAS + 1 || (JORNADAS_JUGADAS === 0 && j === 1);
-        let rows = '';
-        jMap[j].forEach(g => {
-          const ro = j <= JORNADAS_JUGADAS ? 'readonly' : '';
-          rows += `<tr>
-            <td><span class="t-name">${g.local}</span></td>
-            <td style="text-align:center"><input type="number" class="score-inp" data-index="${g.index}" data-team="local" min="0" value="${g.scoreLocal}" ${ro}></td>
-            <td class="vs-sep hide-sm">VS</td>
-            <td style="text-align:center"><input type="number" class="score-inp" data-index="${g.index}" data-team="visita" min="0" value="${g.scoreVisita}" ${ro}></td>
-            <td><span class="t-name" style="text-align:right;display:block">${g.visita}</span></td>
-          </tr>`;
-        });
-        const clrBtn = `<div class="clr-row"><button class="btn-clr-j btn-clr-jornada" data-jornada="${j}">Borrar jornada</button></div>`;
-
-        acc.insertAdjacentHTML('beforeend', `
-          <div class="j-item">
-            <button class="j-btn${isOpen?' open':''}" data-t="jb${j}">
-              <span>Jornada ${j}</span>
-              <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="j-body${isOpen?' open':''}" id="jb${j}">
-              <table class="m-tbl">
-                <thead><tr><th>Local</th><th style="text-align:center">PTS</th><th class="hide-sm"></th><th style="text-align:center">PTS</th><th style="text-align:right">Visita</th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-              ${clrBtn}
-            </div>
-          </div>`);
-      });
-
-      document.getElementById('calendarioAccordion').addEventListener('click', e => {
-        const b = e.target.closest('.j-btn'); if (!b) return;
-        const body = document.getElementById(b.dataset.t);
-        b.classList.toggle('open'); body.classList.toggle('open');
-      });
-    }
-
-    /* ---- Standings ---- */
-    function getResult(t1, t2) {
-      const g = juegos.find(x=>(x.local===t1&&x.visita===t2)||(x.local===t2&&x.visita===t1));
-      if (!g) return null;
-      if ((g.scoreLocal+g.scoreVisita)===0||g.scoreLocal===g.scoreVisita) return null;
-      return g.local===t1 ? (g.scoreLocal>g.scoreVisita?1:-1) : (g.scoreVisita>g.scoreLocal?1:-1);
-    }
-
-    function calcStandings() {
-      document.querySelectorAll('.score-inp').forEach(inp => {
-        const i=Number(inp.dataset.index), k=inp.dataset.team==='local'?'scoreLocal':'scoreVisita';
-        juegos[i][k]=Number(inp.value)||0;
-      });
-      const stats={};
-      equipos.forEach(e=>{ stats[e]={pj:0,pg:0,pf:0,pc:0}; });
-      juegos.forEach(g => {
-        const sl=g.scoreLocal,sv=g.scoreVisita;
-        if(sl+sv>0&&sl!==sv){
-          stats[g.local].pj++;stats[g.visita].pj++;
-          stats[g.local].pf+=sl;stats[g.local].pc+=sv;
-          stats[g.visita].pf+=sv;stats[g.visita].pc+=sl;
-          if(sl>sv)stats[g.local].pg++;else stats[g.visita].pg++;
-        }
-      });
-      const rows = equipos.map(eq=>({equipo:eq,...stats[eq],pp:stats[eq].pj-stats[eq].pg,pct:stats[eq].pj?stats[eq].pg/stats[eq].pj:0}))
-        .sort((a,b)=>b.pct-a.pct);
-      // tiebreak
-      let i=0;
-      while(i<rows.length){
-        const s=i,p=rows[i].pct;
-        while(i<rows.length&&rows[i].pct===p)i++;
-        const g=rows.slice(s,i);
-        if(g.length>1){
-          let u=null;
-          for(const t of g){ let ok=true; for(const o of g){ if(t.equipo===o.equipo)continue; if(getResult(t.equipo,o.equipo)!==1){ok=false;break;} } if(ok){u=t;break;} }
-          g.sort((a,b)=>{ if(u){if(a.equipo===u.equipo)return-1;if(b.equipo===u.equipo)return 1;} return a.pc-b.pc; });
-          rows.splice(s,g.length,...g);
-        }
+  let i=0;
+  while (i<rows.length) {
+    const s=i, p=rows[i].pct;
+    while (i<rows.length && rows[i].pct===p) i++;
+    const grp=rows.slice(s,i);
+    if (grp.length>1) {
+      let win=null;
+      for (const t of grp) {
+        if (grp.every(o=>o.equipo===t.equipo||getDirecto(t.equipo,o.equipo)===1)){win=t;break;}
       }
-      const tbody=document.querySelector('#tablaPosiciones tbody'); tbody.innerHTML='';
-      rows.forEach((r,k)=>{
-        const rc=k===0?'r-first':k<8?'r-playoff':'';
-        const cc=k===7?'r-cutoff':'';
-        const nc=k===0?'pos-n gold':'pos-n';
-        tbody.insertAdjacentHTML('beforeend',`<tr class="${rc} ${cc}">
-          <td><span class="${nc}">${k+1}</span></td>
-          <td class="s-eq">${r.equipo}</td>
-          <td class="s-num hide-sm">${r.pj}</td><td class="s-num">${r.pg}</td>
-          <td class="s-num hide-sm">${r.pp}</td><td class="s-pct">${r.pct.toFixed(3)}</td>
-          <td class="s-num hide-sm">${r.pf}</td><td class="s-num hide-sm">${r.pc}</td>
-        </tr>`);
+      grp.sort((a,b)=>{
+        if(win){if(a.equipo===win.equipo)return-1;if(b.equipo===win.equipo)return 1;}
+        return a.pc-b.pc;
       });
+      rows.splice(s,grp.length,...grp);
     }
+  }
 
-    /* ---- Colley ---- */
-    function calcColley() {
-      const n=equipos.length, idx=Object.fromEntries(equipos.map((e,i)=>[e,i]));
-      const pj=Array(n).fill(0),pg=Array(n).fill(0),pp=Array(n).fill(0);
-      const C=Array.from({length:n},()=>Array(n).fill(0)),b=Array(n).fill(1);
-      juegos.forEach(g=>{
-        const sl=g.scoreLocal,sv=g.scoreVisita;
-        if(sl+sv>0&&sl!==sv){
-          const iL=idx[g.local],iV=idx[g.visita];
-          pj[iL]++;pj[iV]++;
-          if(sl>sv){pg[iL]++;pp[iV]++;}else{pg[iV]++;pp[iL]++;}
-          C[iL][iL]++;C[iV][iV]++;C[iL][iV]--;C[iV][iL]--;
-        }
-      });
-      for(let i=0;i<n;i++){C[i][i]+=2;b[i]=1+(pg[i]-pp[i])/2;}
-      const r=solveLS(C,b);
-      const rows=equipos.map((e,i)=>({equipo:e,pj:pj[i],pg:pg[i],pp:pp[i],c:Number.isFinite(r[i])?r[i]:0})).sort((a,b)=>b.c-a.c);
-      const tbody=document.querySelector('#tablaColley tbody'); tbody.innerHTML='';
-      rows.forEach((row,k)=>{
-        const nc=k===0?'pos-n gold':'pos-n';
-        tbody.insertAdjacentHTML('beforeend',`<tr class="${k===0?'r-first':''}">
-          <td><span class="${nc}">${k+1}</span></td>
-          <td class="s-eq">${row.equipo}</td>
-          <td class="s-num hide-sm">${row.pj}</td><td class="s-num">${row.pg}</td>
-          <td class="s-num hide-sm">${row.pp}</td><td class="s-pct">${row.c.toFixed(3)}</td>
-        </tr>`);
-      });
+  const tbody = document.querySelector('#tablaPosiciones tbody');
+  tbody.innerHTML = '';
+  rows.forEach((r,k) => {
+    tbody.insertAdjacentHTML('beforeend', `<tr class="${k===0?'r-first':k<8?'r-playoff':''} ${k===7?'r-cutoff':''}">
+      <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
+      <td class="s-eq">${r.equipo}</td>
+      <td class="s-num hide-sm">${r.pj}</td>
+      <td class="s-num">${r.pg}</td>
+      <td class="s-num hide-sm">${r.pp}</td>
+      <td class="s-pct">${r.pct.toFixed(3)}</td>
+      <td class="s-num hide-md">${r.pf}</td>
+      <td class="s-num hide-md">${r.pc}</td>
+    </tr>`);
+  });
+}
+
+function calcColley() {
+  const n=equipos.length, idx=Object.fromEntries(equipos.map((e,i)=>[e,i]));
+  const pg=Array(n).fill(0),pp=Array(n).fill(0),pj=Array(n).fill(0);
+  const C=Array.from({length:n},()=>Array(n).fill(0)),b=Array(n).fill(1);
+  juegos.forEach(g=>{
+    const sl=g.scoreLocal,sv=g.scoreVisita;
+    if(sl+sv>0&&sl!==sv){
+      const iL=idx[g.local],iV=idx[g.visita];
+      pj[iL]++;pj[iV]++;
+      if(sl>sv){pg[iL]++;pp[iV]++;}else{pg[iV]++;pp[iL]++;}
+      C[iL][iL]++;C[iV][iV]++;C[iL][iV]--;C[iV][iL]--;
     }
+  });
+  for(let i=0;i<n;i++){C[i][i]+=2;b[i]=1+(pg[i]-pp[i])/2;}
+  const r=solveGauss(C,b);
+  const rows=equipos.map((e,i)=>({equipo:e,pj:pj[i],pg:pg[i],pp:pp[i],c:isFinite(r[i])?r[i]:0})).sort((a,b)=>b.c-a.c);
+  const tbody=document.querySelector('#tablaColley tbody');
+  tbody.innerHTML='';
+  rows.forEach((row,k)=>{
+    tbody.insertAdjacentHTML('beforeend',`<tr class="${k===0?'r-first':''}">
+      <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
+      <td class="s-eq">${row.equipo}</td>
+      <td class="s-num hide-sm">${row.pj}</td>
+      <td class="s-num">${row.pg}</td>
+      <td class="s-num hide-sm">${row.pp}</td>
+      <td class="s-pct">${row.c.toFixed(3)}</td>
+    </tr>`);
+  });
+}
 
-    function solveLS(Ain,bin){
-      const n=bin.length,A=Ain.map(r=>r.slice()),b=bin.slice();
-      for(let c=0;c<n;c++){
-        let piv=c;for(let i=c+1;i<n;i++)if(Math.abs(A[i][c])>Math.abs(A[piv][c]))piv=i;
-        if(Math.abs(A[piv][c])<1e-12)continue;
-        if(piv!==c){[A[c],A[piv]]=[A[piv],A[c]];[b[c],b[piv]]=[b[piv],b[c]];}
-        const d=A[c][c];for(let j=c;j<n;j++)A[c][j]/=d;b[c]/=d;
-        for(let i=0;i<n;i++){if(i===c)continue;const f=A[i][c];if(!f)continue;for(let j=c;j<n;j++)A[i][j]-=f*A[c][j];b[i]-=f*b[c];}
-      }
-      return b;
+function solveGauss(Ain,bin){
+  const n=bin.length,A=Ain.map(r=>[...r]),b=[...bin];
+  for(let c=0;c<n;c++){
+    let piv=c;
+    for(let i=c+1;i<n;i++) if(Math.abs(A[i][c])>Math.abs(A[piv][c])) piv=i;
+    if(Math.abs(A[piv][c])<1e-12) continue;
+    if(piv!==c){[A[c],A[piv]]=[A[piv],A[c]];[b[c],b[piv]]=[b[piv],b[c]];}
+    const d=A[c][c];
+    for(let j=c;j<n;j++) A[c][j]/=d; b[c]/=d;
+    for(let i=0;i<n;i++){
+      if(i===c) continue;
+      const f=A[i][c]; if(!f) continue;
+      for(let j=c;j<n;j++) A[i][j]-=f*A[c][j];
+      b[i]-=f*b[c];
     }
+  }
+  return b;
+}
 
-    /* ---- Borrado ---- */
-    function clearJ(j){
-      juegos.forEach((g,i)=>{
-        if(g.jornada!==j||j<=JORNADAS_JUGADAS)return;
-        g.scoreLocal=0;g.scoreVisita=0;
-        const iL=document.querySelector(`.score-inp[data-index="${i}"][data-team="local"]`);
-        const iV=document.querySelector(`.score-inp[data-index="${i}"][data-team="visita"]`);
-        if(iL&&!iL.readOnly)iL.value=0;
-        if(iV&&!iV.readOnly)iV.value=0;
-      });
-      calcStandings();calcColley();save();
-    }
+function recalcular() { leerScores(); calcStandings(); calcColley(); }
 
-    /* ---- Events ---- */
-    document.addEventListener('click',e=>{
-      // accordion
-      const jb=e.target.closest('.j-btn');
-      if(jb){const body=document.getElementById(jb.dataset.t);jb.classList.toggle('open');body.classList.toggle('open');}
-      // clear jornada
-      const cj=e.target.closest('.btn-clr-jornada');
-      if(cj)clearJ(Number(cj.dataset.jornada));
-      // clear all
-      if(e.target.id==='btnClearAll'){if(confirm('¿Borrar TODOS los pronósticos?')){juegos.forEach((g,i)=>{if(g.jornada>JORNADAS_JUGADAS){g.scoreLocal=0;g.scoreVisita=0;const iL=document.querySelector(`.score-inp[data-index="${i}"][data-team="local"]`);const iV=document.querySelector(`.score-inp[data-index="${i}"][data-team="visita"]`);if(iL&&!iL.readOnly)iL.value=0;if(iV&&!iV.readOnly)iV.value=0;}});calcStandings();calcColley();save();}}
-      // dropdown
-      if(e.target.closest('#eqBtn')){const p=document.getElementById('eqPanel');const b=document.getElementById('eqBtn');p.classList.toggle('open');b.classList.toggle('open');return;}
-      if(!e.target.closest('.eq-wrapper')){document.getElementById('eqPanel').classList.remove('open');document.getElementById('eqBtn').classList.remove('open');}
+function clearJornada(j) {
+  juegos.forEach((g,i) => {
+    if (g.jornada!==j || j<=JORNADAS_JUGADAS) return;
+    g.scoreLocal=0; g.scoreVisita=0;
+    const iL=document.querySelector(`.score-inp[data-idx="${i}"][data-team="local"]`);
+    const iV=document.querySelector(`.score-inp[data-idx="${i}"][data-team="visita"]`);
+    if(iL&&!iL.readOnly) iL.value=0;
+    if(iV&&!iV.readOnly) iV.value=0;
+  });
+  recalcular(); save();
+}
+
+// ── UN solo listener de clicks (evita doble toggle) ──
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.j-btn');
+  if (btn) {
+    const body = document.getElementById(btn.dataset.target);
+    if (body) { btn.classList.toggle('open'); body.classList.toggle('open'); }
+    return;
+  }
+  const clrJ = e.target.closest('[data-clearj]');
+  if (clrJ) { clearJornada(Number(clrJ.dataset.clearj)); return; }
+
+  if (e.target.id === 'btnClearAll') {
+    if (!confirm('¿Borrar TODOS los pronósticos simulados?')) return;
+    juegos.forEach((g,i) => {
+      if (g.jornada<=JORNADAS_JUGADAS) return;
+      g.scoreLocal=0; g.scoreVisita=0;
+      const iL=document.querySelector(`.score-inp[data-idx="${i}"][data-team="local"]`);
+      const iV=document.querySelector(`.score-inp[data-idx="${i}"][data-team="visita"]`);
+      if(iL&&!iL.readOnly) iL.value=0;
+      if(iV&&!iV.readOnly) iV.value=0;
     });
+    recalcular(); save(); return;
+  }
+  if (e.target.closest('#eqBtn')) {
+    document.getElementById('eqPanel').classList.toggle('open');
+    document.getElementById('eqBtn').classList.toggle('open');
+    return;
+  }
+  if (!e.target.closest('.eq-wrapper')) {
+    document.getElementById('eqPanel').classList.remove('open');
+    document.getElementById('eqBtn').classList.remove('open');
+  }
+});
 
-    document.addEventListener('input',e=>{
-      if(!e.target.classList.contains('score-inp'))return;
-      const i=Number(e.target.dataset.index),k=e.target.dataset.team==='local'?'scoreLocal':'scoreVisita';
-      juegos[i][k]=Number(e.target.value)||0;
-      calcStandings();calcColley();save();
-    });
+document.addEventListener('input', e => {
+  if (!e.target.classList.contains('score-inp')) return;
+  const i=Number(e.target.dataset.idx);
+  const k=e.target.dataset.team==='local'?'scoreLocal':'scoreVisita';
+  juegos[i][k]=Number(e.target.value)||0;
+  calcStandings(); calcColley(); save();
+});
 
-    initUI();
-    cargarDatos();
-  </script>
+cargarDatos();
+</script>
 </body>
 </html>

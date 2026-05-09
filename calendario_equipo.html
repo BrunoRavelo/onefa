@@ -5,194 +5,184 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendario — ONEFA</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="onefa.css">
   <style>
-    :root{
-      --navy:#0B1220;--gold:#B8780A;--gold-bg:#FEF9EE;--gold-border:#F5D78E;
-      --green:#166534;--green-bg:#F0FDF4;--red:#991B1B;
-      --bg:#F3F4F6;--surface:#FFFFFF;--border:#E5E7EB;--text:#111827;--muted:#6B7280;
-      --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+    /* Botón volver — solo aquí */
+    .btn-back {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
+      color: rgba(255,255,255,.7); padding: .28rem .7rem;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: .85rem; font-weight: 600; letter-spacing: 1px;
+      text-decoration: none; transition: all .15s; display: inline-block;
     }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-    .topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--navy);border-bottom:3px solid var(--gold);}
-    .topbar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;padding:0 1rem;gap:0;height:56px;}
-    .brand{display:flex;flex-direction:column;justify-content:center;text-decoration:none;padding-right:1rem;border-right:1px solid rgba(255,255,255,.1);flex-shrink:0;}
-    .brand-main{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--gold);letter-spacing:3px;line-height:1;}
-    .brand-sub{font-size:.58rem;font-weight:700;letter-spacing:4px;color:rgba(255,255,255,.35);text-transform:uppercase;}
-    .conf-tabs{display:flex;align-items:stretch;height:100%;padding:0 .5rem;border-right:1px solid rgba(255,255,255,.1);}
-    .conf-tab{display:flex;align-items:center;padding:0 .9rem;text-decoration:none;font-family:'Bebas Neue',sans-serif;font-size:.88rem;letter-spacing:2px;color:rgba(255,255,255,.45);border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .15s;white-space:nowrap;}
-    .conf-tab:hover{color:rgba(255,255,255,.8);}
-    .conf-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
-    .season-wrap{padding:0 .75rem;border-right:1px solid rgba(255,255,255,.1);flex-shrink:0;}
-    .season-select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:4px;padding:.2rem .5rem;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer;appearance:none;}
-    .season-select option{background:var(--navy);color:#fff;}
-    .nav-right{margin-left:auto;}
-    .btn-back{background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:4px;color:rgba(255,255,255,.7);padding:.3rem .75rem;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:1px;text-decoration:none;transition:all .15s;display:inline-block;}
-    .btn-back:hover{color:#fff;border-color:rgba(255,255,255,.5);}
-    .hero{margin-top:56px;background:var(--navy);padding:1.75rem 1rem 1.5rem;position:relative;overflow:hidden;}
-    .hero::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.015) 59px,rgba(255,255,255,.015) 60px);pointer-events:none;}
-    .hero-inner{max-width:1100px;margin:0 auto;position:relative;}
-    .hero-eye{font-size:.7rem;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(184,120,10,.7);margin-bottom:.25rem;}
-    .hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,6vw,3.5rem);line-height:.95;letter-spacing:3px;color:#fff;}
-    .hero-bar{width:36px;height:3px;background:var(--gold);margin:.6rem 0;}
-    .main-wrap{max-width:1100px;margin:0 auto;padding:2rem 1rem 4rem;}
-    .match-list{display:flex;flex-direction:column;gap:6px;}
-    .match-card{background:var(--surface);border-radius:6px;box-shadow:var(--shadow);border:1px solid var(--border);border-left:4px solid var(--border);transition:all .15s;}
-    .match-card.jugado{border-left-color:var(--green);background:var(--green-bg);}
-    .match-card.pendiente{border-left-color:var(--gold);}
-    .match-card-inner{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;}
-    .match-meta{font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;}
-    .match-result{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:1px;color:var(--text);}
-    .score{color:var(--gold);}
-    .won{color:var(--green);}
-    .lost{color:var(--red);}
-    .match-badge{font-size:.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:.2em .6em;border-radius:999px;}
-    .badge-win{background:var(--green-bg);color:var(--green);border:1px solid #BBF7D0;}
-    .badge-loss{background:#FEF2F2;color:var(--red);border:1px solid #FECACA;}
-    .badge-pend{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-border);}
-    .empty-msg{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:1.1rem;}
-    @media(max-width:640px){.conf-tab{padding:0 .45rem;font-size:.72rem;}.brand-main{font-size:1.15rem;}}
+    .btn-back:hover { color: #fff; border-color: rgba(255,255,255,.5); }
   </style>
 </head>
 <body>
 
-  <nav class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" id="brandLink" href="index.html">
-        <span class="brand-main">ONEFA</span>
-        <span class="brand-sub">Pronósticos</span>
-      </a>
-      <div class="conf-tabs">
-        <a class="conf-tab" id="tab14" href="index.html">14 Grandes</a>
-        <a class="conf-tab" id="tabNac" href="nacional.html">Nacional</a>
-      </div>
-      <div class="season-wrap">
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" id="brandLink" href="index.html">
+      <span class="brand-main">ONEFA</span>
+      <span class="brand-sub">Pronósticos</span>
+    </a>
+    <div class="conf-tabs">
+      <a class="conf-tab" id="tab14"  href="index.html">14 Grandes</a>
+      <a class="conf-tab" id="tabNac" href="nacional.html">Nacional</a>
+    </div>
+    <div class="season-wrap">
+      <div class="select-arrow-wrap">
         <select class="season-select" id="seasonSelect" onchange="cambiarTemp(this.value)"></select>
+        <span class="select-arrow">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
       </div>
-      <div class="nav-right">
-        <a class="btn-back" id="btnBack" href="index.html">← Tabla</a>
-      </div>
     </div>
-  </nav>
-
-  <header class="hero">
-    <div class="hero-inner">
-      <div class="hero-eye" id="heroEye">Calendario</div>
-      <h1 class="hero-title" id="heroTitle">Cargando…</h1>
-      <div class="hero-bar"></div>
+    <div class="nav-right">
+      <a class="btn-back" id="btnBack" href="index.html">← Tabla</a>
     </div>
-  </header>
+  </div>
+</nav>
 
-  <main class="main-wrap">
-    <div class="match-list" id="listaPartidos">
-      <div class="empty-msg">Cargando calendario…</div>
-    </div>
-  </main>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-eye" id="heroEye">Calendario del equipo</div>
+    <h1 class="hero-title" id="heroTitle">Cargando…</h1>
+    <div class="hero-bar"></div>
+  </div>
+</header>
 
-  <script>
-    function getP(n) { return new URLSearchParams(window.location.search).get(n); }
-    const EQUIPO     = getP('equipo') || '';
-    const rawTemp    = getP('temporada');
-    const CONF       = getP('conferencia') || '14g';
-    const isNac      = CONF === 'nacional';
-    const TEMPORADA  = isNac ? 2026 : (rawTemp === '2025' ? 2025 : 2026);
-    const DATA_FILE  = isNac ? `./onefa_nacional_${TEMPORADA}.json` : `./onefa_data_${TEMPORADA}.json`;
-    const SK         = isNac ? `onefa_nacional_${TEMPORADA}_v1` : (TEMPORADA===2025?'onefa_juegos_v1':`onefa_juegos_${TEMPORADA}_v1`);
+<main class="main-wrap">
+  <div class="match-list" id="listaPartidos">
+    <div class="empty-msg">Cargando…</div>
+  </div>
+</main>
 
-    // Nav init
-    document.getElementById('brandLink').href = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
-    document.getElementById('btnBack').href   = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
-    if (isNac) {
-      document.getElementById('tabNac').classList.add('active');
-      document.getElementById('seasonSelect').innerHTML = '<option value="2026">2026</option>';
-    } else {
-      document.getElementById('tab14').classList.add('active');
-      const s = document.getElementById('seasonSelect');
-      s.innerHTML = '<option value="2026">2026</option><option value="2025">2025</option>';
-      s.value = String(TEMPORADA);
-    }
+<script>
+function getP(n) { return new URLSearchParams(window.location.search).get(n); }
+const EQUIPO   = getP('equipo') || '';
+const rawTemp  = getP('temporada');
+const CONF     = getP('conferencia') || '14g';
+const isNac    = CONF === 'nacional';
+const TEMPORADA = isNac ? 2026 : (rawTemp==='2025' ? 2025 : 2026);
+const DATA_FILE = isNac ? `./onefa_nacional_${TEMPORADA}.json` : `./onefa_data_${TEMPORADA}.json`;
+const SK        = isNac
+  ? `onefa_nacional_${TEMPORADA}_v1`
+  : (TEMPORADA===2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`);
 
-    function cambiarTemp(v) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('temporada', v);
-      window.location.href = url.toString();
-    }
+// Nav
+document.getElementById('brandLink').href = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
+document.getElementById('btnBack').href   = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
+if (isNac) {
+  document.getElementById('tabNac').classList.add('active');
+  document.getElementById('seasonSelect').innerHTML = '<option value="2026">2026</option>';
+} else {
+  document.getElementById('tab14').classList.add('active');
+  const s = document.getElementById('seasonSelect');
+  s.innerHTML = '<option value="2026">2026</option><option value="2025">2025</option>';
+  s.value = String(TEMPORADA);
+}
 
-    let equipos=[], juegos=[], JORNADAS_JUGADAS=0;
+function cambiarTemp(v) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('temporada', v);
+  window.location.href = url.toString();
+}
 
-    async function cargarDatos() {
-      try {
-        const res = await fetch(DATA_FILE, { cache:'no-store' });
-        const d   = await res.json();
-        equipos = isNac ? Object.values(d.grupos||{}).flat() : (d.equipos||[]);
-        juegos  = d.juegos||[];
-        JORNADAS_JUGADAS = Number(d.jornadas_jugadas)||0;
-      } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; }
+let equipos=[], juegos=[], JORNADAS_JUGADAS=0;
 
-      const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
-      try {
-        const raw = localStorage.getItem(SK);
-        if (raw) {
-          const ls=JSON.parse(raw), m=new Map(ls.map(g=>[toKey(g),g]));
-          juegos=juegos.map(g=>{
-            if((g.scoreLocal||0)+(g.scoreVisita||0)>0)return g;
-            const s=m.get(toKey(g));if(!s)return g;
-            return{...g,scoreLocal:s.scoreLocal||0,scoreVisita:s.scoreVisita||0};
-          });
-        }
-      } catch {}
-      render();
-    }
+async function cargarDatos() {
+  try {
+    const res = await fetch(DATA_FILE, { cache:'no-store' });
+    const d   = await res.json();
+    equipos = isNac ? Object.values(d.grupos||{}).flat() : (d.equipos||[]);
+    juegos  = d.juegos || [];
+    JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
+  } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; }
 
-    function render() {
-      const lista = document.getElementById('listaPartidos');
-      if (!EQUIPO || !equipos.includes(EQUIPO)) {
-        document.getElementById('heroTitle').textContent = 'Equipo no encontrado';
-        lista.innerHTML = '<div class="empty-msg">No se encontró el equipo.</div>';
-        return;
-      }
-      const confLabel = isNac ? 'Conf. Nacional' : '14 Grandes';
-      document.getElementById('heroEye').textContent = `${confLabel} ${TEMPORADA}`;
-      document.getElementById('heroTitle').textContent = EQUIPO;
-      document.title = `${EQUIPO} — ONEFA ${TEMPORADA}`;
-
-      const partidos = juegos.filter(g=>g.local===EQUIPO||g.visita===EQUIPO).sort((a,b)=>a.jornada-b.jornada);
-      if (!partidos.length) { lista.innerHTML='<div class="empty-msg">Sin partidos registrados.</div>'; return; }
-
-      lista.innerHTML='';
-      partidos.forEach(p=>{
-        const esL  = p.local===EQUIPO;
-        const rival= esL ? p.visita : p.local;
-        const miPts= esL ? p.scoreLocal : p.scoreVisita;
-        const rvPts= esL ? p.scoreVisita : p.scoreLocal;
-        const jugado= p.jornada<=JORNADAS_JUGADAS;
-        const hasPts= (p.scoreLocal+p.scoreVisita)>0;
-        const gano  = hasPts && miPts>rvPts;
-        const perdio= hasPts && miPts<rvPts;
-        let cc='match-card';
-        if(jugado&&hasPts)cc+=' jugado'; else if(!jugado)cc+=' pendiente';
-        let badge='';
-        if(jugado&&gano)badge='<span class="match-badge badge-win">Victoria</span>';
-        else if(jugado&&perdio)badge='<span class="match-badge badge-loss">Derrota</span>';
-        else if(!jugado)badge='<span class="match-badge badge-pend">Pendiente</span>';
-        const jl=p.jornada===0?'J0 · Apertura':`Jornada ${p.jornada}`;
-        const rl=esL?'Local':'Visita';
-        let scoreHtml='';
-        if(hasPts){
-          const mc=gano?'won':perdio?'lost':'';
-          scoreHtml=`<span class="${mc}">${EQUIPO} <span class="score">${miPts}</span> — <span class="score">${rvPts}</span> ${rival}</span>`;
-        } else { scoreHtml=`${EQUIPO} vs ${rival}`; }
-        lista.insertAdjacentHTML('beforeend',`
-          <div class="${cc}">
-            <div class="match-card-inner">
-              <div><div class="match-meta">${jl} · ${rl}</div><div class="match-result">${scoreHtml}</div></div>
-              <div>${badge}</div>
-            </div>
-          </div>`);
+  const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
+  try {
+    const raw = localStorage.getItem(SK);
+    if (raw) {
+      const ls=JSON.parse(raw), m=new Map(ls.map(g=>[toKey(g),g]));
+      juegos=juegos.map(g=>{
+        if((g.scoreLocal||0)+(g.scoreVisita||0)>0) return g;
+        const s=m.get(toKey(g)); if(!s) return g;
+        return{...g,scoreLocal:s.scoreLocal||0,scoreVisita:s.scoreVisita||0};
       });
     }
+  } catch {}
+  render();
+}
 
-    cargarDatos();
-  </script>
+function render() {
+  const lista = document.getElementById('listaPartidos');
+  if (!EQUIPO || !equipos.includes(EQUIPO)) {
+    document.getElementById('heroTitle').textContent = 'Equipo no encontrado';
+    lista.innerHTML = '<div class="empty-msg">No se encontró el equipo especificado.</div>';
+    return;
+  }
+  const confLabel = isNac ? 'Conf. Nacional' : '14 Grandes';
+  document.getElementById('heroEye').textContent = `${confLabel} ${TEMPORADA}`;
+  document.getElementById('heroTitle').textContent = EQUIPO;
+  document.title = `${EQUIPO} — ONEFA ${TEMPORADA}`;
+
+  const partidos = juegos
+    .filter(g => g.local===EQUIPO || g.visita===EQUIPO)
+    .sort((a,b) => a.jornada - b.jornada);
+
+  if (!partidos.length) {
+    lista.innerHTML = '<div class="empty-msg">Sin partidos registrados para este equipo.</div>';
+    return;
+  }
+
+  lista.innerHTML = '';
+  partidos.forEach(p => {
+    const esL   = p.local === EQUIPO;
+    const rival = esL ? p.visita : p.local;
+    const miPts = esL ? p.scoreLocal  : p.scoreVisita;
+    const rvPts = esL ? p.scoreVisita : p.scoreLocal;
+    const jugado = p.jornada <= JORNADAS_JUGADAS;
+    const hasPts = (p.scoreLocal + p.scoreVisita) > 0;
+    const gano   = hasPts && miPts > rvPts;
+    const perdio = hasPts && miPts < rvPts;
+
+    let cc = 'match-card';
+    if (jugado && gano)   cc += ' ganado';
+    else if (jugado && perdio) cc += ' perdido';
+    else if (!jugado)     cc += ' pendiente';
+
+    let badge = '';
+    if (jugado && gano)   badge = '<span class="match-badge badge-win">Victoria</span>';
+    else if (jugado && perdio) badge = '<span class="match-badge badge-loss">Derrota</span>';
+    else if (!jugado)     badge = '<span class="match-badge badge-pend">Pendiente</span>';
+
+    const jLabel = p.jornada===0 ? 'J0 · Apertura' : `Jornada ${p.jornada}`;
+    const rLabel = esL ? 'Local' : 'Visita';
+
+    let scoreHtml = '';
+    if (hasPts) {
+      const mc = gano ? 'won' : perdio ? 'lost' : '';
+      scoreHtml = `<span class="${mc}">${EQUIPO} <span class="score">${miPts}</span> — <span class="score">${rvPts}</span> ${rival}</span>`;
+    } else {
+      scoreHtml = `${EQUIPO} vs ${rival}`;
+    }
+
+    lista.insertAdjacentHTML('beforeend', `
+      <div class="${cc}">
+        <div class="match-card-inner">
+          <div>
+            <div class="match-meta">${jLabel} · ${rLabel}</div>
+            <div class="match-result">${scoreHtml}</div>
+          </div>
+          <div>${badge}</div>
+        </div>
+      </div>`);
+  });
+}
+
+cargarDatos();
+</script>
 </body>
 </html>
