@@ -239,7 +239,7 @@ body {
   width: 100%; background: var(--surface);
   border: 1px solid var(--border); border-radius: 6px;
   color: var(--muted); cursor: pointer;
-  font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 2px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 2px;
   padding: .65rem 1rem;
   display: flex; align-items: center; justify-content: space-between;
   transition: all .15s; text-align: left;
@@ -325,6 +325,8 @@ body {
 }
 .s-tbl thead th:first-child { border-radius: 6px 0 0 0; }
 .s-tbl thead th:last-child  { border-radius: 0 6px 0 0; }
+.group-card .s-tbl thead th:first-child,
+.group-card .s-tbl thead th:last-child  { border-radius: 0; }
 .s-tbl thead th.ta-r { text-align: right; }
 .s-tbl tbody tr {
   background: var(--surface);

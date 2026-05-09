@@ -75,7 +75,7 @@ Grupos Conferencia Nacional:
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 0,
+  "jornadas_jugadas": -1,
   "nota_desempate": "...",
   "grupos": {
     "Norte":  ["Águilas UACH", "Potros ITSON", "Indios UACJ",
@@ -112,6 +112,7 @@ Regla de merge: localStorage solo sobreescribe juegos con `scoreLocal + scoreVis
 - Usa `data-target="jbN"` en el botón, con `id="jbN"` en el body
 - **UN solo event listener** en `document` (no duplicar en `generarCalendario`)
 - Jornadas ≤ `jornadas_jugadas` → inputs `readonly` + checkmark ✓ en label
+- **Nacional arranca con `jornadas_jugadas: -1`** para que Jornada 0 (partido único Panteras vs Halcones, pre-temporada) no quede bloqueada. Cuando se juegue J0 se actualiza a `0`; cuando se juegue J1 a `1`, etc. La condición `j <= JORNADAS_JUGADAS` funciona sin casos especiales.
 
 ### Tabla de posiciones
 - Columna "% Vict" = victorias / jugados (antes llamada PCT)
@@ -173,6 +174,7 @@ Lee `onefa_data_{year}.json`. Usa OR-Tools CP-SAT. Equipo objetivo default: **Le
 4. Score inputs mantienen look LED (fondo verde oscuro, texto verde neón)
 5. Sin iconos en headers de grupos Nacional (solo texto: "Grupo Norte", etc.)
 6. La columna PCT renombrada a "% Vict" con tooltip `<abbr>`
+7. Tabla de partidos: headers `.75rem`, nombres de equipo `1.1rem` (desktop) / `1rem` (móvil), separador VS `.82rem`
 
 ---
 
