@@ -1,5 +1,5 @@
 {
-  "jornadas_jugadas": 9,
+  "jornadas_jugadas": 10,
   "equipos": [
     "Borregos CCM",
     "Borregos MTY",
@@ -413,50 +413,50 @@
       "jornada": 10,
       "local": "Borregos GDL",
       "visita": "Pumas Acatlán",
-      "scoreLocal": 0,
+      "scoreLocal": 27,
       "scoreVisita": 0
     },
     {
       "jornada": 10,
       "local": "Leones UAMN",
       "visita": "Águilas Blancas",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 7,
+      "scoreVisita": 21
     },
     {
       "jornada": 10,
       "local": "Borregos CEM",
       "visita": "Auténticos Tigres",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 14,
+      "scoreVisita": 35
     },
     {
       "jornada": 10,
       "local": "Pumas CU",
       "visita": "Borregos MTY",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 23,
+      "scoreVisita": 30
     },
     {
       "jornada": 10,
       "local": "Burros Blancos",
       "visita": "Borregos CCM",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 17,
+      "scoreVisita": 31
     },
     {
       "jornada": 10,
       "local": "Aztecas UDLAP",
       "visita": "Zorros CETYS",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 59,
+      "scoreVisita": 20
     },
     {
       "jornada": 10,
       "local": "Borregos PUE",
       "visita": "Linces UVM",
-      "scoreLocal": 0,
-      "scoreVisita": 0
+      "scoreLocal": 35,
+      "scoreVisita": 16
     }
   ],
   "temporada": 2025

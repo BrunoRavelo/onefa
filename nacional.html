@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONEFA Conferencia Nacional</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:#0B1220; --navy-2:#152035;
+      --gold:#B8780A; --gold-bg:#FEF9EE; --gold-border:#F5D78E;
+      --green:#166534; --green-bg:#F0FDF4;
+      --red:#991B1B; --bg:#F3F4F6; --surface:#FFFFFF;
+      --border:#E5E7EB; --border-s:#D1D5DB; --text:#111827; --muted:#6B7280; --light:#9CA3AF;
+      --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+      /* Group colors */
+      --norte:#1D4ED8; --norte-bg:#EFF6FF;
+      --centro:#B45309; --centro-bg:#FFFBEB;
+      --bajio:#166534;  --bajio-bg:#F0FDF4;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+    /* NAVBAR */
+    .topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--navy);border-bottom:3px solid var(--gold);}
+    .topbar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;padding:0 1rem;gap:0;height:56px;}
+    .brand{display:flex;flex-direction:column;justify-content:center;text-decoration:none;padding-right:1rem;border-right:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+    .brand-main{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--gold);letter-spacing:3px;line-height:1;}
+    .brand-sub{font-size:.58rem;font-weight:700;letter-spacing:4px;color:rgba(255,255,255,.35);text-transform:uppercase;}
+    .conf-tabs{display:flex;align-items:stretch;height:100%;padding:0 .5rem;border-right:1px solid rgba(255,255,255,.1);}
+    .conf-tab{display:flex;align-items:center;padding:0 .9rem;text-decoration:none;font-family:'Bebas Neue',sans-serif;font-size:.88rem;letter-spacing:2px;color:rgba(255,255,255,.45);border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .15s;white-space:nowrap;}
+    .conf-tab:hover{color:rgba(255,255,255,.8);}
+    .conf-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+    .season-wrap{padding:0 .75rem;border-right:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+    .season-select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:4px;padding:.2rem .5rem;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer;appearance:none;}
+    .season-select option{background:var(--navy);color:#fff;}
+    .nav-right{margin-left:auto;display:flex;align-items:center;}
+    .eq-wrapper{position:relative;}
+    .eq-btn{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.7);padding:.3rem .75rem;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;}
+    .eq-btn:hover{color:#fff;border-color:rgba(255,255,255,.35);}
+    .eq-btn svg{width:12px;height:12px;transition:transform .15s;flex-shrink:0;}
+    .eq-btn.open svg{transform:rotate(180deg);}
+    .eq-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#111827;border:1px solid #374151;border-radius:6px;min-width:200px;padding:.35rem 0;z-index:100;box-shadow:0 10px 25px rgba(0,0,0,.4);max-height:70vh;overflow-y:auto;}
+    .eq-panel.open{display:block;}
+    .eq-panel a{display:block;padding:.45rem 1rem;color:#D1D5DB;font-size:.9rem;font-weight:500;text-decoration:none;transition:all .1s;}
+    .eq-panel a:hover{background:rgba(184,120,10,.12);color:var(--gold);}
+
+    /* HERO */
+    .hero{margin-top:56px;background:var(--navy);padding:2rem 1rem 1.75rem;position:relative;overflow:hidden;}
+    .hero::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.015) 59px,rgba(255,255,255,.015) 60px);pointer-events:none;}
+    .hero::after{content:'';position:absolute;top:-60px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(184,120,10,.1) 0%,transparent 70%);pointer-events:none;}
+    .hero-inner{max-width:1100px;margin:0 auto;position:relative;}
+    .hero-eye{font-size:.7rem;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(184,120,10,.7);margin-bottom:.3rem;}
+    .hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,7vw,4.5rem);line-height:.9;letter-spacing:3px;color:#fff;margin-bottom:.5rem;}
+    .hero-title em{color:var(--gold);font-style:normal;}
+    .hero-bar{width:40px;height:3px;background:var(--gold);margin:.7rem 0;}
+    .hero-meta{font-size:.85rem;color:rgba(255,255,255,.45);}
+
+    /* GROUP PILLS on hero */
+    .group-pills{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;}
+    .g-pill{font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:2px;padding:.2em .75em;border-radius:999px;border:1.5px solid;cursor:pointer;text-decoration:none;transition:all .15s;}
+    .g-pill-norte{color:#93C5FD;border-color:#93C5FD;} .g-pill-norte:hover,.g-pill-norte.active{background:#93C5FD;color:#0B1220;}
+    .g-pill-centro{color:#FCD34D;border-color:#FCD34D;} .g-pill-centro:hover,.g-pill-centro.active{background:#FCD34D;color:#0B1220;}
+    .g-pill-bajio{color:#6EE7B7;border-color:#6EE7B7;} .g-pill-bajio:hover,.g-pill-bajio.active{background:#6EE7B7;color:#0B1220;}
+
+    /* MAIN */
+    .main-wrap{max-width:1100px;margin:0 auto;padding:2rem 1rem 4rem;}
+    .s-label{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:1rem;}
+    .s-label::before{content:'';display:block;width:4px;height:1.4rem;background:var(--gold);border-radius:2px;flex-shrink:0;}
+    .s-label small{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:400;color:var(--muted);letter-spacing:1px;}
+
+    /* GROUP BADGE */
+    .g-badge{font-size:.62rem;font-weight:700;letter-spacing:1.5px;padding:.1em .45em;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:4px;}
+    .g-badge-norte{background:var(--norte-bg);color:var(--norte);}
+    .g-badge-centro{background:var(--centro-bg);color:var(--centro);}
+    .g-badge-bajio{background:var(--bajio-bg);color:var(--bajio);}
+    .g-badge-cross{background:#F3F4F6;color:var(--muted);}
+
+    /* ACCORDION */
+    .j-list{display:flex;flex-direction:column;gap:3px;}
+    .j-item{border-radius:6px;overflow:hidden;box-shadow:var(--shadow);}
+    .j-btn{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:.65rem 1rem;display:flex;align-items:center;justify-content:space-between;transition:all .15s;text-align:left;}
+    .j-btn:hover{background:var(--gold-bg);border-color:var(--gold-border);color:var(--gold);}
+    .j-btn.open{background:var(--gold-bg);border-color:var(--gold);border-left:4px solid var(--gold);color:var(--gold);border-radius:6px 6px 0 0;}
+    .j-btn .chev{transition:transform .2s;}
+    .j-btn.open .chev{transform:rotate(180deg);}
+    .j-body{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;display:none;padding:.25rem .75rem .75rem;}
+    .j-body.open{display:block;}
+    .m-tbl{width:100%;border-collapse:separate;border-spacing:0 2px;margin-top:.4rem;}
+    .m-tbl thead th{font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--light);padding:.3rem .4rem;border:none;background:transparent;}
+    .m-tbl thead th:nth-child(2),.m-tbl thead th:nth-child(4){text-align:center;width:76px;}
+    .m-tbl tbody tr{background:var(--bg);}
+    .m-tbl tbody tr:hover{background:#EEF2FF;}
+    .m-tbl td{padding:.4rem .4rem;border:none;vertical-align:middle;}
+    .t-name{font-weight:600;font-size:.95rem;color:var(--text);}
+    .vs-sep{text-align:center;color:var(--light);font-size:.75rem;font-weight:700;letter-spacing:1px;}
+    .score-inp{background:#111827!important;border:1.5px solid #374151!important;border-radius:4px!important;color:#F5A31A!important;font-family:'Bebas Neue',sans-serif!important;font-size:1.35rem!important;text-align:center!important;width:62px!important;padding:.15rem .2rem!important;display:block;margin:0 auto;transition:border-color .15s,box-shadow .15s;}
+    .score-inp:focus{border-color:#F5A31A!important;box-shadow:0 0 0 2px rgba(245,163,26,.15)!important;outline:none;}
+    .score-inp[readonly]{color:#4B5563!important;border-color:#374151!important;cursor:not-allowed;opacity:.6;}
+    .btn-clr-j{background:transparent;border:1px solid var(--border-s);border-radius:4px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:.25rem .65rem;cursor:pointer;transition:all .15s;}
+    .btn-clr-j:hover{border-color:var(--red);color:var(--red);}
+    .clr-row{display:flex;justify-content:flex-end;margin-top:.5rem;}
+    .btn-clr-all{background:transparent;cursor:pointer;border:1px solid #FECACA;border-radius:4px;color:var(--red);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:.4rem 1rem;transition:all .15s;}
+    .btn-clr-all:hover{background:#FEF2F2;border-color:var(--red);}
+
+    /* GROUP STANDINGS */
+    .groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem;}
+    .group-card{background:var(--surface);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;}
+    .group-card-hdr{padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;color:#fff;}
+    .g-hdr-norte{background:var(--norte);}
+    .g-hdr-centro{background:var(--centro);}
+    .g-hdr-bajio{background:var(--bajio);}
+    .s-tbl{width:100%;border-collapse:collapse;}
+    .s-tbl thead th{font-size:.63rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:.5rem .7rem;border-bottom:1px solid var(--border);background:transparent;white-space:nowrap;}
+    .s-tbl tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+    .s-tbl tbody tr:last-child{border-bottom:none;}
+    .s-tbl tbody tr:hover{background:var(--gold-bg);}
+    .s-tbl tbody tr.r-first{background:var(--gold-bg);border-left:3px solid var(--gold);}
+    .s-tbl td{padding:.5rem .7rem;vertical-align:middle;}
+    .pos-n{font-family:'Bebas Neue',sans-serif;font-size:.95rem;width:24px;height:24px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;background:var(--bg);color:var(--muted);}
+    .pos-n.gold{background:var(--gold);color:#fff;}
+    .s-eq{font-weight:700;font-size:.95rem;color:var(--text);}
+    .s-pct{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);}
+    .s-num{font-size:.9rem;color:var(--muted);font-weight:500;}
+
+    .tiebreak-note{font-size:.78rem;color:var(--muted);margin-top:.75rem;padding:.5rem .75rem;background:#F9FAFB;border:1px solid var(--border);border-radius:4px;}
+
+    .s-divider{border:none;border-top:1px solid var(--border);margin:2.5rem 0;}
+
+    @media(max-width:640px){
+      .conf-tab{padding:0 .45rem;font-size:.72rem;}
+      .brand-main{font-size:1.15rem;}
+      .groups-grid{grid-template-columns:1fr;}
+      .score-inp{width:50px!important;font-size:1.1rem!important;}
+      .t-name{font-size:.85rem;}
+      .hide-sm{display:none;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-main">ONEFA</span>
+        <span class="brand-sub">Pronósticos</span>
+      </a>
+      <div class="conf-tabs">
+        <a class="conf-tab" href="index.html">14 Grandes</a>
+        <a class="conf-tab active" href="nacional.html">Nacional</a>
+      </div>
+      <div class="season-wrap">
+        <select class="season-select" id="seasonSelect" onchange="cambiarTemp(this.value)">
+          <option value="2026">2026</option>
+        </select>
+      </div>
+      <div class="nav-right">
+        <div class="eq-wrapper">
+          <button class="eq-btn" id="eqBtn">
+            Equipos
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="eq-panel" id="eqPanel" id="listaEquipos"></div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-eye">Liga Mayor ONEFA</div>
+      <h1 class="hero-title">CONFERENCIA<br><em>NACIONAL 2026</em></h1>
+      <div class="hero-bar"></div>
+      <p class="hero-meta">Temporada 2026 — Ingresa marcadores para simular las tablas por grupo.</p>
+      <div class="group-pills">
+        <a class="g-pill g-pill-norte active" href="#grupo-norte">Norte</a>
+        <a class="g-pill g-pill-centro active" href="#grupo-centro">Centro</a>
+        <a class="g-pill g-pill-bajio active" href="#grupo-bajio">Bajío</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main-wrap">
+
+    <div class="s-label">Calendario Completo</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;">
+      <span class="g-badge g-badge-norte">N</span> Norte &nbsp;
+      <span class="g-badge g-badge-centro">C</span> Centro &nbsp;
+      <span class="g-badge g-badge-bajio">B</span> Bajío &nbsp;
+      <span class="g-badge g-badge-cross">✕</span> Cruzado
+    </p>
+    <div class="j-list" id="calendarioAccordion"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+      <button id="btnClearAll" class="btn-clr-all">Borrar todos los pronósticos</button>
+    </div>
+
+    <hr class="s-divider">
+
+    <div class="s-label">Tablas por Grupo <small>(solo juegos de grupo)</small></div>
+    <p class="tiebreak-note" id="notaDesempate"></p>
+
+    <div class="groups-grid" style="margin-top:1rem;">
+      <div class="group-card" id="grupo-norte">
+        <div class="group-card-hdr g-hdr-norte">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+          Grupo Norte
+        </div>
+        <table class="s-tbl" id="tblNorte">
+          <thead><tr><th>#</th><th>Equipo</th><th>PG</th><th>PP</th><th>PCT</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="group-card" id="grupo-centro">
+        <div class="group-card-hdr g-hdr-centro">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          Grupo Centro
+        </div>
+        <table class="s-tbl" id="tblCentro">
+          <thead><tr><th>#</th><th>Equipo</th><th>PG</th><th>PP</th><th>PCT</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="group-card" id="grupo-bajio">
+        <div class="group-card-hdr g-hdr-bajio">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          Grupo Bajío
+        </div>
+        <table class="s-tbl" id="tblBajio">
+          <thead><tr><th>#</th><th>Equipo</th><th>PG</th><th>PP</th><th>PCT</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const TEMP = 2026;
+    const STORAGE_KEY = `onefa_nacional_${TEMP}_v1`;
+    const DATA_FILE = `./onefa_nacional_${TEMP}.json`;
+
+    let grupos = {}, juegos = [], JORNADAS_JUGADAS = 0;
+    let teamGroup = {}, allTeams = [];
+
+    function cambiarTemp(v) { window.location.href = `nacional.html?temporada=${v}`; }
+
+    async function cargarDatos() {
+      try {
+        const res = await fetch(DATA_FILE, { cache:'no-store' });
+        const d   = await res.json();
+        grupos  = d.grupos  || {};
+        juegos  = d.juegos  || [];
+        JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
+        document.getElementById('notaDesempate').textContent = d.nota_desempate || '';
+
+        // Build team→group lookup
+        allTeams = [];
+        for (const [grp, teams] of Object.entries(grupos)) {
+          teams.forEach(t => { teamGroup[t] = grp; allTeams.push(t); });
+        }
+      } catch(e) { console.error(e); }
+
+      const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const ls = JSON.parse(raw);
+          const m  = new Map(ls.map(g => [toKey(g), g]));
+          juegos = juegos.map(g => {
+            if ((g.scoreLocal||0)+(g.scoreVisita||0) > 0) return g;
+            const s = m.get(toKey(g)); if (!s) return g;
+            return { ...g, scoreLocal: s.scoreLocal||0, scoreVisita: s.scoreVisita||0 };
+          });
+        }
+      } catch {}
+
+      generarMenu();
+      generarCalendario();
+      calcGroupStandings();
+    }
+
+    function save() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch {}
+    }
+
+    /* Group of a game */
+    function gameGroup(g) {
+      const gl = teamGroup[g.local], gv = teamGroup[g.visita];
+      return gl === gv ? gl : 'cross';
+    }
+
+    function grpClass(grp) {
+      return { Norte:'norte', Centro:'centro', 'Bajío':'bajio', cross:'cross' }[grp] || 'cross';
+    }
+
+    function badgeHtml(g) {
+      const grp = gameGroup(g), cls = grpClass(grp);
+      const lbl = grp === 'cross' ? '✕' : grp[0].toUpperCase();
+      return `<span class="g-badge g-badge-${cls}">${lbl}</span>`;
+    }
+
+    /* Menú equipos */
+    function generarMenu() {
+      const panel = document.getElementById('eqPanel');
+      panel.innerHTML = '';
+      for (const [grp, teams] of Object.entries(grupos)) {
+        const hdr = document.createElement('div');
+        hdr.style.cssText='padding:.3rem 1rem .1rem;font-size:.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6B7280;';
+        hdr.textContent = grp;
+        panel.appendChild(hdr);
+        teams.forEach(eq => {
+          const a = document.createElement('a');
+          a.href = `calendario_equipo.html?equipo=${encodeURIComponent(eq)}&temporada=${TEMP}&conferencia=nacional`;
+          a.textContent = eq;
+          panel.appendChild(a);
+        });
+      }
+    }
+
+    /* Calendario */
+    function generarCalendario() {
+      const acc = document.getElementById('calendarioAccordion');
+      acc.innerHTML = '';
+      const jMap = {};
+      juegos.forEach((g, i) => { (jMap[g.jornada] = jMap[g.jornada]||[]).push({ ...g, index:i }); });
+
+      Object.keys(jMap).sort((a,b) => +a - +b).forEach(jStr => {
+        const j = Number(jStr);
+        const isOpen = j === 1;
+        let rows = '';
+        jMap[j].forEach(g => {
+          const ro = j <= JORNADAS_JUGADAS ? 'readonly' : '';
+          rows += `<tr>
+            <td><span class="t-name">${badgeHtml(g)}${g.local}</span></td>
+            <td style="text-align:center"><input type="number" class="score-inp" data-index="${g.index}" data-team="local" min="0" value="${g.scoreLocal}" ${ro}></td>
+            <td class="vs-sep hide-sm">VS</td>
+            <td style="text-align:center"><input type="number" class="score-inp" data-index="${g.index}" data-team="visita" min="0" value="${g.scoreVisita}" ${ro}></td>
+            <td><span class="t-name" style="text-align:right;display:block">${badgeHtml({...g,local:g.visita,visita:g.local})}${g.visita}</span></td>
+          </tr>`;
+        });
+
+        const jLabel = j === 0 ? 'Jornada 0 (Apertura)' : `Jornada ${j}`;
+        acc.insertAdjacentHTML('beforeend', `
+          <div class="j-item">
+            <button class="j-btn${isOpen?' open':''}" data-t="jb${j}">
+              <span>${jLabel}</span>
+              <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="j-body${isOpen?' open':''}" id="jb${j}">
+              <table class="m-tbl">
+                <thead><tr><th>Local</th><th style="text-align:center">PTS</th><th class="hide-sm"></th><th style="text-align:center">PTS</th><th style="text-align:right">Visita</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+              <div class="clr-row"><button class="btn-clr-j btn-clr-jornada" data-jornada="${j}">Borrar jornada</button></div>
+            </div>
+          </div>`);
+      });
+    }
+
+    /* Group standings — only intra-group games */
+    function calcGroupStandings() {
+      document.querySelectorAll('.score-inp').forEach(inp => {
+        const i = Number(inp.dataset.index);
+        const k = inp.dataset.team === 'local' ? 'scoreLocal' : 'scoreVisita';
+        juegos[i][k] = Number(inp.value) || 0;
+      });
+
+      // Build stats per group
+      const allStats = {};
+      allTeams.forEach(t => { allStats[t] = { pj:0, pg:0, pf:0, pc:0 }; });
+
+      juegos.forEach(g => {
+        const sl = g.scoreLocal, sv = g.scoreVisita;
+        if (sl + sv === 0 || sl === sv) return;
+        if (teamGroup[g.local] !== teamGroup[g.visita]) return; // skip cross games
+        const L = g.local, V = g.visita;
+        allStats[L].pj++; allStats[V].pj++;
+        allStats[L].pf += sl; allStats[L].pc += sv;
+        allStats[V].pf += sv; allStats[V].pc += sl;
+        if (sl > sv) allStats[L].pg++; else allStats[V].pg++;
+      });
+
+      for (const [grp, teams] of Object.entries(grupos)) {
+        const tblId = { Norte:'tblNorte', Centro:'tblCentro', 'Bajío':'tblBajio' }[grp];
+        if (!tblId) continue;
+        const tbody = document.querySelector(`#${tblId} tbody`);
+        tbody.innerHTML = '';
+
+        const rows = teams.map(eq => {
+          const s = allStats[eq] || { pj:0,pg:0,pf:0,pc:0 };
+          return { equipo:eq, pj:s.pj, pg:s.pg, pp:s.pj-s.pg, pct:s.pj?s.pg/s.pj:0, pf:s.pf, pc:s.pc };
+        }).sort((a,b) => b.pct - a.pct || a.pc - b.pc);
+
+        rows.forEach((r, k) => {
+          const nc = k === 0 ? 'pos-n gold' : 'pos-n';
+          tbody.insertAdjacentHTML('beforeend', `<tr class="${k===0?'r-first':''}">
+            <td><span class="${nc}">${k+1}</span></td>
+            <td class="s-eq">${r.equipo}</td>
+            <td class="s-num">${r.pg}</td>
+            <td class="s-num">${r.pp}</td>
+            <td class="s-pct">${r.pct.toFixed(3)}</td>
+          </tr>`);
+        });
+      }
+    }
+
+    /* Borrado */
+    function clearJ(j) {
+      juegos.forEach((g, i) => {
+        if (g.jornada !== j || j <= JORNADAS_JUGADAS) return;
+        g.scoreLocal = 0; g.scoreVisita = 0;
+        const iL = document.querySelector(`.score-inp[data-index="${i}"][data-team="local"]`);
+        const iV = document.querySelector(`.score-inp[data-index="${i}"][data-team="visita"]`);
+        if (iL && !iL.readOnly) iL.value = 0;
+        if (iV && !iV.readOnly) iV.value = 0;
+      });
+      calcGroupStandings(); save();
+    }
+
+    /* Events */
+    document.addEventListener('click', e => {
+      const jb = e.target.closest('.j-btn');
+      if (jb) { const b = document.getElementById(jb.dataset.t); jb.classList.toggle('open'); b.classList.toggle('open'); }
+      const cj = e.target.closest('.btn-clr-jornada');
+      if (cj) clearJ(Number(cj.dataset.jornada));
+      if (e.target.id === 'btnClearAll') {
+        if (confirm('¿Borrar TODOS los pronósticos?')) {
+          juegos.forEach((g, i) => {
+            if (g.jornada <= JORNADAS_JUGADAS) return;
+            g.scoreLocal = 0; g.scoreVisita = 0;
+            const iL = document.querySelector(`.score-inp[data-index="${i}"][data-team="local"]`);
+            const iV = document.querySelector(`.score-inp[data-index="${i}"][data-team="visita"]`);
+            if (iL && !iL.readOnly) iL.value = 0;
+            if (iV && !iV.readOnly) iV.value = 0;
+          });
+          calcGroupStandings(); save();
+        }
+      }
+      if (e.target.closest('#eqBtn')) {
+        document.getElementById('eqPanel').classList.toggle('open');
+        document.getElementById('eqBtn').classList.toggle('open');
+        return;
+      }
+      if (!e.target.closest('.eq-wrapper')) {
+        document.getElementById('eqPanel').classList.remove('open');
+        document.getElementById('eqBtn').classList.remove('open');
+      }
+    });
+
+    document.addEventListener('input', e => {
+      if (!e.target.classList.contains('score-inp')) return;
+      const i = Number(e.target.dataset.index);
+      const k = e.target.dataset.team === 'local' ? 'scoreLocal' : 'scoreVisita';
+      juegos[i][k] = Number(e.target.value) || 0;
+      calcGroupStandings(); save();
+    });
+
+    cargarDatos();
+  </script>
+</body>
+</html>
