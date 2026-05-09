@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 0,
+  "jornadas_jugadas": -1,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],

@@ -215,7 +215,7 @@ function generarCalendario() {
       </tr>`;
     });
 
-    const jLabel  = j === 0 ? 'Jornada 0 (Apertura)' : `Jornada ${j}`;
+    const jLabel  = `Jornada ${j}`;
     const bodyId  = `jbn${j}`;
     acc.insertAdjacentHTML('beforeend', `
       <div class="j-item">
