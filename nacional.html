@@ -82,6 +82,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
+          <th class="hide-md ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -94,6 +95,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
+          <th class="hide-md ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -106,6 +108,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
+          <th class="hide-md ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -200,7 +203,7 @@ function generarCalendario() {
   Object.keys(jMap).sort((a,b) => +a - +b).forEach(jStr => {
     const j = Number(jStr);
     const locked = j <= JORNADAS_JUGADAS;
-    const isOpen = j === 1;
+    const isOpen = j === JORNADAS_JUGADAS + 1;
 
     let rows = '';
     jMap[j].forEach(g => {
@@ -255,28 +258,44 @@ function calcGroupStandings() {
   juegos.forEach(g => {
     const sl=g.scoreLocal, sv=g.scoreVisita;
     if (sl+sv===0 || sl===sv) return;
-    if (teamGroup[g.local] !== teamGroup[g.visita]) return; // skip cruzados
+    if (teamGroup[g.local] !== teamGroup[g.visita]) return;
     stats[g.local].pj++; stats[g.visita].pj++;
     stats[g.local].pc+=sv; stats[g.visita].pc+=sl;
     if (sl>sv) stats[g.local].pg++; else stats[g.visita].pg++;
   });
 
   const tblIds = { 'Norte':'tblNorte', 'Centro':'tblCentro', 'Bajío':'tblBajio' };
+  const allRows = {};
   for (const [grp, teams] of Object.entries(grupos)) {
-    const tblId = tblIds[grp]; if (!tblId) continue;
-    const tbody = document.querySelector(`#${tblId} tbody`);
-    tbody.innerHTML = '';
-    const rows = teams.map(eq => {
+    allRows[grp] = teams.map(eq => {
       const s = stats[eq]||{pj:0,pg:0,pc:0};
       return { equipo:eq, pg:s.pg, pp:s.pj-s.pg, pct: s.pj ? s.pg/s.pj : 0, pc:s.pc };
     }).sort((a,b) => b.pct-a.pct || a.pc-b.pc);
+  }
+
+  const playoffs = new Set();
+  for (const rows of Object.values(allRows))
+    rows.slice(0, 2).forEach(r => playoffs.add(r.equipo));
+  Object.values(allRows)
+    .flatMap(rows => rows.slice(2))
+    .sort((a,b) => b.pct-a.pct || a.pc-b.pc)
+    .slice(0, 2)
+    .forEach(r => playoffs.add(r.equipo));
+
+  for (const [grp, rows] of Object.entries(allRows)) {
+    const tblId = tblIds[grp]; if (!tblId) continue;
+    const tbody = document.querySelector(`#${tblId} tbody`);
+    tbody.innerHTML = '';
     rows.forEach((r,k) => {
-      tbody.insertAdjacentHTML('beforeend', `<tr class="${k===0?'r-first':''}">
-        <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
+      const isPlayoff = playoffs.has(r.equipo);
+      const isCutoff  = k === 1;
+      tbody.insertAdjacentHTML('beforeend', `<tr class="${isPlayoff?'r-playoff':''} ${isCutoff?'r-cutoff':''}">
+        <td><span class="pos-n">${k+1}</span></td>
         <td class="s-eq">${r.equipo}</td>
         <td class="s-num">${r.pg}</td>
         <td class="s-num">${r.pp}</td>
         <td class="s-pct">${r.pct.toFixed(3)}</td>
+        <td class="s-num hide-md ta-r">${r.pc}</td>
       </tr>`);
     });
   }

@@ -268,7 +268,7 @@ function calcStandings() {
   const tbody = document.querySelector('#tablaPosiciones tbody');
   tbody.innerHTML = '';
   rows.forEach((r,k) => {
-    tbody.insertAdjacentHTML('beforeend', `<tr class="${k===0?'r-first':k<8?'r-playoff':''} ${k===7?'r-cutoff':''}">
+    tbody.insertAdjacentHTML('beforeend', `<tr class="${k<8?'r-playoff':''} ${k===7?'r-cutoff':''}">
       <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
       <td class="s-eq">${r.equipo}</td>
       <td class="s-num hide-sm">${r.pj}</td>
@@ -300,7 +300,7 @@ function calcColley() {
   const tbody=document.querySelector('#tablaColley tbody');
   tbody.innerHTML='';
   rows.forEach((row,k)=>{
-    tbody.insertAdjacentHTML('beforeend',`<tr class="${k===0?'r-first':''}">
+    tbody.insertAdjacentHTML('beforeend',`<tr>
       <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
       <td class="s-eq">${row.equipo}</td>
       <td class="s-num hide-sm">${row.pj}</td>

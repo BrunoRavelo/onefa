@@ -335,10 +335,7 @@ body {
 }
 .s-tbl tbody tr:last-child { border-bottom: none; }
 .s-tbl tbody tr:hover { background: var(--hi-bg); }
-.s-tbl tbody tr.r-first {
-  background: #ECFDF5; border-left: 4px solid var(--onefa-green);
-}
-.s-tbl tbody tr.r-playoff { border-left: 4px solid var(--onefa-mid); }
+.s-tbl tbody tr.r-playoff { box-shadow: inset 4px 0 0 var(--onefa-mid); }
 .s-tbl tbody tr.r-cutoff td { border-bottom: 2px dashed rgba(10,107,37,.3) !important; }
 .s-tbl td { padding: .55rem .85rem; border: none; vertical-align: middle; }
 .pos-n {
