@@ -269,7 +269,7 @@ function calcStandings() {
   tbody.innerHTML = '';
   rows.forEach((r,k) => {
     tbody.insertAdjacentHTML('beforeend', `<tr class="${k<8?'r-playoff':''} ${k===7?'r-cutoff':''}">
-      <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
+      <td><span class="pos-n">${k+1}</span></td>
       <td class="s-eq">${r.equipo}</td>
       <td class="s-num hide-sm">${r.pj}</td>
       <td class="s-num">${r.pg}</td>
@@ -301,7 +301,7 @@ function calcColley() {
   tbody.innerHTML='';
   rows.forEach((row,k)=>{
     tbody.insertAdjacentHTML('beforeend',`<tr>
-      <td><span class="${k===0?'pos-n top':'pos-n'}">${k+1}</span></td>
+      <td><span class="pos-n">${k+1}</span></td>
       <td class="s-eq">${row.equipo}</td>
       <td class="s-num hide-sm">${row.pj}</td>
       <td class="s-num">${row.pg}</td>
