@@ -23,6 +23,7 @@
       <div class="select-arrow-wrap">
         <select class="season-select" id="seasonSelect" onchange="cambiarTemp(this.value)">
           <option value="2026">2026</option>
+          <option value="2026">2026</option>
         </select>
         <span class="select-arrow">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
@@ -44,7 +45,7 @@
 <header class="hero">
   <div class="hero-inner">
     <div class="hero-eye">Liga Mayor ONEFA</div>
-    <h1 class="hero-title">CONFERENCIA<br><em>NACIONAL 2026</em></h1>
+    <h1 class="hero-title">CONFERENCIA<br><em>NACIONAL <span id="heroYear">2026</span></em></h1>
     <div class="hero-bar"></div>
     <p class="hero-meta">Temporada 2026 — Ingresa marcadores para simular las tablas por grupo.</p>
     <div class="group-pills">
@@ -118,7 +119,18 @@
 </main>
 
 <script>
-const TEMP        = 2026;
+function getTemporada() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const t = urlParams.get('temporada');
+  return (t === '2025') ? 2025 : 2026;
+}
+const TEMP = getTemporada();
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('seasonSelect').value = String(TEMP);
+  document.getElementById('heroYear').textContent = TEMP;
+});
+
 const STORAGE_KEY = `onefa_nacional_${TEMP}_v1`;
 const DATA_FILE   = `./onefa_nacional_${TEMP}.json`;
 
@@ -126,6 +138,8 @@ let grupos = {}, juegos = [], JORNADAS_JUGADAS = 0;
 let teamGroup = {}, allTeams = [];
 
 function cambiarTemp(v) { window.location.href = `nacional.html?temporada=${v}`; }
+
+
 
 async function cargarDatos() {
   try {
