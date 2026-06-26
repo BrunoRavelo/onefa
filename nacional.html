@@ -195,6 +195,19 @@ async function cargarDatos() {
 
 function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(juegos)); } catch {} }
 
+// Función para determinar el ganador del enfrentamiento directo entre dos equipos
+function getDirecto(t1, t2) {
+  const g = juegos.find(x => (x.local === t1 && x.visita === t2) || (x.local === t2 && x.visita === t1));
+  // Si no jugaron, fue empate, o no hay marcador, retornamos null (sin ganador definido)
+  if (!g || (g.scoreLocal + g.scoreVisita) === 0 || g.scoreLocal === g.scoreVisita) return null;
+  // Si el primer equipo (t1) es el local
+  if (g.local === t1) {
+    return g.scoreLocal > g.scoreVisita ? 1 : -1;
+  } else { // Si t1 es el visitante
+    return g.scoreVisita > g.scoreLocal ? 1 : -1;
+  }
+}
+
 function gameGroup(g) {
   const gl = teamGroup[g.local], gv = teamGroup[g.visita];
   return gl === gv ? gl : 'cross';
@@ -298,10 +311,53 @@ function calcGroupStandings() {
   const tblIds = { 'Norte':'tblNorte', 'Centro':'tblCentro', 'Bajío':'tblBajio' };
   const allRows = {};
   for (const [grp, teams] of Object.entries(grupos)) {
-    allRows[grp] = teams.map(eq => {
-      const s = stats[eq]||{pj:0,pg:0,pc:0};
-      return { equipo:eq, pg:s.pg, pp:s.pj-s.pg, pct: s.pj ? s.pg/s.pj : 0, pc:s.pc };
-    }).sort((a,b) => b.pct-a.pct || a.pc-b.pc);
+    // 1. Construir el array de filas para este grupo
+    let rows = teams.map(eq => {
+      const s = stats[eq] || { pj: 0, pg: 0, pc: 0 };
+      return { equipo: eq, pg: s.pg, pp: s.pj - s.pg, pct: s.pj ? s.pg / s.pj : 0, pc: s.pc };
+    });
+
+    // 2. Orden inicial por porcentaje (descendente)
+    rows.sort((a, b) => b.pct - a.pct);
+
+    // 3. Aplicar desempate por resultado directo entre equipos con idéntico PCT
+    let i = 0;
+    while (i < rows.length) {
+      const startIdx = i;
+      const currentPct = rows[i].pct;
+      
+      // Avanzar hasta encontrar un porcentaje diferente
+      while (i < rows.length && rows[i].pct === currentPct) i++;
+      
+      // Si hay más de 1 equipo empatado en este porcentaje
+      if (i - startIdx > 1) {
+        const tiedGroup = rows.slice(startIdx, i);
+        let winner = null;
+        
+        // Buscar un equipo que haya vencido a TODOS los demás del grupo empatado
+        for (const t of tiedGroup) {
+          if (tiedGroup.every(o => o.equipo === t.equipo || getDirecto(t.equipo, o.equipo) === 1)) {
+            winner = t;
+            break;
+          }
+        }
+        
+        // Ordenar el grupo: el "winner" (si existe) va primero, el resto por PC (menor mejor)
+        tiedGroup.sort((a, b) => {
+          if (winner) {
+            if (a.equipo === winner.equipo) return -1;
+            if (b.equipo === winner.equipo) return 1;
+          }
+          return a.pc - b.pc;
+        });
+        
+        // Reemplazar la sección original con el grupo ya ordenado
+        rows.splice(startIdx, i - startIdx, ...tiedGroup);
+      }
+    }
+
+    // 4. Asignar las filas ya ordenadas a la tabla del grupo
+    allRows[grp] = rows;
   }
 
   const playoffs = new Set();
