@@ -57,6 +57,11 @@
 </header>
 
 <main class="main-wrap">
+  <div id="bannerHistorico" class="banner-historico d-none">
+    <strong>Temporada 2025 — Histórico.</strong>
+    Resultados oficiales hasta J9 cargados.
+    <a href="nacional.html?temporada=2026">Ver temporada 2026 →</a>
+  </div>
 
   <div class="s-label">Calendario Completo</div>
   <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;">
@@ -126,10 +131,13 @@ function getTemporada() {
 }
 const TEMP = getTemporada();
 
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('seasonSelect').value = String(TEMP);
-  document.getElementById('heroYear').textContent = TEMP;
-});
+document.getElementById('seasonSelect').value = String(TEMP);
+document.getElementById('heroYear').textContent = TEMP;
+
+document.title = `ONEFA Conferencia Nacional ${TEMP}`;
+if (TEMP === 2025) {
+  document.getElementById('bannerHistorico').classList.remove('d-none');
+}
 
 const STORAGE_KEY = `onefa_nacional_${TEMP}_v1`;
 const DATA_FILE   = `./onefa_nacional_${TEMP}.json`;
@@ -169,7 +177,16 @@ async function cargarDatos() {
         return { ...g, scoreLocal: s.scoreLocal||0, scoreVisita: s.scoreVisita||0 };
       });
     }
+
+    const meta = document.querySelector('.hero-meta');
+    if (JORNADAS_JUGADAS >= 0) {
+      meta.innerHTML = `Resultados oficiales hasta <strong>Jornada ${JORNADAS_JUGADAS}</strong>. Simula las restantes.`;
+    } else {
+      meta.innerHTML = `Temporada ${TEMP} — Ingresa marcadores para simular las tablas por grupo.`;
+    }
   } catch {}
+
+  
 
   generarMenu();
   generarCalendario();
