@@ -77,7 +77,7 @@
 
   <hr class="s-divider">
 
-  <div class="s-label">Tablas por Grupo <small>(solo juegos de grupo)</small></div>
+  <div class="s-label">Tablas por Grupo </div>
   <p class="tiebreak-note" id="notaDesempate"></p>
 
   <div class="groups-grid" style="margin-top:1rem;">
@@ -302,7 +302,6 @@ function calcGroupStandings() {
   juegos.forEach(g => {
     const sl=g.scoreLocal, sv=g.scoreVisita;
     if (sl+sv===0 || sl===sv) return;
-    if (teamGroup[g.local] !== teamGroup[g.visita]) return;
     stats[g.local].pj++; stats[g.visita].pj++;
     stats[g.local].pc+=sv; stats[g.visita].pc+=sl;
     if (sl>sv) stats[g.local].pg++; else stats[g.visita].pg++;
