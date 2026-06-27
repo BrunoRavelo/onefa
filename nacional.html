@@ -360,13 +360,17 @@ function calcGroupStandings() {
   }
 
   const playoffs = new Set();
-  for (const rows of Object.values(allRows))
+  // Top 2 de cada grupo
+  for (const rows of Object.values(allRows)) {
     rows.slice(0, 2).forEach(r => playoffs.add(r.equipo));
-  Object.values(allRows)
-    .flatMap(rows => rows.slice(2))
-    .sort((a,b) => b.pct-a.pct || a.pc-b.pc)
-    .slice(0, 2)
-    .forEach(r => playoffs.add(r.equipo));
+  }
+  // Solo los terceros (índice 2) de cada grupo
+  const terceros = Object.values(allRows)
+    .map(rows => rows[2]) // Toma el tercer lugar (si existe)
+    .filter(r => r !== undefined);
+  // Ordenar terceros por PCT y PC, tomar los 2 mejores
+  terceros.sort((a, b) => b.pct - a.pct || a.pc - b.pc);
+  terceros.slice(0, 2).forEach(r => playoffs.add(r.equipo));
 
   for (const [grp, rows] of Object.entries(allRows)) {
     const tblId = tblIds[grp]; if (!tblId) continue;
