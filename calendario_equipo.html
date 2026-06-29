@@ -65,18 +65,23 @@ const EQUIPO   = getP('equipo') || '';
 const rawTemp  = getP('temporada');
 const CONF     = getP('conferencia') || '14g';
 const isNac    = CONF === 'nacional';
-const TEMPORADA = isNac ? 2026 : (rawTemp==='2025' ? 2025 : 2026);
+const TEMPORADA = rawTemp === '2025' ? 2025 : 2026;   // aplica igual a 14G y Nacional
 const DATA_FILE = isNac ? `./onefa_nacional_${TEMPORADA}.json` : `./onefa_data_${TEMPORADA}.json`;
 const SK        = isNac
   ? `onefa_nacional_${TEMPORADA}_v1`
   : (TEMPORADA===2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`);
 
 // Nav
-document.getElementById('brandLink').href = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
-document.getElementById('btnBack').href   = isNac ? 'nacional.html' : `index.html?temporada=${TEMPORADA}`;
+const backBase = isNac
+  ? `nacional.html?temporada=${TEMPORADA}`
+  : `index.html?temporada=${TEMPORADA}`;
+document.getElementById('brandLink').href = backBase;
+document.getElementById('btnBack').href   = backBase;
 if (isNac) {
   document.getElementById('tabNac').classList.add('active');
-  document.getElementById('seasonSelect').innerHTML = '<option value="2026">2026</option>';
+  const s = document.getElementById('seasonSelect');
+  s.innerHTML = '<option value="2026">2026</option><option value="2025">2025</option>';
+  s.value = String(TEMPORADA);
 } else {
   document.getElementById('tab14').classList.add('active');
   const s = document.getElementById('seasonSelect');
