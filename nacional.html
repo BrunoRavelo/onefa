@@ -121,6 +121,23 @@
     </div>
   </div>
 
+  <hr class="s-divider">
+
+  <div class="s-label">Playoffs <small>(8 equipos — proyección)</small></div>
+  <p class="tiebreak-note">Clasifican los 2 primeros lugares de cada grupo (6 equipos) más los 2 mejores terceros lugares entre grupos (comodines). El sembrado general 1–8 se ordena por juegos ganados (PG) y, en caso de empate, por menor puntos en contra (PC). Bracket clásico 1v8 · 2v7 · 3v6 · 4v5, con localía para el mejor sembrado en cada ronda hasta la final.</p>
+
+  <div class="s-wrap" style="margin-top:1rem;">
+    <table class="s-tbl" id="tblPlayoffs">
+      <thead><tr>
+        <th style="width:32px">#</th><th>Equipo</th><th>Grupo</th>
+        <th>PG</th><th>PP</th><th class="hide-md ta-r">PC</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="bracket-wrap" id="bracketWrap" style="margin-top:1.5rem;"></div>
+
 </main>
 
 <script>
@@ -144,6 +161,14 @@ const DATA_FILE   = `./onefa_nacional_${TEMP}.json`;
 
 let grupos = {}, juegos = [], JORNADAS_JUGADAS = 0;
 let teamGroup = {}, allTeams = [];
+let scrimmages = [];
+
+// Equipos de 14 Grandes (para poder etiquetarlos en scrimmages cruzados de conferencia)
+const EQUIPOS_14G = [
+  "Auténticos Tigres","Borregos CCM","Borregos GDL","Linces UVM","Leones UAC",
+  "Leones UAMN","Zorros CETYS","Águilas Blancas","Borregos MTY","Borregos PUE",
+  "Burros Blancos","Borregos CEM","Pumas CU","Aztecas UDLAP"
+];
 
 function cambiarTemp(v) { window.location.href = `nacional.html?temporada=${v}`; }
 
@@ -155,6 +180,7 @@ async function cargarDatos() {
     const d   = await res.json();
     grupos = d.grupos || {};
     juegos = d.juegos || [];
+    scrimmages = d.scrimmages || [];
     JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
     const nota = document.getElementById('notaDesempate');
     if (nota && d.nota_desempate) nota.textContent = d.nota_desempate;
@@ -190,6 +216,7 @@ async function cargarDatos() {
 
   generarMenu();
   generarCalendario();
+  renderScrimmages();
   calcGroupStandings();
 }
 
@@ -219,6 +246,56 @@ function badgeHtml(grp) {
   const cls = grpClass(grp);
   const lbl = grp === 'cross' ? '✕' : grp[0];
   return `<span class="g-badge g-badge-${cls}">${lbl}</span>`;
+}
+
+// Badge para equipos en la sección de Scrimmages: usa el color de grupo si el
+// equipo pertenece a la Conferencia Nacional, "14G" si es de 14 Grandes,
+// o "EXT" si es un equipo invitado ajeno a ambas conferencias.
+function scrimBadge(team) {
+  if (teamGroup[team]) return badgeHtml(teamGroup[team]);
+  if (EQUIPOS_14G.includes(team)) return `<span class="g-badge g-badge-14g">14G</span>`;
+  return `<span class="g-badge g-badge-ext">EXT</span>`;
+}
+
+// Bloque de Scrimmages (juegos de preparación): puramente informativo,
+// no participa en generarCalendario/calcGroupStandings/getDirecto.
+function renderScrimmages() {
+  if (!scrimmages.length) return;
+  const acc = document.getElementById('calendarioAccordion');
+
+  let rows = '';
+  scrimmages.forEach(g => {
+    const nota = g.nota ? `<span class="tag-note">${g.nota}</span>` : '';
+    rows += `<tr>
+      <td><span class="t-name">${scrimBadge(g.local)}${g.local}</span></td>
+      <td class="ta-c s-num" style="font-weight:700;font-size:1.05rem;">${g.scoreLocal}</td>
+      <td class="vs-sep hide-sm">VS</td>
+      <td class="ta-c s-num" style="font-weight:700;font-size:1.05rem;">${g.scoreVisita}</td>
+      <td>
+        <span class="t-name" style="display:block;text-align:right">${scrimBadge(g.visita)}${g.visita}</span>
+        ${nota ? `<div style="text-align:right;margin-top:2px;">${nota}</div>` : ''}
+      </td>
+    </tr>`;
+  });
+
+  acc.insertAdjacentHTML('beforeend', `
+    <div class="j-item scrim-item">
+      <button class="j-btn" data-target="jbn-scrim" type="button">
+        <span>Scrimmages <small>— no cuentan para la tabla</small></span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="j-body" id="jbn-scrim">
+        <table class="m-tbl">
+          <thead><tr>
+            <th>Local</th><th class="ta-c">Pts</th>
+            <th class="hide-sm ta-c"></th>
+            <th class="ta-c">Pts</th><th class="ta-r">Visita</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="scrim-note">Juegos de preparación (scrimmages), jugados en distintas fechas previas a la temporada. Se agrupan aquí solo con fines informativos — no afectan el calendario oficial ni las tablas de posiciones. <span class="tag-note">2Q</span> indica que el partido se jugó a 2 cuartos.</p>
+      </div>
+    </div>`);
 }
 
 function generarMenu() {
@@ -389,6 +466,88 @@ function calcGroupStandings() {
       </tr>`);
     });
   }
+
+  renderPlayoffs(stats, playoffs);
+}
+
+// ── Playoffs: tabla general de 8 sembrados + bracket clásico 1v8/2v7/3v6/4v5 ──
+// Se recalcula cada vez que calcGroupStandings corre (siempre en sync con las
+// tablas por grupo). No participa en generarCalendario ni afecta la temporada.
+function renderPlayoffs(statsMap, playoffsSet) {
+  const tbody = document.querySelector('#tblPlayoffs tbody');
+  const bracketWrap = document.getElementById('bracketWrap');
+  if (!tbody || !bracketWrap) return;
+
+  const teams = [...playoffsSet].map(eq => {
+    const s = statsMap[eq] || { pj:0, pg:0, pc:0 };
+    return { equipo: eq, grupo: teamGroup[eq], pg: s.pg, pp: s.pj - s.pg, pc: s.pc, pj: s.pj };
+  });
+  // Sembrado general: más juegos ganados primero; empate → menor PC
+  teams.sort((a, b) => b.pg - a.pg || a.pc - b.pc);
+  teams.forEach((t, i) => t.seed = i + 1);
+
+  // Tabla general (8 clasificados)
+  tbody.innerHTML = '';
+  teams.forEach(t => {
+    tbody.insertAdjacentHTML('beforeend', `<tr class="r-playoff">
+      <td><span class="pos-n top">${t.seed}</span></td>
+      <td class="s-eq">${t.equipo}</td>
+      <td>${t.grupo ? badgeHtml(t.grupo) : ''}</td>
+      <td class="s-num">${t.pg}</td>
+      <td class="s-num">${t.pp}</td>
+      <td class="s-num hide-md ta-r">${t.pc}</td>
+    </tr>`);
+  });
+
+  if (teams.length < 8) {
+    bracketWrap.innerHTML = `<p class="tiebreak-note">Aún no hay 8 equipos clasificados para proyectar el bracket — faltan resultados de temporada regular.</p>`;
+    return;
+  }
+
+  // Bracket clásico: 1v8 y 4v5 en la mitad superior (se cruzan en semis),
+  // 2v7 y 3v6 en la mitad inferior. El mejor sembrado siempre es local.
+  const cf = [
+    { label:'CF1', a: teams[0], b: teams[7] }, // 1 vs 8
+    { label:'CF2', a: teams[3], b: teams[4] }, // 4 vs 5
+    { label:'CF3', a: teams[1], b: teams[6] }, // 2 vs 7
+    { label:'CF4', a: teams[2], b: teams[5] }, // 3 vs 6
+  ];
+
+  const matchHtml = (label, a, b, tbd) => `
+    <div class="bracket-match${tbd ? ' bracket-tbd' : ''}">
+      ${label ? `<div class="bracket-label">${label}</div>` : ''}
+      <div class="bracket-team bracket-local">
+        <span class="bracket-seed">${a && a.seed ? a.seed : ''}</span>
+        <span class="bracket-name">${a ? a.equipo : 'Por definir'}</span>
+      </div>
+      <div class="bracket-team">
+        <span class="bracket-seed">${b && b.seed ? b.seed : ''}</span>
+        <span class="bracket-name">${b ? b.equipo : 'Por definir'}</span>
+      </div>
+    </div>`;
+
+  const cfHtml = cf.map(m => matchHtml(m.label, m.a, m.b, false)).join('');
+  const sfHtml =
+    matchHtml('SF1', { equipo:'Ganador CF1' }, { equipo:'Ganador CF2' }, true) +
+    matchHtml('SF2', { equipo:'Ganador CF3' }, { equipo:'Ganador CF4' }, true);
+  const finalHtml = matchHtml('FINAL', { equipo:'Ganador SF1' }, { equipo:'Ganador SF2' }, true);
+
+  bracketWrap.innerHTML = `
+    <div class="bracket-cols">
+      <div class="bracket-col">
+        <div class="bracket-col-title">Cuartos de Final</div>
+        ${cfHtml}
+      </div>
+      <div class="bracket-col">
+        <div class="bracket-col-title">Semifinal</div>
+        ${sfHtml}
+      </div>
+      <div class="bracket-col">
+        <div class="bracket-col-title">Final</div>
+        ${finalHtml}
+      </div>
+    </div>
+    <p class="scrim-note" style="margin-top:1rem;">Proyección con la clasificación actual — se actualiza en vivo conforme se capturan marcadores. La localía (equipo arriba en cada llave) es siempre del mejor sembrado, hasta la final. Semifinal y Final se completan una vez que haya resultados reales de Cuartos.</p>`;
 }
 
 function clearJornada(j) {

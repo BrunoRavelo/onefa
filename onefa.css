@@ -258,6 +258,31 @@ body {
 }
 .j-body.open { display: block; }
 
+/* Sección Scrimmages — visualmente diferenciada (informativa, no editable) */
+.scrim-item .j-btn {
+  border-style: dashed; color: #92400E;
+}
+.scrim-item .j-btn:hover { background: #FFFBEB; border-color: #FCD34D; color: #92400E; }
+.scrim-item .j-btn.open {
+  background: #FFFBEB; border-color: #F59E0B; border-left: 4px solid #F59E0B;
+  color: #92400E;
+}
+.scrim-item .j-btn span small {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .72rem; font-weight: 500; letter-spacing: .5px;
+  text-transform: none; opacity: .7; margin-left: 4px;
+}
+.tag-note {
+  display: inline-block; font-size: .62rem; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; padding: .1em .45em; border-radius: 3px;
+  background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A;
+}
+.scrim-note {
+  font-size: .78rem; color: var(--muted); margin-top: .6rem;
+  padding: .5rem .65rem; background: #F9FAFB; border: 1px solid var(--border);
+  border-radius: 4px; line-height: 1.45;
+}
+
 /* Tabla de partidos */
 .m-tbl { width: 100%; border-collapse: separate; border-spacing: 0 2px; margin-top: .4rem; }
 .m-tbl thead th {
@@ -371,6 +396,8 @@ body {
 .g-badge-centro  { background: var(--centro-bg); color: var(--centro-c); }
 .g-badge-bajio   { background: var(--bajio-bg);  color: var(--bajio-c);  }
 .g-badge-cross   { background: #F3F4F6; color: var(--muted); }
+.g-badge-14g     { background: #EDE9FE; color: #6D28D9; }
+.g-badge-ext     { background: #FEF3C7; color: #92400E; }
 
 /* Group cards (Nacional) */
 .groups-grid {
@@ -411,6 +438,49 @@ body {
   padding: .5rem .75rem; background: #F9FAFB;
   border: 1px solid var(--border); border-radius: 4px;
 }
+
+/* ── PLAYOFFS — bracket visual ───────────────────────────── */
+.bracket-wrap { overflow-x: auto; padding-bottom: .5rem; }
+.bracket-cols {
+  display: flex; align-items: stretch; gap: 1.75rem;
+  min-width: 680px;
+}
+.bracket-col {
+  display: flex; flex-direction: column; justify-content: space-around;
+  flex: 1; min-width: 190px;
+}
+.bracket-col-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: .82rem; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: .75rem;
+}
+.bracket-match {
+  position: relative; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: var(--shadow); overflow: hidden; margin: .7rem 0;
+}
+.bracket-label {
+  font-family: 'Bebas Neue', sans-serif; font-size: .62rem; letter-spacing: 1.5px;
+  color: rgba(255,255,255,.55); background: var(--onefa-dark);
+  padding: .12rem .5rem;
+}
+.bracket-team {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .45rem .65rem; font-size: .92rem; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.bracket-team:last-child { border-bottom: none; }
+.bracket-team.bracket-local { background: var(--hi-bg); }
+.bracket-seed {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 3px; flex-shrink: 0;
+  background: var(--bg); color: var(--muted);
+  font-family: 'Bebas Neue', sans-serif; font-size: .78rem;
+}
+.bracket-match.bracket-tbd .bracket-team {
+  color: var(--light); font-style: italic; font-weight: 500;
+}
+.bracket-match.bracket-tbd .bracket-team.bracket-local { background: transparent; }
+.bracket-match.bracket-tbd .bracket-seed { background: transparent; }
 
 /* ── CALENDARIO EQUIPO — match cards ─────────────────────── */
 .match-list { display: flex; flex-direction: column; gap: 6px; }
