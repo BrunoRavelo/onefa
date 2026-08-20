@@ -493,6 +493,7 @@ body {
 .match-card.pendiente{ border-left-color: #D1D5DB; }
 .match-card.ganado   { border-left-color: var(--onefa-green); background: var(--hi-bg); }
 .match-card.perdido  { border-left-color: var(--onefa-red); background: var(--onefa-red-bg); }
+.match-card.scrim    { border-left-color: #F59E0B; background: #FFFBEB; }
 .match-card-inner { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1rem; }
 .match-meta {
   font-size: .7rem; font-weight: 700; letter-spacing: 2px;
@@ -512,6 +513,19 @@ body {
 .badge-win  { background: var(--hi-bg);          color: var(--onefa-green); border: 1px solid var(--hi-border); }
 .badge-loss { background: var(--onefa-red-bg);   color: var(--onefa-red);   border: 1px solid var(--onefa-red-bdr); }
 .badge-pend { background: #F9FAFB; color: var(--muted); border: 1px solid var(--border); }
+
+.scrim-section-label {
+  font-family: 'Bebas Neue', sans-serif; font-size: .95rem; letter-spacing: 2px;
+  text-transform: uppercase; color: #92400E; margin: 1.75rem 0 .6rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.scrim-section-label::before {
+  content: ''; width: 10px; height: 10px; border-radius: 2px; background: #F59E0B; flex-shrink: 0;
+}
+.scrim-section-sub {
+  font-family: 'Barlow Condensed', sans-serif; font-size: .75rem; font-weight: 500;
+  letter-spacing: .5px; text-transform: none; color: var(--muted); margin-left: .25rem;
+}
 
 .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 1.1rem; }
 

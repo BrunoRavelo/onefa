@@ -57,6 +57,7 @@
   <div class="match-list" id="listaPartidos">
     <div class="empty-msg">Cargando…</div>
   </div>
+  <div id="listaScrimmages"></div>
 </main>
 
 <script>
@@ -95,7 +96,7 @@ function cambiarTemp(v) {
   window.location.href = url.toString();
 }
 
-let equipos=[], juegos=[], JORNADAS_JUGADAS=0;
+let equipos=[], juegos=[], scrimmages=[], JORNADAS_JUGADAS=0;
 
 async function cargarDatos() {
   try {
@@ -103,8 +104,20 @@ async function cargarDatos() {
     const d   = await res.json();
     equipos = isNac ? Object.values(d.grupos||{}).flat() : (d.equipos||[]);
     juegos  = d.juegos || [];
+    scrimmages = d.scrimmages || [];
     JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
-  } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; }
+  } catch { equipos=[]; juegos=[]; scrimmages=[]; JORNADAS_JUGADAS=0; }
+
+  // Los scrimmages solo se guardan en el JSON de la Conferencia Nacional.
+  // Si estamos viendo un equipo de 14 Grandes, se piden aparte, ya que
+  // varios equipos de 14G también jugaron partidos de preparación.
+  if (!isNac) {
+    try {
+      const resN = await fetch(`./onefa_nacional_${TEMPORADA}.json`, { cache:'no-store' });
+      const dN   = await resN.json();
+      scrimmages = dN.scrimmages || [];
+    } catch { /* sin scrimmages disponibles — no es crítico */ }
+  }
 
   const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
   try {
@@ -123,9 +136,11 @@ async function cargarDatos() {
 
 function render() {
   const lista = document.getElementById('listaPartidos');
+  const listaScrim = document.getElementById('listaScrimmages');
   if (!EQUIPO || !equipos.includes(EQUIPO)) {
     document.getElementById('heroTitle').textContent = 'Equipo no encontrado';
     lista.innerHTML = '<div class="empty-msg">No se encontró el equipo especificado.</div>';
+    listaScrim.innerHTML = '';
     return;
   }
   const confLabel = isNac ? 'Conf. Nacional' : '14 Grandes';
@@ -137,34 +152,90 @@ function render() {
     .filter(g => g.local===EQUIPO || g.visita===EQUIPO)
     .sort((a,b) => a.jornada - b.jornada);
 
-  if (!partidos.length) {
+  const scrimsEquipo = scrimmages.filter(g => g.local===EQUIPO || g.visita===EQUIPO);
+
+  if (!partidos.length && !scrimsEquipo.length) {
     lista.innerHTML = '<div class="empty-msg">Sin partidos registrados para este equipo.</div>';
+    listaScrim.innerHTML = '';
     return;
   }
 
-  lista.innerHTML = '';
-  partidos.forEach(p => {
-    const esL   = p.local === EQUIPO;
-    const rival = esL ? p.visita : p.local;
-    const miPts = esL ? p.scoreLocal  : p.scoreVisita;
-    const rvPts = esL ? p.scoreVisita : p.scoreLocal;
-    const jugado = p.jornada <= JORNADAS_JUGADAS;
+  if (!partidos.length) {
+    lista.innerHTML = '<div class="empty-msg">Sin partidos de temporada registrados para este equipo.</div>';
+  } else {
+    lista.innerHTML = '';
+    partidos.forEach(p => {
+      const esL   = p.local === EQUIPO;
+      const rival = esL ? p.visita : p.local;
+      const miPts = esL ? p.scoreLocal  : p.scoreVisita;
+      const rvPts = esL ? p.scoreVisita : p.scoreLocal;
+      const jugado = p.jornada <= JORNADAS_JUGADAS;
+      const hasPts = (p.scoreLocal + p.scoreVisita) > 0;
+      const gano   = hasPts && miPts > rvPts;
+      const perdio = hasPts && miPts < rvPts;
+
+      let cc = 'match-card';
+      if (jugado && gano)   cc += ' ganado';
+      else if (jugado && perdio) cc += ' perdido';
+      else if (!jugado)     cc += ' pendiente';
+
+      let badge = '';
+      if (jugado && gano)   badge = '<span class="match-badge badge-win">Victoria</span>';
+      else if (jugado && perdio) badge = '<span class="match-badge badge-loss">Derrota</span>';
+      else if (!jugado)     badge = '<span class="match-badge badge-pend">Pendiente</span>';
+
+      const jLabel = p.jornada===0 ? 'J0 · Apertura' : `Jornada ${p.jornada}`;
+      const rLabel = esL ? 'Local' : 'Visita';
+
+      let scoreHtml = '';
+      if (hasPts) {
+        const mc = gano ? 'won' : perdio ? 'lost' : '';
+        scoreHtml = `<span class="${mc}">${EQUIPO} <span class="score">${miPts}</span> — <span class="score">${rvPts}</span> ${rival}</span>`;
+      } else {
+        scoreHtml = `${EQUIPO} vs ${rival}`;
+      }
+
+      lista.insertAdjacentHTML('beforeend', `
+        <div class="${cc}">
+          <div class="match-card-inner">
+            <div>
+              <div class="match-meta">${jLabel} · ${rLabel}</div>
+              <div class="match-result">${scoreHtml}</div>
+            </div>
+            <div>${badge}</div>
+          </div>
+        </div>`);
+    });
+  }
+
+  // Scrimmages: sección aparte, con color ámbar distintivo para no
+  // confundirlos con los juegos de temporada regular.
+  if (!scrimsEquipo.length) {
+    listaScrim.innerHTML = '';
+    return;
+  }
+
+  let scrimHtml = `
+    <div class="scrim-section-label">Scrimmages
+      <span class="scrim-section-sub">— juegos de preparación, no cuentan para la tabla</span>
+    </div>
+    <div class="match-list">`;
+
+  scrimsEquipo.forEach(p => {
+    const esL    = p.local === EQUIPO;
+    const rival  = esL ? p.visita : p.local;
+    const miPts  = esL ? p.scoreLocal  : p.scoreVisita;
+    const rvPts  = esL ? p.scoreVisita : p.scoreLocal;
     const hasPts = (p.scoreLocal + p.scoreVisita) > 0;
     const gano   = hasPts && miPts > rvPts;
     const perdio = hasPts && miPts < rvPts;
-
-    let cc = 'match-card';
-    if (jugado && gano)   cc += ' ganado';
-    else if (jugado && perdio) cc += ' perdido';
-    else if (!jugado)     cc += ' pendiente';
+    const rLabel = esL ? 'Local' : 'Visita';
+    const nota   = p.nota ? ` <span class="tag-note">${p.nota}</span>` : '';
 
     let badge = '';
-    if (jugado && gano)   badge = '<span class="match-badge badge-win">Victoria</span>';
-    else if (jugado && perdio) badge = '<span class="match-badge badge-loss">Derrota</span>';
-    else if (!jugado)     badge = '<span class="match-badge badge-pend">Pendiente</span>';
-
-    const jLabel = p.jornada===0 ? 'J0 · Apertura' : `Jornada ${p.jornada}`;
-    const rLabel = esL ? 'Local' : 'Visita';
+    if (gano)        badge = '<span class="match-badge badge-win">Victoria</span>';
+    else if (perdio)  badge = '<span class="match-badge badge-loss">Derrota</span>';
+    else if (hasPts)  badge = '<span class="match-badge badge-pend">Empate</span>';
 
     let scoreHtml = '';
     if (hasPts) {
@@ -174,17 +245,20 @@ function render() {
       scoreHtml = `${EQUIPO} vs ${rival}`;
     }
 
-    lista.insertAdjacentHTML('beforeend', `
-      <div class="${cc}">
+    scrimHtml += `
+      <div class="match-card scrim">
         <div class="match-card-inner">
           <div>
-            <div class="match-meta">${jLabel} · ${rLabel}</div>
-            <div class="match-result">${scoreHtml}</div>
+            <div class="match-meta">Scrimmage · ${rLabel}</div>
+            <div class="match-result">${scoreHtml}${nota}</div>
           </div>
           <div>${badge}</div>
         </div>
-      </div>`);
+      </div>`;
   });
+
+  scrimHtml += `</div>`;
+  listaScrim.innerHTML = scrimHtml;
 }
 
 cargarDatos();
