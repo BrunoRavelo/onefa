@@ -138,6 +138,19 @@
 
   <div class="bracket-wrap" id="bracketWrap" style="margin-top:1.5rem;"></div>
 
+  <hr class="s-divider">
+
+  <div class="s-label">Comparador de equipos <small>(camino más corto de rivales en común)</small></div>
+  <p class="tiebreak-note">Si dos equipos no se enfrentaron directamente, busca la cadena más corta de rivales en común que los conecta — usando juegos de temporada regular de Nacional y scrimmages (estos últimos también conectan con equipos de 14 Grandes y externos). No implica que un equipo le vaya a ganar a otro, solo muestra cómo se relacionan sus resultados.</p>
+
+  <div class="compare-wrap">
+    <select class="team-select" id="cmpTeamA"></select>
+    <span class="compare-vs">vs</span>
+    <select class="team-select" id="cmpTeamB"></select>
+  </div>
+
+  <div id="compareResult"></div>
+
 </main>
 
 <script>
@@ -217,6 +230,7 @@ async function cargarDatos() {
   generarMenu();
   generarCalendario();
   renderScrimmages();
+  populateCompareSelects();
   calcGroupStandings();
 }
 
@@ -468,6 +482,8 @@ function calcGroupStandings() {
   }
 
   renderPlayoffs(stats, playoffs);
+  buildGraph();
+  renderCompare();
 }
 
 // ── Playoffs: tabla general de 8 sembrados + bracket clásico 1v8/2v7/3v6/4v5 ──
@@ -601,6 +617,111 @@ document.addEventListener('input', e => {
   const k=e.target.dataset.team==='local'?'scoreLocal':'scoreVisita';
   juegos[i][k]=Number(e.target.value)||0;
   calcGroupStandings(); save();
+});
+
+// ── Comparador de equipos: grafo de resultados + camino más corto (BFS) ──
+// Nodos = equipos. Aristas = juegos de temporada regular de Nacional +
+// scrimmages (estos últimos son los que conectan con 14 Grandes/externos).
+let graph = {};
+
+function buildGraph() {
+  graph = {};
+  const addEdge = (a, b, sa, sb, tipo, nota) => {
+    if (!a || !b) return;
+    if (!graph[a]) graph[a] = [];
+    if (!graph[b]) graph[b] = [];
+    graph[a].push({ opponent: b, myScore: sa, oppScore: sb, tipo, nota });
+    graph[b].push({ opponent: a, myScore: sb, oppScore: sa, tipo, nota });
+  };
+  juegos.forEach(g => {
+    if ((g.scoreLocal||0) + (g.scoreVisita||0) === 0) return; // aún no jugado
+    addEdge(g.local, g.visita, g.scoreLocal, g.scoreVisita, 'temporada');
+  });
+  scrimmages.forEach(g => {
+    addEdge(g.local, g.visita, g.scoreLocal, g.scoreVisita, 'scrimmage', g.nota);
+  });
+}
+
+function populateCompareSelects() {
+  const selA = document.getElementById('cmpTeamA');
+  const selB = document.getElementById('cmpTeamB');
+  if (!selA || !selB) return;
+  const prevA = selA.value, prevB = selB.value;
+  const teams = Object.keys(graph).sort((a,b) => a.localeCompare(b, 'es'));
+  const opts = teams.map(t => `<option value="${t}">${t}</option>`).join('');
+  selA.innerHTML = opts;
+  selB.innerHTML = opts;
+  if (teams.includes(prevA)) selA.value = prevA; else if (teams[0]) selA.value = teams[0];
+  if (teams.includes(prevB)) selB.value = prevB; else if (teams[1]) selB.value = teams[1];
+}
+
+// BFS: garantiza encontrar la cadena MÁS CORTA de rivales en común entre A y B.
+function bfsPath(start, end) {
+  if (start === end) return [];
+  if (!graph[start] || !graph[end]) return null;
+  const visited = new Set([start]);
+  const queue = [[start, []]];
+  while (queue.length) {
+    const [node, path] = queue.shift();
+    for (const edge of (graph[node] || [])) {
+      if (visited.has(edge.opponent)) continue;
+      const newPath = [...path, { from: node, to: edge.opponent, ...edge }];
+      if (edge.opponent === end) return newPath;
+      visited.add(edge.opponent);
+      queue.push([edge.opponent, newPath]);
+    }
+  }
+  return null;
+}
+
+function renderCompare() {
+  const selA = document.getElementById('cmpTeamA');
+  const selB = document.getElementById('cmpTeamB');
+  const box = document.getElementById('compareResult');
+  if (!selA || !selB || !box) return;
+  // Si el grafo cambió (nuevo marcador) hay que repoblar los selects primero
+  populateCompareSelects();
+  const a = selA.value, b = selB.value;
+  if (!a || !b) { box.innerHTML = ''; return; }
+
+  if (a === b) {
+    box.innerHTML = `<p class="tiebreak-note">Elige dos equipos distintos para comparar.</p>`;
+    return;
+  }
+
+  const path = bfsPath(a, b);
+  if (path === null) {
+    box.innerHTML = `<p class="tiebreak-note">Todavía no hay ninguna cadena de rivales en común que conecte a <strong>${a}</strong> con <strong>${b}</strong> con los datos disponibles.</p>`;
+    return;
+  }
+  if (path.length === 0) {
+    box.innerHTML = `<p class="tiebreak-note">Es el mismo equipo.</p>`;
+    return;
+  }
+
+  let html = `<div class="chain">`;
+  path.forEach((edge, i) => {
+    const tipoLabel = edge.tipo === 'scrimmage' ? 'Scrimmage' : 'Temporada';
+    const tipoClass = edge.tipo === 'scrimmage' ? 'chain-scrim' : '';
+    const nota = edge.nota ? ` <span class="tag-note">${edge.nota}</span>` : '';
+    html += `
+      <div class="chain-card ${tipoClass}">
+        <div class="chain-meta">${tipoLabel}${nota}</div>
+        <div class="chain-result">${edge.from} <span class="score">${edge.myScore}</span> — <span class="score">${edge.oppScore}</span> ${edge.to}</div>
+      </div>`;
+    if (i < path.length - 1) html += `<div class="chain-arrow">↓</div>`;
+  });
+  html += `</div>`;
+
+  if (path.length > 1) {
+    const n = path.length - 1;
+    html += `<p class="tiebreak-note" style="margin-top:.75rem;">Conexión indirecta a través de ${n} rival${n>1?'es':''} en común — no implica que ${a} le vaya a ganar a ${b}, solo muestra cómo se relacionan sus resultados.</p>`;
+  }
+  box.innerHTML = html;
+}
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'cmpTeamA' || e.target.id === 'cmpTeamB') renderCompare();
 });
 
 cargarDatos();

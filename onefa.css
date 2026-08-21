@@ -482,6 +482,39 @@ body {
 .bracket-match.bracket-tbd .bracket-team.bracket-local { background: transparent; }
 .bracket-match.bracket-tbd .bracket-seed { background: transparent; }
 
+/* ── Comparador de equipos ───────────────────────────────── */
+.compare-wrap {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-top: .5rem;
+}
+.team-select {
+  flex: 1; min-width: 160px; appearance: none; -webkit-appearance: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: .55rem .8rem; font-family: 'Barlow Condensed', sans-serif;
+  font-size: .95rem; font-weight: 600; color: var(--text); cursor: pointer;
+}
+.team-select:focus { outline: none; border-color: var(--onefa-mid); }
+.compare-vs {
+  font-family: 'Bebas Neue', sans-serif; font-size: .9rem; letter-spacing: 1px;
+  color: var(--muted); flex-shrink: 0;
+}
+#compareResult { margin-top: 1.1rem; }
+.chain { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.chain-card {
+  background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--onefa-green);
+  border-radius: 6px; padding: .65rem .9rem; box-shadow: var(--shadow);
+}
+.chain-card.chain-scrim { border-left-color: #F59E0B; background: #FFFBEB; }
+.chain-meta {
+  font-family: 'Barlow Condensed', sans-serif; font-size: .72rem; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: .2rem;
+}
+.chain-result { font-size: .98rem; font-weight: 600; color: var(--text); }
+.chain-result .score { color: var(--onefa-light); font-weight: 700; }
+.chain-arrow {
+  text-align: center; color: var(--light); font-size: 1rem; line-height: 1;
+  margin: .2rem 0; opacity: .6;
+}
+
 /* ── CALENDARIO EQUIPO — match cards ─────────────────────── */
 .match-list { display: flex; flex-direction: column; gap: 6px; }
 .match-card {
