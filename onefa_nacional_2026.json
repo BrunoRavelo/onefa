@@ -117,6 +117,8 @@
     {"local":"Toros Salvajes","visita":"Lobos ULM","scoreLocal":18,"scoreVisita":6},
     {"local":"Potros ITSON","visita":"Auténticos Tigres","scoreLocal":13,"scoreVisita":67},
     {"local":"Borregos CCM","visita":"Pumas CU","scoreLocal":15,"scoreVisita":28},
-    {"local":"Borregos MTY","visita":"Águilas UACH","scoreLocal":41,"scoreVisita":6}
+    {"local":"Borregos MTY","visita":"Águilas UACH","scoreLocal":41,"scoreVisita":6},
+    {"local":"Pumas Acatlán","visita":"Lobos UA de C","scoreLocal":16,"scoreVisita":26}
+
   ]
 }
