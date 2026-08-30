@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": -1,
+  "jornadas_jugadas": 0,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],
@@ -9,7 +9,7 @@
   },
   "nota_desempate": "Los criterios de desempate pueden variar según el reglamento oficial de la conferencia. El mostrado es referencial: resultado directo, luego menor puntaje en contra.",
   "juegos": [
-    {"jornada":0,"local":"Panteras Siglo XXI","visita":"Halcones UV","scoreLocal":0,"scoreVisita":0},
+    {"jornada":0,"local":"Panteras Siglo XXI","visita":"Halcones UV","scoreLocal":6,"scoreVisita":7},
 
     {"jornada":1,"local":"Águilas UACH","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":0},
     {"jornada":1,"local":"Potros ITSON","visita":"Liebres CD Juárez","scoreLocal":0,"scoreVisita":0},
