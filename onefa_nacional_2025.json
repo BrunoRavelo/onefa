@@ -2,6 +2,9 @@
   "temporada": 2025,
   "conferencia": "Nacional",
   "jornadas_jugadas": 9,
+  "temporada_regular_finalizada": true,
+  "liguilla_finalizada": true,
+  "_nota_revision": "Se corrigió el nombre del equipo 'Arkansas ST QRO' a 'Borregos TEC QRO' en toda la temporada regular y la liguilla: son equipos distintos ('ASUCQ / RED WOLVES' es el equipo de Arkansas State, y se mantiene sin cambios). Verifica si algún otro archivo de tu app (logos, IDs internos, etc.) sigue referenciando el nombre anterior 'Arkansas ST QRO'.",
   "grupos": {
     "Norte": [
       "Águilas UACH",
@@ -20,7 +23,7 @@
       "Halcones UV"
     ],
     "Bajío": [
-      "Arkansas ST QRO",
+      "Borregos TEC QRO",
       "Tecos UAG",
       "Leones UAQ",
       "Lobos UA de C",
@@ -32,7 +35,7 @@
   "nota_desempate": "Los criterios de desempate pueden variar según el reglamento oficial de la conferencia. El mostrado es referencial: resultado directo, luego menor puntaje en contra.",
   "juegos": [
     {"jornada":0,"local":"Correcaminos UAT","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":28},
-    {"jornada":0,"local":"Potros Salvajes","visita":"Arkansas ST QRO","scoreLocal":13,"scoreVisita":35},
+    {"jornada":0,"local":"Potros Salvajes","visita":"Borregos TEC QRO","scoreLocal":13,"scoreVisita":35},
     {"jornada":0,"local":"Cardinals UIW","visita":"ASUCQ / RED WOLVES","scoreLocal":34,"scoreVisita":27},
     {"jornada":0,"local":"Indios UACJ","visita":"Toros Salvajes","scoreLocal":28,"scoreVisita":3},
     {"jornada":0,"local":"Leones UAC","visita":"Tecos UAG","scoreLocal":35,"scoreVisita":9},
@@ -54,27 +57,27 @@
     {"jornada":2,"local":"Búhos IPN","visita":"Lobos UA de C","scoreLocal":20,"scoreVisita":13},
     {"jornada":2,"local":"Panteras Siglo XXI","visita":"Lobos ULM","scoreLocal":0,"scoreVisita":26},
     {"jornada":2,"local":"Halcones UV","visita":"ASUCQ / RED WOLVES","scoreLocal":19,"scoreVisita":20},
-    {"jornada":2,"local":"Arkansas ST QRO","visita":"Leones UAC","scoreLocal":21,"scoreVisita":33},
+    {"jornada":2,"local":"Borregos TEC QRO","visita":"Leones UAC","scoreLocal":21,"scoreVisita":33},
 
     {"jornada":3,"local":"Leones UAQ","visita":"Lobos ULM","scoreLocal":31,"scoreVisita":7},
     {"jornada":3,"local":"Potros ITSON","visita":"Cimarrones UABC","scoreLocal":42,"scoreVisita":10},
     {"jornada":3,"local":"Potros Salvajes","visita":"Halcones UV","scoreLocal":38,"scoreVisita":7},
     {"jornada":3,"local":"Toros Salvajes","visita":"Frailes UT","scoreLocal":6,"scoreVisita":19},
     {"jornada":3,"local":"Búhos IPN","visita":"Panteras Siglo XXI","scoreLocal":35,"scoreVisita":7},
-    {"jornada":3,"local":"Arkansas ST QRO","visita":"Tecos UAG","scoreLocal":21,"scoreVisita":14},
+    {"jornada":3,"local":"Borregos TEC QRO","visita":"Tecos UAG","scoreLocal":21,"scoreVisita":14},
     {"jornada":3,"local":"Águilas UACH","visita":"Correcaminos UAT","scoreLocal":66,"scoreVisita":6},
 
     {"jornada":4,"local":"Tecos UAG","visita":"Leones UAQ","scoreLocal":10,"scoreVisita":0},
     {"jornada":4,"local":"Potros Salvajes","visita":"Búhos IPN","scoreLocal":27,"scoreVisita":30},
     {"jornada":4,"local":"Toros Salvajes","visita":"Panteras Siglo XXI","scoreLocal":14,"scoreVisita":3},
-    {"jornada":4,"local":"Cardinals UIW","visita":"Arkansas ST QRO","scoreLocal":36,"scoreVisita":33},
+    {"jornada":4,"local":"Cardinals UIW","visita":"Borregos TEC QRO","scoreLocal":36,"scoreVisita":33},
     {"jornada":4,"local":"Correcaminos UAT","visita":"Cimarrones UABC","scoreLocal":0,"scoreVisita":14},
     {"jornada":4,"local":"Lobos UA de C","visita":"Frailes UT","scoreLocal":14,"scoreVisita":21},
     {"jornada":4,"local":"Águilas UACH","visita":"Indios UACJ","scoreLocal":45,"scoreVisita":13},
     {"jornada":4,"local":"Leones UAC","visita":"ASUCQ / RED WOLVES","scoreLocal":70,"scoreVisita":0},
 
     {"jornada":5,"local":"Leones UAQ","visita":"Cardinals UIW","scoreLocal":35,"scoreVisita":18},
-    {"jornada":5,"local":"Lobos UA de C","visita":"Arkansas ST QRO","scoreLocal":7,"scoreVisita":17},
+    {"jornada":5,"local":"Lobos UA de C","visita":"Borregos TEC QRO","scoreLocal":7,"scoreVisita":17},
     {"jornada":5,"local":"Lobos ULM","visita":"Tecos UAG","scoreLocal":13,"scoreVisita":38},
     {"jornada":5,"local":"Indios UACJ","visita":"Correcaminos UAT","scoreLocal":31,"scoreVisita":14},
     {"jornada":5,"local":"Panteras Siglo XXI","visita":"Leones UAC","scoreLocal":2,"scoreVisita":42},
@@ -94,7 +97,7 @@
     {"jornada":7,"local":"ASUCQ / RED WOLVES","visita":"Lobos ULM","scoreLocal":22,"scoreVisita":32},
     {"jornada":7,"local":"Tecos UAG","visita":"Lobos UA de C","scoreLocal":17,"scoreVisita":15},
     {"jornada":7,"local":"Cimarrones UABC","visita":"Panteras Siglo XXI","scoreLocal":27,"scoreVisita":14},
-    {"jornada":7,"local":"Arkansas ST QRO","visita":"Leones UAQ","scoreLocal":24,"scoreVisita":21},
+    {"jornada":7,"local":"Borregos TEC QRO","visita":"Leones UAQ","scoreLocal":24,"scoreVisita":21},
     {"jornada":7,"local":"Correcaminos UAT","visita":"Halcones UV","scoreLocal":42,"scoreVisita":17},
     {"jornada":7,"local":"Potros ITSON","visita":"Frailes UT","scoreLocal":48,"scoreVisita":6},
     {"jornada":7,"local":"Águilas UACH","visita":"Búhos IPN","scoreLocal":28,"scoreVisita":21},
@@ -102,13 +105,13 @@
     {"jornada":8,"local":"Potros ITSON","visita":"Indios UACJ","scoreLocal":42,"scoreVisita":7},
     {"jornada":8,"local":"Lobos UA de C","visita":"Cardinals UIW","scoreLocal":28,"scoreVisita":22},
     {"jornada":8,"local":"Tecos UAG","visita":"ASUCQ / RED WOLVES","scoreLocal":35,"scoreVisita":0},
-    {"jornada":8,"local":"Arkansas ST QRO","visita":"Lobos ULM","scoreLocal":35,"scoreVisita":0},
+    {"jornada":8,"local":"Borregos TEC QRO","visita":"Lobos ULM","scoreLocal":35,"scoreVisita":0},
     {"jornada":8,"local":"Cimarrones UABC","visita":"Águilas UACH","scoreLocal":24,"scoreVisita":34},
     {"jornada":8,"local":"Frailes UT","visita":"Panteras Siglo XXI","scoreLocal":38,"scoreVisita":0},
     {"jornada":8,"local":"Halcones UV","visita":"Toros Salvajes","scoreLocal":13,"scoreVisita":16},
     {"jornada":8,"local":"Leones UAC","visita":"Potros Salvajes","scoreLocal":57,"scoreVisita":14},
 
-    {"jornada":9,"local":"ASUCQ / RED WOLVES","visita":"Arkansas ST QRO","scoreLocal":0,"scoreVisita":33},
+    {"jornada":9,"local":"ASUCQ / RED WOLVES","visita":"Borregos TEC QRO","scoreLocal":0,"scoreVisita":33},
     {"jornada":9,"local":"Potros Salvajes","visita":"Toros Salvajes","scoreLocal":29,"scoreVisita":0},
     {"jornada":9,"local":"Cimarrones UABC","visita":"Potros ITSON","scoreLocal":14,"scoreVisita":22},
     {"jornada":9,"local":"Tecos UAG","visita":"Correcaminos UAT","scoreLocal":42,"scoreVisita":10},
@@ -117,5 +120,16 @@
     {"jornada":9,"local":"Leones UAQ","visita":"Lobos UA de C","scoreLocal":7,"scoreVisita":14},
     {"jornada":9,"local":"Panteras Siglo XXI","visita":"Halcones UV","scoreLocal":7,"scoreVisita":0},
     {"jornada":9,"local":"Leones UAC","visita":"Búhos IPN","scoreLocal":28,"scoreVisita":27}
+  ],
+  "liguilla": [
+    {"fase":"cuartos_de_final","fecha":"2025-11-07","local":"Borregos TEC QRO","visita":"Búhos IPN","scoreLocal":35,"scoreVisita":3},
+    {"fase":"cuartos_de_final","fecha":"2025-11-07","local":"Potros ITSON","visita":"Tecos UAG","scoreLocal":37,"scoreVisita":20},
+    {"fase":"cuartos_de_final","fecha":"2025-11-08","local":"Leones UAC","visita":"Potros Salvajes","scoreLocal":35,"scoreVisita":22},
+    {"fase":"cuartos_de_final","fecha":"2025-11-08","local":"Águilas UACH","visita":"Leones UAQ","scoreLocal":31,"scoreVisita":20},
+
+    {"fase":"semifinal","fecha":"2025-11-15","local":"Leones UAC","visita":"Potros ITSON","scoreLocal":29,"scoreVisita":16},
+    {"fase":"semifinal","fecha":"2025-11-15","local":"Águilas UACH","visita":"Borregos TEC QRO","scoreLocal":13,"scoreVisita":10},
+
+    {"fase":"final","fecha":"2025-11-22","local":"Leones UAC","visita":"Águilas UACH","scoreLocal":17,"scoreVisita":14,"campeon":"Leones UAC"}
   ]
 }
