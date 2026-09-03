@@ -120,16 +120,5 @@
     {"jornada":9,"local":"Leones UAQ","visita":"Lobos UA de C","scoreLocal":7,"scoreVisita":14},
     {"jornada":9,"local":"Panteras Siglo XXI","visita":"Halcones UV","scoreLocal":7,"scoreVisita":0},
     {"jornada":9,"local":"Leones UAC","visita":"Búhos IPN","scoreLocal":28,"scoreVisita":27}
-  ],
-  "liguilla": [
-    {"fase":"cuartos_de_final","fecha":"2025-11-07","local":"Borregos TEC QRO","visita":"Búhos IPN","scoreLocal":35,"scoreVisita":3},
-    {"fase":"cuartos_de_final","fecha":"2025-11-07","local":"Potros ITSON","visita":"Tecos UAG","scoreLocal":37,"scoreVisita":20},
-    {"fase":"cuartos_de_final","fecha":"2025-11-08","local":"Leones UAC","visita":"Potros Salvajes","scoreLocal":35,"scoreVisita":22},
-    {"fase":"cuartos_de_final","fecha":"2025-11-08","local":"Águilas UACH","visita":"Leones UAQ","scoreLocal":31,"scoreVisita":20},
-
-    {"fase":"semifinal","fecha":"2025-11-15","local":"Leones UAC","visita":"Potros ITSON","scoreLocal":29,"scoreVisita":16},
-    {"fase":"semifinal","fecha":"2025-11-15","local":"Águilas UACH","visita":"Borregos TEC QRO","scoreLocal":13,"scoreVisita":10},
-
-    {"fase":"final","fecha":"2025-11-22","local":"Leones UAC","visita":"Águilas UACH","scoreLocal":17,"scoreVisita":14,"campeon":"Leones UAC"}
   ]
 }
