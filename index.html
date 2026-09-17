@@ -74,8 +74,8 @@
         <th>Equipo</th>
         <th class="hide-sm">PJ</th>
         <th>PG</th>
-        <th class="hide-sm">PP</th>
-        <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
+        <th>PP</th>
+        <th class="hide-sm"><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
         <th class="hide-md">PF</th>
         <th>PC</th>
       </tr></thead>
@@ -84,14 +84,14 @@
   </div>
   <div class="legend">
     <span><span class="legend-dot" style="background:var(--onefa-mid)"></span>Zona playoffs (Top 8)</span>
-    <span style="color:var(--light);font-size:.75rem">% Vict = victorias ÷ jugados</span>
+    <span style="color:var(--light);font-size:.75rem" class="hide-sm">% Vict = victorias ÷ jugados</span>
   </div>
 
-  <hr class="s-divider">
+  <hr class="s-divider" style="display:none">
 
-  <div class="s-label">Ranking Colley <small>(no oficial)</small></div>
-  <p class="colley-note">Método matricial de Colley — clasifica por calidad de rivales, no solo W/L.</p>
-  <div class="s-wrap">
+  <div class="s-label" style="display:none">Ranking Colley <small>(no oficial)</small></div>
+  <p class="colley-note" style="display:none">Método matricial de Colley — clasifica por calidad de rivales, no solo W/L.</p>
+  <div class="s-wrap" style="display:none">
     <table class="s-tbl" id="tablaColley">
       <thead><tr>
         <th style="width:36px">#</th>
@@ -272,8 +272,8 @@ function calcStandings() {
       <td class="s-eq">${r.equipo}</td>
       <td class="s-num hide-sm">${r.pj}</td>
       <td class="s-num">${r.pg}</td>
-      <td class="s-num hide-sm">${r.pp}</td>
-      <td class="s-pct">${r.pct.toFixed(3)}</td>
+      <td class="s-num">${r.pp}</td>
+      <td class="s-pct hide-sm">${r.pct.toFixed(3)}</td>
       <td class="s-num hide-md">${r.pf}</td>
       <td class="s-num">${r.pc}</td>
     </tr>`);
