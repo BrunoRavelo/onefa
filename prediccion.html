@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predicción matemática — ONEFA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="onefa.css">
+  <style>
+    /* Esta pestaña es de solo lectura: no guarda nada en localStorage y no
+       toca el estado de index.html / nacional.html. Al cerrarla o regresar
+       a la pestaña original, nada de esto persiste. */
+    .pred-tabs { display:flex; gap:.5rem; margin:1rem 0 1.5rem; }
+    .pred-tab {
+      padding:.4rem 1rem; border-radius:6px; border:1px solid var(--border-s);
+      color:var(--muted); text-decoration:none; font-family:'Barlow Condensed',sans-serif;
+      font-weight:600; letter-spacing:.5px; font-size:.9rem;
+    }
+    .pred-tab.active { background:var(--hi-bg); border-color:var(--hi-border); color:var(--onefa-green); }
+    .pred-jornada-label {
+      font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:1px;
+      color:var(--muted); text-transform:uppercase; font-size:.85rem;
+      margin:1.25rem 0 .5rem;
+    }
+    .pred-note {
+      background:var(--hi-bg); border:1px solid var(--hi-border); border-radius:8px;
+      padding:.75rem 1rem; font-size:.85rem; color:var(--muted); margin-bottom:1rem;
+    }
+    .col-pred { color:var(--onefa-green); font-weight:700; white-space:nowrap; }
+    .col-user { color:var(--muted); white-space:nowrap; }
+    .badge-fijo {
+      display:inline-block; margin-left:.35rem; font-size:.65rem; font-weight:600;
+      color:var(--onefa-red); background:var(--onefa-red-bg); border:1px solid var(--onefa-red-bdr);
+      border-radius:4px; padding:.05rem .35rem; vertical-align:middle;
+    }
+    .empty-msg, .error-msg, .loading-msg { padding:2rem 1rem; text-align:center; color:var(--muted); }
+    .error-msg { color:var(--onefa-red); }
+  </style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-main">ONEFA</span>
+      <span class="brand-sub">Predicción</span>
+    </a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-eye">🔮 Predicción matemática (Massey unificado)</div>
+    <h1 class="hero-title" id="heroTitle">Cargando…</h1>
+    <div class="hero-bar"></div>
+    <p class="hero-meta">Solo de consulta — no guarda nada ni modifica tus pronósticos. Al cerrar esta pestaña, todo aquí desaparece.</p>
+  </div>
+</header>
+
+<main class="main-wrap">
+
+  <div class="pred-tabs">
+    <a class="pred-tab" id="tab14" href="prediccion.html?conf=14g">14 Grandes</a>
+    <a class="pred-tab" id="tabNac" href="prediccion.html?conf=nacional">Conferencia Nacional</a>
+  </div>
+
+  <div class="pred-note">
+    Modelo Massey resuelto con 14 Grandes y Nacional en una sola escala (usando las scrimmages
+    2026 entre conferencias como puente), con un prior de temporada 2025 cuyo peso baja conforme
+    cada equipo acumula juegos reales en 2026. Liebres CD Juárez queda fuera del cálculo — sus
+    partidos se muestran fijos en 1-0, tal como establece la regla de la liga.
+  </div>
+
+  <div id="contenido"><div class="loading-msg">Calculando predicciones…</div></div>
+
+</main>
+
+<script src="prediccion.js"></script>
+<script>
+function getP(n) { return new URLSearchParams(window.location.search).get(n); }
+const CONF = getP('conf') === 'nacional' ? 'nacional' : '14g';
+
+document.getElementById(CONF === '14g' ? 'tab14' : 'tabNac').classList.add('active');
+document.getElementById('heroTitle').textContent = CONF === '14g' ? '14 GRANDES' : 'CONFERENCIA NACIONAL';
+document.title = `Predicción — ${CONF === '14g' ? '14 Grandes' : 'Nacional'} — ONEFA`;
+
+// Misma llave de localStorage que usan index.html / nacional.html para
+// guardar los pronósticos del usuario — aquí solo se LEE, nunca se escribe.
+const STORAGE_KEY = CONF === '14g' ? 'onefa_juegos_2026_v1' : 'onefa_nacional_2026_v1';
+
+function leerPronosticoUsuario() {
+  const m = new Map();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return m;
+    const arr = JSON.parse(raw);
+    arr.forEach(g => {
+      if ((g.scoreLocal || 0) + (g.scoreVisita || 0) > 0) {
+        m.set(`${g.jornada}#${g.local}#${g.visita}`, g);
+      }
+    });
+  } catch { /* sin pronóstico guardado — no es crítico */ }
+  return m;
+}
+
+async function main() {
+  const cont = document.getElementById('contenido');
+  let resultado;
+  try {
+    resultado = await ONEFA_PRED.calcularPredicciones(CONF, './');
+  } catch (err) {
+    console.error(err);
+    cont.innerHTML = '<div class="error-msg">No se pudo calcular la predicción. Verifica que los 4 archivos JSON (onefa_data_2025.json, onefa_data_2026.json, onefa_nacional_2025.json, onefa_nacional_2026.json) estén en la misma carpeta que esta página.</div>';
+    return;
+  }
+
+  const { predicciones } = resultado;
+  if (!predicciones.length) {
+    cont.innerHTML = '<div class="empty-msg">No hay partidos pendientes por predecir en esta conferencia.</div>';
+    return;
+  }
+
+  const pronosticoUsuario = leerPronosticoUsuario();
+  const porJornada = {};
+  predicciones.forEach(p => { (porJornada[p.jornada] = porJornada[p.jornada] || []).push(p); });
+
+  let html = '';
+  Object.keys(porJornada).sort((a, b) => +a - +b).forEach(j => {
+    html += `<div class="pred-jornada-label">Jornada ${j}</div>
+    <div class="s-wrap"><table class="s-tbl">
+      <thead><tr>
+        <th>Local</th>
+        <th>Visita</th>
+        <th>Predicción</th>
+        <th class="hide-sm">Tu pronóstico</th>
+      </tr></thead>
+      <tbody>`;
+    porJornada[j].forEach(p => {
+      const key = `${p.jornada}#${p.local}#${p.visita}`;
+      const user = pronosticoUsuario.get(key);
+      const userTxt = user ? `${user.scoreLocal} - ${user.scoreVisita}` : '—';
+      const fijoTag = p.forzado ? '<span class="badge-fijo">fijo</span>' : '';
+      html += `<tr>
+        <td class="s-eq">${p.local}</td>
+        <td class="s-eq">${p.visita}</td>
+        <td class="col-pred">${p.scoreLocal} - ${p.scoreVisita}${fijoTag}</td>
+        <td class="hide-sm col-user">${userTxt}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+
+  cont.innerHTML = html;
+}
+
+main();
+</script>
+</body>
+</html>
