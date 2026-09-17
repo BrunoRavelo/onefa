@@ -1,6 +1,6 @@
 {
   "temporada": 2026,
-  "jornadas_jugadas": 0,
+  "jornadas_jugadas": 2,
   "equipos": [
     "Auténticos Tigres","Borregos CCM","Borregos GDL","Linces UVM",
     "Leones UAC","Leones UAMN","Zorros CETYS","Águilas Blancas",
@@ -8,20 +8,20 @@
     "Pumas CU","Aztecas UDLAP"
   ],
   "juegos": [
-    {"jornada":1,"local":"Auténticos Tigres","visita":"Águilas Blancas","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Borregos CCM","visita":"Borregos MTY","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Borregos GDL","visita":"Borregos PUE","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Linces UVM","visita":"Burros Blancos","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Leones UAC","visita":"Borregos CEM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Leones UAMN","visita":"Pumas CU","scoreLocal":0,"scoreVisita":0},
-    {"jornada":1,"local":"Zorros CETYS","visita":"Aztecas UDLAP","scoreLocal":0,"scoreVisita":0},
+    {"jornada":1,"local":"Auténticos Tigres","visita":"Águilas Blancas","scoreLocal":49,"scoreVisita":7},
+    {"jornada":1,"local":"Borregos CCM","visita":"Borregos MTY","scoreLocal":42,"scoreVisita":49},
+    {"jornada":1,"local":"Borregos GDL","visita":"Borregos PUE","scoreLocal":0,"scoreVisita":36},
+    {"jornada":1,"local":"Linces UVM","visita":"Burros Blancos","scoreLocal":20,"scoreVisita":21},
+    {"jornada":1,"local":"Leones UAC","visita":"Borregos CEM","scoreLocal":28,"scoreVisita":57},
+    {"jornada":1,"local":"Leones UAMN","visita":"Pumas CU","scoreLocal":34,"scoreVisita":28},
+    {"jornada":1,"local":"Zorros CETYS","visita":"Aztecas UDLAP","scoreLocal":7,"scoreVisita":30},
 
-    {"jornada":2,"local":"Borregos CCM","visita":"Auténticos Tigres","scoreLocal":0,"scoreVisita":0},
-    {"jornada":2,"local":"Borregos GDL","visita":"Linces UVM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":2,"local":"Leones UAMN","visita":"Borregos CEM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":2,"local":"Borregos PUE","visita":"Borregos MTY","scoreLocal":0,"scoreVisita":0},
-    {"jornada":2,"local":"Aztecas UDLAP","visita":"Águilas Blancas","scoreLocal":0,"scoreVisita":0},
-    {"jornada":2,"local":"Pumas CU","visita":"Burros Blancos","scoreLocal":0,"scoreVisita":0},
+    {"jornada":2,"local":"Borregos CCM","visita":"Auténticos Tigres","scoreLocal":14,"scoreVisita":31},
+    {"jornada":2,"local":"Borregos GDL","visita":"Linces UVM","scoreLocal":17,"scoreVisita":13},
+    {"jornada":2,"local":"Leones UAMN","visita":"Borregos CEM","scoreLocal":17,"scoreVisita":14},
+    {"jornada":2,"local":"Borregos PUE","visita":"Borregos MTY","scoreLocal":38,"scoreVisita":44},
+    {"jornada":2,"local":"Aztecas UDLAP","visita":"Águilas Blancas","scoreLocal":26,"scoreVisita":28},
+    {"jornada":2,"local":"Pumas CU","visita":"Burros Blancos","scoreLocal":35,"scoreVisita":27},
 
     {"jornada":3,"local":"Borregos CEM","visita":"Borregos CCM","scoreLocal":0,"scoreVisita":0},
     {"jornada":3,"local":"Leones UAMN","visita":"Borregos GDL","scoreLocal":0,"scoreVisita":0},
