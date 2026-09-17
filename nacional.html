@@ -88,7 +88,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
-          <th class="hide-md ta-r">PC</th>
+          <th class="ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -101,7 +101,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
-          <th class="hide-md ta-r">PC</th>
+          <th class="ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -114,7 +114,7 @@
           <th style="width:32px">#</th><th>Equipo</th>
           <th>PG</th><th>PP</th>
           <th><abbr class="pct-label" title="Porcentaje de victorias = PG ÷ PJ">% Vict</abbr></th>
-          <th class="hide-md ta-r">PC</th>
+          <th class="ta-r">PC</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -130,7 +130,7 @@
     <table class="s-tbl" id="tblPlayoffs">
       <thead><tr>
         <th style="width:32px">#</th><th>Equipo</th><th>Grupo</th>
-        <th>PG</th><th>PP</th><th class="hide-md ta-r">PC</th>
+        <th>PG</th><th>PP</th><th class="ta-r">PC</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -138,18 +138,18 @@
 
   <div class="bracket-wrap" id="bracketWrap" style="margin-top:1.5rem;"></div>
 
-  <hr class="s-divider">
+  <hr class="s-divider" style="display:none">
 
-  <div class="s-label">Comparador de equipos <small>(camino más corto de rivales en común)</small></div>
-  <p class="tiebreak-note">Si dos equipos no se enfrentaron directamente, busca la cadena más corta de rivales en común que los conecta — usando juegos de temporada regular de Nacional y scrimmages (estos últimos también conectan con equipos de 14 Grandes y externos). No implica que un equipo le vaya a ganar a otro, solo muestra cómo se relacionan sus resultados.</p>
+  <div class="s-label" style="display:none">Comparador de equipos <small>(camino más corto de rivales en común)</small></div>
+  <p class="tiebreak-note" style="display:none">Si dos equipos no se enfrentaron directamente, busca la cadena más corta de rivales en común que los conecta — usando juegos de temporada regular de Nacional y scrimmages (estos últimos también conectan con equipos de 14 Grandes y externos). No implica que un equipo le vaya a ganar a otro, solo muestra cómo se relacionan sus resultados.</p>
 
-  <div class="compare-wrap">
+  <div class="compare-wrap" style="display:none">
     <select class="team-select" id="cmpTeamA"></select>
     <span class="compare-vs">vs</span>
     <select class="team-select" id="cmpTeamB"></select>
   </div>
 
-  <div id="compareResult"></div>
+  <div id="compareResult" style="display:none"></div>
 
 </main>
 
@@ -388,14 +388,18 @@ function leerScores() {
 
 function calcGroupStandings() {
   leerScores();
+  buildGraph(); // el grafo de rivales debe estar fresco ANTES de calcular el sembrado general
   const stats = {};
   allTeams.forEach(t => { stats[t] = { pj:0, pg:0, pc:0 }; });
   juegos.forEach(g => {
     const sl=g.scoreLocal, sv=g.scoreVisita;
     if (sl+sv===0 || sl===sv) return;
-    stats[g.local].pj++; stats[g.visita].pj++;
-    stats[g.local].pc+=sv; stats[g.visita].pc+=sl;
-    if (sl>sv) stats[g.local].pg++; else stats[g.visita].pg++;
+    // Juegos de relleno entre grupos (calendario desigual) pueden marcarse
+    // con "cuentaSoloPara": [equipos] para que solo sumen a esos equipos.
+    const cLocal  = !g.cuentaSoloPara || g.cuentaSoloPara.includes(g.local);
+    const cVisita = !g.cuentaSoloPara || g.cuentaSoloPara.includes(g.visita);
+    if (cLocal)  { stats[g.local].pj++;  stats[g.local].pc+=sv;  if (sl>sv) stats[g.local].pg++; }
+    if (cVisita) { stats[g.visita].pj++; stats[g.visita].pc+=sl; if (sv>sl) stats[g.visita].pg++; }
   });
 
   const tblIds = { 'Norte':'tblNorte', 'Centro':'tblCentro', 'Bajío':'tblBajio' };
@@ -476,14 +480,25 @@ function calcGroupStandings() {
         <td class="s-num">${r.pg}</td>
         <td class="s-num">${r.pp}</td>
         <td class="s-pct">${r.pct.toFixed(3)}</td>
-        <td class="s-num hide-md ta-r">${r.pc}</td>
+        <td class="s-num ta-r">${r.pc}</td>
       </tr>`);
     });
   }
 
   renderPlayoffs(stats, playoffs);
-  buildGraph();
   renderCompare();
+}
+
+// Ordena un empate de 2+ equipos en PG: 1) resultado directo entre ellos
+// (si existe un juego de temporada regular entre esos dos equipos),
+// 2) menor puntos en contra (PC). No se consideran rivales en común.
+function ordenarEmpate(tied) {
+  return [...tied].sort((a, b) => {
+    const h2h = getDirecto(a.equipo, b.equipo);
+    if (h2h === 1) return -1;
+    if (h2h === -1) return 1;
+    return a.pc - b.pc;
+  });
 }
 
 // ── Playoffs: tabla general de 8 sembrados + bracket clásico 1v8/2v7/3v6/4v5 ──
@@ -498,8 +513,19 @@ function renderPlayoffs(statsMap, playoffsSet) {
     const s = statsMap[eq] || { pj:0, pg:0, pc:0 };
     return { equipo: eq, grupo: teamGroup[eq], pg: s.pg, pp: s.pj - s.pg, pc: s.pc, pj: s.pj };
   });
-  // Sembrado general: más juegos ganados primero; empate → menor PC
-  teams.sort((a, b) => b.pg - a.pg || a.pc - b.pc);
+  // Sembrado general: más juegos ganados primero; empates entre grupos se
+  // resuelven con resultado directo entre los empatados → menor PC.
+  teams.sort((a, b) => b.pg - a.pg);
+  let gi = 0;
+  while (gi < teams.length) {
+    let gj = gi;
+    while (gj < teams.length && teams[gj].pg === teams[gi].pg) gj++;
+    if (gj - gi > 1) {
+      const ordenado = ordenarEmpate(teams.slice(gi, gj));
+      teams.splice(gi, gj - gi, ...ordenado);
+    }
+    gi = gj;
+  }
   teams.forEach((t, i) => t.seed = i + 1);
 
   // Tabla general (8 clasificados)
@@ -511,7 +537,7 @@ function renderPlayoffs(statsMap, playoffsSet) {
       <td>${t.grupo ? badgeHtml(t.grupo) : ''}</td>
       <td class="s-num">${t.pg}</td>
       <td class="s-num">${t.pp}</td>
-      <td class="s-num hide-md ta-r">${t.pc}</td>
+      <td class="s-num ta-r">${t.pc}</td>
     </tr>`);
   });
 

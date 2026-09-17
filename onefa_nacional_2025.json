@@ -4,7 +4,6 @@
   "jornadas_jugadas": 9,
   "temporada_regular_finalizada": true,
   "liguilla_finalizada": true,
-  "_nota_revision": "Se corrigió el nombre del equipo 'Arkansas ST QRO' a 'Borregos TEC QRO' en toda la temporada regular y la liguilla: son equipos distintos ('ASUCQ / RED WOLVES' es el equipo de Arkansas State, y se mantiene sin cambios). Verifica si algún otro archivo de tu app (logos, IDs internos, etc.) sigue referenciando el nombre anterior 'Arkansas ST QRO'.",
   "grupos": {
     "Norte": [
       "Águilas UACH",
@@ -32,9 +31,9 @@
       "ASUCQ / RED WOLVES"
     ]
   },
-  "nota_desempate": "Los criterios de desempate pueden variar según el reglamento oficial de la conferencia. El mostrado es referencial: resultado directo, luego menor puntaje en contra.",
+  "nota_desempate": "Visitar https://www.cdpro-guia.com/maynal25.htm Los criterios de desempate pueden variar según el reglamento oficial de la conferencia. El mostrado es referencial: resultado directo, luego menor puntaje en contra.",
   "juegos": [
-    {"jornada":0,"local":"Correcaminos UAT","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":28},
+    {"jornada":0,"local":"Correcaminos UAT","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":28,"cuentaSoloPara":["Correcaminos UAT"]},
     {"jornada":0,"local":"Potros Salvajes","visita":"Borregos TEC QRO","scoreLocal":13,"scoreVisita":35},
     {"jornada":0,"local":"Cardinals UIW","visita":"ASUCQ / RED WOLVES","scoreLocal":34,"scoreVisita":27},
     {"jornada":0,"local":"Indios UACJ","visita":"Toros Salvajes","scoreLocal":28,"scoreVisita":3},
@@ -114,7 +113,7 @@
     {"jornada":9,"local":"ASUCQ / RED WOLVES","visita":"Borregos TEC QRO","scoreLocal":0,"scoreVisita":33},
     {"jornada":9,"local":"Potros Salvajes","visita":"Toros Salvajes","scoreLocal":29,"scoreVisita":0},
     {"jornada":9,"local":"Cimarrones UABC","visita":"Potros ITSON","scoreLocal":14,"scoreVisita":22},
-    {"jornada":9,"local":"Tecos UAG","visita":"Correcaminos UAT","scoreLocal":42,"scoreVisita":10},
+    {"jornada":9,"local":"Tecos UAG","visita":"Correcaminos UAT","scoreLocal":42,"scoreVisita":10,"cuentaSoloPara":["Correcaminos UAT"]},
     {"jornada":9,"local":"Indios UACJ","visita":"Águilas UACH","scoreLocal":14,"scoreVisita":21},
     {"jornada":9,"local":"Lobos ULM","visita":"Cardinals UIW","scoreLocal":15,"scoreVisita":26},
     {"jornada":9,"local":"Leones UAQ","visita":"Lobos UA de C","scoreLocal":7,"scoreVisita":14},
