@@ -31,7 +31,6 @@
       </div>
     </div>
     <div class="nav-right">
-      <a class="btn-predict" href="prediccion.html?conf=14g" target="_blank" rel="noopener">🔮 Predicción matemática</a>
       <div class="eq-wrapper">
         <button class="eq-btn" id="eqBtn" type="button">
           Equipos
@@ -42,16 +41,6 @@
     </div>
   </div>
 </nav>
-
-<style>
-  .btn-predict {
-    background: transparent; border: 1px solid var(--hi-border); border-radius: 6px;
-    color: var(--onefa-green); padding: .35rem .75rem; font-family:'Barlow Condensed',sans-serif;
-    font-size: .85rem; font-weight: 600; letter-spacing: .5px; text-decoration: none;
-    white-space: nowrap; transition: all .15s;
-  }
-  .btn-predict:hover { background: var(--hi-bg); border-color: var(--onefa-green); }
-</style>
 
 <header class="hero">
   <div class="hero-inner">
@@ -71,7 +60,8 @@
 
   <div class="s-label">Calendario y Pronósticos</div>
   <div class="j-list" id="calendarioAccordion"></div>
-  <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+  <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem;">
+    <button id="btnPrediccion" class="btn-clr-all" type="button">Predicción de marcadores</button>
     <button id="btnClearAll" class="btn-clr-all" type="button">Borrar todos los pronósticos</button>
   </div>
 
@@ -397,6 +387,169 @@ document.addEventListener('input', e => {
 });
 
 cargarDatos();
+</script>
+
+<!-- ============================================================
+     Capa superpuesta de Predicción de marcadores. Es de SOLO
+     LECTURA: nunca escribe en localStorage ni toca `juegos`. Se
+     muestra/oculta con un simple cambio de clase — no navega a
+     otra página ni abre ventana nueva.
+     ============================================================ -->
+<style>
+  #prediccionOverlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg, #0b0f14); overflow-y: auto;
+  }
+  #prediccionOverlay.open { display: block; }
+  .pred-topbar {
+    position: sticky; top: 0; z-index: 5; background: var(--bg, #0b0f14);
+    border-bottom: 1px solid var(--border-s); padding: .75rem 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .pred-topbar h2 {
+    font-family:'Bebas Neue',sans-serif; letter-spacing: 1px; margin: 0;
+    font-size: 1.3rem; color: var(--onefa-green);
+  }
+  .btn-pred-back {
+    background: transparent; border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
+    color: rgba(255,255,255,.7); padding: .3rem .8rem; font-family:'Barlow Condensed',sans-serif;
+    font-size: .85rem; font-weight: 600; letter-spacing: 1px; cursor: pointer;
+  }
+  .btn-pred-back:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+  .pred-body { max-width: 900px; margin: 0 auto; padding: 1.25rem; }
+  .pred-note {
+    background: var(--hi-bg); border: 1px solid var(--hi-border); border-radius: 8px;
+    padding: .75rem 1rem; font-size: .85rem; color: var(--muted); margin-bottom: 1.25rem;
+  }
+  .pred-jornada-label {
+    font-family:'Barlow Condensed',sans-serif; font-weight: 700; letter-spacing: 1px;
+    color: var(--muted); text-transform: uppercase; font-size: .85rem; margin: 1.25rem 0 .5rem;
+  }
+  .col-pred { color: var(--onefa-green); font-weight: 700; white-space: nowrap; }
+  .col-user { color: var(--muted); white-space: nowrap; }
+  .badge-fijo, .badge-puente {
+    display: inline-block; margin-left: .35rem; font-size: .65rem; font-weight: 600;
+    border-radius: 4px; padding: .05rem .35rem; vertical-align: middle;
+  }
+  .badge-fijo { color: var(--onefa-red); background: var(--onefa-red-bg); border: 1px solid var(--onefa-red-bdr); }
+  .badge-puente { color: var(--onefa-green); background: var(--hi-bg); border: 1px solid var(--hi-border); }
+  .pred-empty, .pred-error, .pred-loading { padding: 2rem 1rem; text-align: center; color: var(--muted); }
+  .pred-error { color: var(--onefa-red); }
+  details.pred-ranking { margin-bottom: 1.5rem; }
+  details.pred-ranking summary {
+    cursor: pointer; font-family:'Barlow Condensed',sans-serif; font-weight: 700;
+    letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-size: .85rem;
+    padding: .4rem 0;
+  }
+</style>
+
+<div id="prediccionOverlay">
+  <div class="pred-topbar">
+    <button class="btn-pred-back" id="btnPredBack" type="button">← Regresar</button>
+    <h2>Predicción de marcadores — 14 Grandes</h2>
+  </div>
+  <div class="pred-body">
+    <div class="pred-note">
+      Modelo Massey unificado (14 Grandes + Nacional en una sola escala), con prior de
+      temporada 2025 que se va apagando cada jornada. Es de solo consulta — no guarda
+      nada ni modifica tus pronósticos.
+    </div>
+    <details class="pred-ranking">
+      <summary>Ver ranking lineal completo (ambas conferencias, para verificar el modelo)</summary>
+      <div id="predRankingWrap"></div>
+    </details>
+    <div id="predContenido"><div class="pred-loading">Calculando…</div></div>
+  </div>
+</div>
+
+<script src="prediccion.js"></script>
+<script>
+(function () {
+  const CONF = '14g';
+  const STORAGE_KEY_PRED = 'onefa_juegos_2026_v1'; // misma llave que usa esta página para guardar
+
+  function leerPronosticoUsuario() {
+    const m = new Map();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PRED);
+      if (!raw) return m;
+      JSON.parse(raw).forEach(g => {
+        if ((g.scoreLocal || 0) + (g.scoreVisita || 0) > 0) m.set(`${g.jornada}#${g.local}#${g.visita}`, g);
+      });
+    } catch { /* sin pronóstico guardado */ }
+    return m;
+  }
+
+  function renderRanking(modelo) {
+    const ranking = ONEFA_PRED.rankingUnificado(modelo);
+    let html = `<div class="s-wrap"><table class="s-tbl"><thead><tr>
+      <th style="width:36px">#</th><th>Equipo</th><th>Conferencia</th><th>Rating</th>
+    </tr></thead><tbody>`;
+    ranking.forEach((r, i) => {
+      const tag = r.puente ? `<span class="badge-puente">${r.puente === 'sube' ? 'sube' : 'baja'}</span>` : '';
+      html += `<tr><td class="pos-n">${i + 1}</td><td class="s-eq">${r.equipo}${tag}</td>
+        <td class="s-num">${r.conferencia === '14g' ? '14 Grandes' : 'Nacional'}</td>
+        <td class="s-num">${r.rating.toFixed(2)}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+    document.getElementById('predRankingWrap').innerHTML = html;
+  }
+
+  function renderPredicciones(predicciones) {
+    const cont = document.getElementById('predContenido');
+    if (!predicciones.length) {
+      cont.innerHTML = '<div class="pred-empty">No hay partidos pendientes por predecir.</div>';
+      return;
+    }
+    const pronosticoUsuario = leerPronosticoUsuario();
+    const porJornada = {};
+    predicciones.forEach(p => { (porJornada[p.jornada] = porJornada[p.jornada] || []).push(p); });
+
+    let html = '';
+    Object.keys(porJornada).sort((a, b) => +a - +b).forEach(j => {
+      html += `<div class="pred-jornada-label">Jornada ${j}</div>
+      <div class="s-wrap"><table class="s-tbl"><thead><tr>
+        <th>Local</th><th>Visita</th><th>Predicción</th><th class="hide-sm">Tu pronóstico</th>
+      </tr></thead><tbody>`;
+      porJornada[j].forEach(p => {
+        const key = `${p.jornada}#${p.local}#${p.visita}`;
+        const user = pronosticoUsuario.get(key);
+        const userTxt = user ? `${user.scoreLocal} - ${user.scoreVisita}` : '—';
+        const fijoTag = p.forzado ? '<span class="badge-fijo">fijo</span>' : '';
+        html += `<tr><td class="s-eq">${p.local}</td><td class="s-eq">${p.visita}</td>
+          <td class="col-pred">${p.scoreLocal} - ${p.scoreVisita}${fijoTag}</td>
+          <td class="hide-sm col-user">${userTxt}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+    });
+    cont.innerHTML = html;
+  }
+
+  let calculado = false;
+  async function abrirPrediccion() {
+    document.getElementById('prediccionOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (calculado) return; // ya se calculó una vez, no repetir trabajo
+    try {
+      const { predicciones, modelo } = await ONEFA_PRED.calcularPredicciones(CONF, './');
+      renderRanking(modelo);
+      renderPredicciones(predicciones);
+      calculado = true;
+    } catch (err) {
+      console.error(err);
+      document.getElementById('predContenido').innerHTML =
+        '<div class="pred-error">No se pudo calcular la predicción. Verifica que los 4 JSON (onefa_data_2025.json, onefa_data_2026.json, onefa_nacional_2025.json, onefa_nacional_2026.json) estén en esta misma carpeta.</div>';
+    }
+  }
+
+  function cerrarPrediccion() {
+    document.getElementById('prediccionOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('btnPrediccion').addEventListener('click', abrirPrediccion);
+  document.getElementById('btnPredBack').addEventListener('click', cerrarPrediccion);
+})();
 </script>
 </body>
 </html>

@@ -30,26 +30,42 @@
   // PARÁMETROS AJUSTABLES — todos los "qué tanto pesa X" viven aquí arriba.
   // ==========================================================================
 
-  // Peso del rating de la temporada anterior (2025) al arrancar 2026.
-  // Se interpreta como "el prior vale como si el equipo ya hubiera jugado
-  // este número de partidos reales en 2026". Con K=3: en la jornada 0 el
-  // prior pesa tanto como 3 juegos reales; después de 3 juegos jugados en
-  // 2026 ya pesa la mitad que la evidencia nueva; hacia la jornada 8-9 su
-  // influencia es casi nula.
-  //   - Súbelo (ej. 5-6) si quieres que la app "confíe más" en 2025 y tarde
-  //     más en corregirse con resultados nuevos.
-  //   - Bájalo (ej. 1-2) si quieres que 2 o 3 jornadas de 2026 basten para
-  //     borrar casi todo el efecto de 2025 (útil si sospechas cambios
-  //     grandes de plantilla/staff en muchos equipos).
-  //   - Ponlo en 0 para ignorar 2025 por completo.
-  const K_PESO_TEMPORADA_ANTERIOR = 3;
+  // Peso del rating de la temporada anterior (2025) al arrancar 2026, y cuántas
+  // jornadas tarda en decaer. Se interpreta como "el prior vale como si el
+  // equipo ya hubiera jugado K partidos reales en 2026, y esa equivalencia se
+  // reduce a la mitad cada N jornadas jugadas":
+  //     peso(jornada) = K / (1 + jornadasJugadas / N)
+  // Con K=3.5 y N=4: en la jornada 0 el prior domina casi todo el rating
+  // (100%); hacia la jornada 4 su influencia real ya bajó a ~30%; sigue
+  // bajando después, cada vez más despacio.
+  //   - Sube K si quieres que la app "confíe más" en 2025 desde el arranque.
+  //   - Sube N si quieres que tarde MÁS jornadas en apagarse (decaimiento
+  //     más lento); bájalo para que se apague más rápido.
+  //   - Pon K en 0 para ignorar 2025 por completo.
+  const K_PESO_TEMPORADA_ANTERIOR = 3.5;
+  const JORNADAS_TRANSICION = 4;
+
+  // Mismo mecanismo, pero para "equipos puente": los que cambiaron de
+  // conferencia entre 2025 y 2026 (ascenso Nacional→14G o descenso
+  // 14G→Nacional). Su rendimiento REAL en la conferencia nueva es la señal
+  // más directa que existe para calibrar qué tan distinta es una conferencia
+  // de la otra — mejor que las scrimmages, que son solo pretemporada. Por
+  // eso se les da un prior con más peso Y que dura más jornadas activo, para
+  // que sigan “anclando” la comparación entre conferencias durante más
+  // tiempo. Con K=7, N=8: ~30% de influencia hasta la jornada 8 (casi toda
+  // la temporada), en vez de apagarse en la jornada 4 como un equipo normal.
+  const K_PESO_EQUIPO_PUENTE = 7;
+  const JORNADAS_TRANSICION_PUENTE = 8;
 
   // Peso de cada scrimmage (juego de preparación) dentro del sistema de
   // ratings, relativo a un juego oficial de temporada regular (peso 1.0).
-  // Son los que conectan 14 Grandes con Nacional en pretemporada, así que
-  // son importantes para calibrar el nivel relativo entre conferencias,
-  // pero al ser pretemporada no deben pesar igual que un juego oficial.
-  const PESO_SCRIMMAGE = 0.3;
+  // Se distingue entre scrimmage DENTRO de la misma conferencia (aporta poco
+  // que los juegos oficiales ya no den) y CRUZADA entre 14G y Nacional (es
+  // una de las pocas señales reales de puente entre conferencias esta
+  // temporada, así que pesa más — aunque menos que un equipo puente, que es
+  // temporada regular real, no pretemporada).
+  const PESO_SCRIMMAGE_MISMA_CONFERENCIA = 0.2;
+  const PESO_SCRIMMAGE_CRUZADA = 0.5;
 
   // Ventaja de localía, en puntos, sumada al margen esperado del equipo local.
   const VENTAJA_LOCAL = 3;
@@ -63,6 +79,11 @@
   // presentó). Sus juegos futuros se fuerzan a un marcador fijo.
   const EQUIPOS_EXCLUIDOS = ['Liebres CD Juárez'];
   const MARCADOR_FORZADO_VS_EXCLUIDO = { ganador: 1, excluido: 0 }; // 1-0 en contra del excluido
+
+  // peso(jornada) = K / (1 + jornadasJugadas / N) — ver constantes arriba.
+  function pesoPrior(K, N, jornadasJugadas) {
+    return K / (1 + jornadasJugadas / N);
+  }
 
   // ==========================================================================
   // Álgebra: resolver sistema lineal simétrico por eliminación gaussiana con
@@ -164,12 +185,31 @@
 
     // ---- 2) Roster unificado 2026 (excluyendo equipos fuera del modelo) ----
     const excl = new Set(EQUIPOS_EXCLUIDOS);
+    const teamsSet14_2026 = new Set(d14_2026.equipos);
+    const teamsSetNac_2026 = new Set(equiposNacional(dnac_2026));
     const teams2026 = Array.from(new Set([
       ...d14_2026.equipos,
       ...equiposNacional(dnac_2026)
     ])).filter(t => !excl.has(t));
 
-    // ---- 3) Juegos jugados por equipo en 2026 (para decaer el peso del prior) ----
+    // Conferencia de cada equipo en 2026 — se usa para (a) marcar scrimmages
+    // cruzadas y (b) detectar equipos puente comparando contra su conferencia
+    // en 2025.
+    const conf2026 = {};
+    teams2026.forEach(t => { conf2026[t] = teamsSet14_2026.has(t) ? '14g' : 'nacional'; });
+
+    // ---- 3) Detectar equipos puente: cambiaron de conferencia 2025 → 2026 ----
+    const teamsSet14_2025 = new Set(d14_2025.equipos);
+    const teamsSetNac_2025 = new Set(teamsNac_2025);
+    const equiposPuente = {}; // equipo -> 'sube' (Nac→14G) | 'baja' (14G→Nac)
+    teams2026.forEach(t => {
+      const estabaEn14 = teamsSet14_2025.has(t);
+      const estabaEnNac = teamsSetNac_2025.has(t);
+      if (estabaEnNac && conf2026[t] === '14g') equiposPuente[t] = 'sube';
+      else if (estabaEn14 && conf2026[t] === 'nacional') equiposPuente[t] = 'baja';
+    });
+
+    // ---- 4) Juegos jugados por equipo en 2026 (para decaer el peso del prior) ----
     const juegosJugados = {};
     teams2026.forEach(t => { juegosJugados[t] = 0; });
     const contarJugados = (juegos, jj) => {
@@ -183,19 +223,20 @@
     contarJugados(d14_2026.juegos, d14_2026.jornadas_jugadas);
     contarJugados(dnac_2026.juegos, dnac_2026.jornadas_jugadas);
 
-    // ---- 4) Priors 2026 con shrinkage decayente ----
+    // ---- 5) Priors 2026 con shrinkage decayente — los equipos puente usan
+    //         su propia curva (más peso, decae más despacio: ver constantes) ----
     const priors2026 = {};
     teams2026.forEach(t => {
       if (t in priorMap2025) {
         const jj = juegosJugados[t] || 0;
-        priors2026[t] = {
-          valor: priorMap2025[t],
-          peso: K_PESO_TEMPORADA_ANTERIOR / (1 + jj)
-        };
+        const esPuente = t in equiposPuente;
+        const K = esPuente ? K_PESO_EQUIPO_PUENTE : K_PESO_TEMPORADA_ANTERIOR;
+        const N = esPuente ? JORNADAS_TRANSICION_PUENTE : JORNADAS_TRANSICION;
+        priors2026[t] = { valor: priorMap2025[t], peso: pesoPrior(K, N, jj) };
       }
     });
 
-    // ---- 5) Lista unificada de juegos 2026 (oficiales + scrimmages puente) ----
+    // ---- 6) Lista unificada de juegos 2026 (oficiales + scrimmages puente) ----
     const juegosUnificados = [];
     const agregarOficiales = (juegos, jj) => {
       juegos.forEach(g => {
@@ -213,10 +254,12 @@
       if (excl.has(g.local) || excl.has(g.visita)) return;
       if (!teamSet2026.has(g.local) || !teamSet2026.has(g.visita)) return; // ignora rivales externos (ej. "Tepeyac")
       if ((g.scoreLocal || 0) + (g.scoreVisita || 0) === 0) return;
-      juegosUnificados.push({ local: g.local, visita: g.visita, scoreLocal: g.scoreLocal, scoreVisita: g.scoreVisita, _peso: PESO_SCRIMMAGE });
+      const cruzada = conf2026[g.local] !== conf2026[g.visita];
+      const peso = cruzada ? PESO_SCRIMMAGE_CRUZADA : PESO_SCRIMMAGE_MISMA_CONFERENCIA;
+      juegosUnificados.push({ local: g.local, visita: g.visita, scoreLocal: g.scoreLocal, scoreVisita: g.scoreVisita, _peso: peso });
     });
 
-    // ---- 6) Resolver el sistema unificado ----
+    // ---- 7) Resolver el sistema unificado ----
     const ratings2026 = masseyRatings(teams2026, juegosUnificados, priors2026);
 
     // ---- 7) Estadísticas ofensa/defensa 2026 (solo temporada regular oficial,
@@ -245,9 +288,26 @@
       promedioLigaPF,
       priors2026,
       juegosJugados2026: juegosJugados,
+      conf2026,
+      equiposPuente,
       // se exponen por si se quieren mostrar/depurar en la UI
       ratings2025: { catorceGrandes: ratings14_2025, nacional: ratingsNac_2025 }
     };
+  }
+
+  // Ranking lineal (todos los equipos, ambas conferencias, una sola escala),
+  // ordenado de mejor a peor — para verificar visualmente que el modelo tiene
+  // sentido (ej. confirmar que un equipo recién descendido de 14G queda
+  // arriba dentro de Nacional, o que uno recién ascendido queda abajo en 14G).
+  function rankingUnificado(modelo) {
+    return Object.keys(modelo.ratings)
+      .map(equipo => ({
+        equipo,
+        rating: modelo.ratings[equipo],
+        conferencia: modelo.conf2026[equipo],
+        puente: modelo.equiposPuente[equipo] || null
+      }))
+      .sort((a, b) => b.rating - a.rating);
   }
 
   function avgOD(statsOD, equipo, campo, fallback) {
@@ -325,11 +385,16 @@
 
   const API = {
     K_PESO_TEMPORADA_ANTERIOR,
-    PESO_SCRIMMAGE,
+    JORNADAS_TRANSICION,
+    K_PESO_EQUIPO_PUENTE,
+    JORNADAS_TRANSICION_PUENTE,
+    PESO_SCRIMMAGE_MISMA_CONFERENCIA,
+    PESO_SCRIMMAGE_CRUZADA,
     VENTAJA_LOCAL,
     EQUIPOS_EXCLUIDOS,
     masseyRatings,
     construirModeloUnificado,
+    rankingUnificado,
     predecirPartido,
     generarPredicciones,
     calcularPredicciones
