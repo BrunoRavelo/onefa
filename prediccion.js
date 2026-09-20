@@ -37,7 +37,9 @@
   //     peso(jornada) = K / (1 + jornadasJugadas / N)
   // Con K=3.5 y N=4: en la jornada 0 el prior domina casi todo el rating
   // (100%); hacia la jornada 4 su influencia real ya bajó a ~30%; sigue
-  // bajando después, cada vez más despacio.
+  // bajando después, cada vez más despacio. Se aplica IGUAL a todos los
+  // equipos, incluidos los que cambiaron de conferencia (ver nota abajo
+  // sobre "equipos puente") — no hay un decaimiento especial para ellos.
   //   - Sube K si quieres que la app "confíe más" en 2025 desde el arranque.
   //   - Sube N si quieres que tarde MÁS jornadas en apagarse (decaimiento
   //     más lento); bájalo para que se apague más rápido.
@@ -45,25 +47,25 @@
   const K_PESO_TEMPORADA_ANTERIOR = 3.5;
   const JORNADAS_TRANSICION = 4;
 
-  // Mismo mecanismo, pero para "equipos puente": los que cambiaron de
-  // conferencia entre 2025 y 2026 (ascenso Nacional→14G o descenso
-  // 14G→Nacional). Su rendimiento REAL en la conferencia nueva es la señal
-  // más directa que existe para calibrar qué tan distinta es una conferencia
-  // de la otra — mejor que las scrimmages, que son solo pretemporada. Por
-  // eso se les da un prior con más peso Y que dura más jornadas activo, para
-  // que sigan “anclando” la comparación entre conferencias durante más
-  // tiempo. Con K=7, N=8: ~30% de influencia hasta la jornada 8 (casi toda
-  // la temporada), en vez de apagarse en la jornada 4 como un equipo normal.
-  const K_PESO_EQUIPO_PUENTE = 7;
-  const JORNADAS_TRANSICION_PUENTE = 8;
+  // "Equipos puente": los que cambiaron de conferencia entre 2025 y 2026
+  // (ascenso Nacional→14G o descenso 14G→Nacional). No reciben un prior con
+  // más peso ni un decaimiento distinto — usan la MISMA fórmula de arriba
+  // que cualquier otro equipo. Lo que sí los hace un puente real entre
+  // conferencias son dos cosas que YA ocurren de forma natural en el
+  // sistema, sin necesidad de tocar su peso: (1) su prior 2025 viene de la
+  // escala de SU liga anterior, y (2) sus juegos oficiales 2026 (peso 1.0,
+  // igual que cualquier juego) ya se resuelven en la conferencia nueva, así
+  // que ellos + las scrimmages cruzadas son la señal real que calibra el
+  // nivel relativo entre 14 Grandes y Nacional. Solo se detectan aquí para
+  // mostrarlos marcados en el ranking (badge "sube"/"baja").
 
   // Peso de cada scrimmage (juego de preparación) dentro del sistema de
   // ratings, relativo a un juego oficial de temporada regular (peso 1.0).
   // Se distingue entre scrimmage DENTRO de la misma conferencia (aporta poco
   // que los juegos oficiales ya no den) y CRUZADA entre 14G y Nacional (es
   // una de las pocas señales reales de puente entre conferencias esta
-  // temporada, así que pesa más — aunque menos que un equipo puente, que es
-  // temporada regular real, no pretemporada).
+  // temporada, así que pesa más — aunque menos que un juego oficial de los
+  // equipos puente, que sigue pesando 1.0 por ser temporada regular real).
   const PESO_SCRIMMAGE_MISMA_CONFERENCIA = 0.2;
   const PESO_SCRIMMAGE_CRUZADA = 0.5;
 
@@ -179,7 +181,12 @@
     const ratings14_2025 = centrar(masseyRatings(teams14_2025, d14_2025.juegos));
 
     const teamsNac_2025 = equiposNacional(dnac_2025);
-    const ratingsNac_2025 = centrar(masseyRatings(teamsNac_2025, dnac_2025.juegos));
+    // La liguilla (playoffs) 2025 SÍ debe contar para el rating: es el resultado
+    // de más peso de toda la temporada (define al campeón real), y omitirla
+    // deja huecos graves — ej. un equipo invicto en temporada regular que
+    // perdió la final se vería, sin la liguilla, mejor que el campeón real.
+    const juegosNac_2025 = [...dnac_2025.juegos, ...(dnac_2025.liguilla || [])];
+    const ratingsNac_2025 = centrar(masseyRatings(teamsNac_2025, juegosNac_2025));
 
     const priorMap2025 = Object.assign({}, ratings14_2025, ratingsNac_2025);
 
@@ -223,16 +230,13 @@
     contarJugados(d14_2026.juegos, d14_2026.jornadas_jugadas);
     contarJugados(dnac_2026.juegos, dnac_2026.jornadas_jugadas);
 
-    // ---- 5) Priors 2026 con shrinkage decayente — los equipos puente usan
-    //         su propia curva (más peso, decae más despacio: ver constantes) ----
+    // ---- 5) Priors 2026 con shrinkage decayente — MISMA fórmula para todos
+    //         los equipos, incluidos los puente (ver nota en las constantes) ----
     const priors2026 = {};
     teams2026.forEach(t => {
       if (t in priorMap2025) {
         const jj = juegosJugados[t] || 0;
-        const esPuente = t in equiposPuente;
-        const K = esPuente ? K_PESO_EQUIPO_PUENTE : K_PESO_TEMPORADA_ANTERIOR;
-        const N = esPuente ? JORNADAS_TRANSICION_PUENTE : JORNADAS_TRANSICION;
-        priors2026[t] = { valor: priorMap2025[t], peso: pesoPrior(K, N, jj) };
+        priors2026[t] = { valor: priorMap2025[t], peso: pesoPrior(K_PESO_TEMPORADA_ANTERIOR, JORNADAS_TRANSICION, jj) };
       }
     });
 
@@ -386,8 +390,6 @@
   const API = {
     K_PESO_TEMPORADA_ANTERIOR,
     JORNADAS_TRANSICION,
-    K_PESO_EQUIPO_PUENTE,
-    JORNADAS_TRANSICION_PUENTE,
     PESO_SCRIMMAGE_MISMA_CONFERENCIA,
     PESO_SCRIMMAGE_CRUZADA,
     VENTAJA_LOCAL,
