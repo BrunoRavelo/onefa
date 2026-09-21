@@ -1,6 +1,6 @@
 {
   "temporada": 2026,
-  "jornadas_jugadas": 2,
+  "jornadas_jugadas": 3,
   "equipos": [
     "Auténticos Tigres","Borregos CCM","Borregos GDL","Linces UVM",
     "Leones UAC","Leones UAMN","Zorros CETYS","Águilas Blancas",
@@ -23,12 +23,12 @@
     {"jornada":2,"local":"Aztecas UDLAP","visita":"Águilas Blancas","scoreLocal":26,"scoreVisita":28},
     {"jornada":2,"local":"Pumas CU","visita":"Burros Blancos","scoreLocal":35,"scoreVisita":27},
 
-    {"jornada":3,"local":"Borregos CEM","visita":"Borregos CCM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Leones UAMN","visita":"Borregos GDL","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Linces UVM","visita":"Zorros CETYS","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Águilas Blancas","visita":"Leones UAC","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Pumas CU","visita":"Borregos PUE","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Burros Blancos","visita":"Aztecas UDLAP","scoreLocal":0,"scoreVisita":0},
+    {"jornada":3,"local":"Borregos CEM","visita":"Borregos CCM","scoreLocal":24,"scoreVisita":27},
+    {"jornada":3,"local":"Leones UAMN","visita":"Borregos GDL","scoreLocal":28,"scoreVisita":17},
+    {"jornada":3,"local":"Linces UVM","visita":"Zorros CETYS","scoreLocal":38,"scoreVisita":0},
+    {"jornada":3,"local":"Águilas Blancas","visita":"Leones UAC","scoreLocal":45,"scoreVisita":7},
+    {"jornada":3,"local":"Pumas CU","visita":"Borregos PUE","scoreLocal":39,"scoreVisita":25},
+    {"jornada":3,"local":"Burros Blancos","visita":"Aztecas UDLAP","scoreLocal":27,"scoreVisita":0},
 
     {"jornada":4,"local":"Auténticos Tigres","visita":"Borregos CEM","scoreLocal":0,"scoreVisita":0},
     {"jornada":4,"local":"Borregos CCM","visita":"Leones UAMN","scoreLocal":0,"scoreVisita":0},

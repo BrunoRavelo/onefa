@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 2,
+  "jornadas_jugadas": 3,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],
@@ -31,15 +31,15 @@
     {"jornada":2,"local":"Tecos UAG","visita":"Lobos ULM","scoreLocal":21,"scoreVisita":0},
     {"jornada":2,"local":"Cardinals UIW","visita":"Correcaminos UAT","scoreLocal":30,"scoreVisita":24},
 
-    {"jornada":3,"local":"Águilas UACH","visita":"ASUCQ / RED WOLVES","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Potros ITSON","visita":"Correcaminos UAT","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Indios UACJ","visita":"Cardinals UIW","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Lobos UA de C","visita":"Tecos UAG","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Cimarrones UABC","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Liebres CD Juárez","visita":"Lobos ULM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Potros Salvajes","visita":"Frailes UT","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Halcones UV","visita":"Panteras Siglo XXI","scoreLocal":0,"scoreVisita":0},
-    {"jornada":3,"local":"Toros Salvajes","visita":"Búhos IPN","scoreLocal":0,"scoreVisita":0},
+    {"jornada":3,"local":"Águilas UACH","visita":"ASUCQ / RED WOLVES","scoreLocal":52,"scoreVisita":0},
+    {"jornada":3,"local":"Potros ITSON","visita":"Correcaminos UAT","scoreLocal":47,"scoreVisita":0},
+    {"jornada":3,"local":"Indios UACJ","visita":"Cardinals UIW","scoreLocal":49,"scoreVisita":19},
+    {"jornada":3,"local":"Lobos UA de C","visita":"Tecos UAG","scoreLocal":17,"scoreVisita":24},
+    {"jornada":3,"local":"Cimarrones UABC","visita":"Leones UAQ","scoreLocal":17,"scoreVisita":28},
+    {"jornada":3,"local":"Liebres CD Juárez","visita":"Lobos ULM","scoreLocal":0,"scoreVisita":1},
+    {"jornada":3,"local":"Potros Salvajes","visita":"Frailes UT","scoreLocal":35,"scoreVisita":7},
+    {"jornada":3,"local":"Halcones UV","visita":"Panteras Siglo XXI","scoreLocal":14,"scoreVisita":9},
+    {"jornada":3,"local":"Toros Salvajes","visita":"Búhos IPN","scoreLocal":7,"scoreVisita":20},
 
     {"jornada":4,"local":"Potros ITSON","visita":"Águilas UACH","scoreLocal":0,"scoreVisita":0},
     {"jornada":4,"local":"Lobos UA de C","visita":"Indios UACJ","scoreLocal":0,"scoreVisita":0},
