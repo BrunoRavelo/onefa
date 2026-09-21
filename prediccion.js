@@ -176,21 +176,10 @@
   function construirModeloUnificado(datos) {
     const { d14_2025, d14_2026, dnac_2025, dnac_2026 } = datos;
 
-    // ---- 1) Ratings 2025 por liga, cada una centrada en su propio promedio ----
-    const teams14_2025 = d14_2025.equipos;
-    const ratings14_2025 = centrar(masseyRatings(teams14_2025, d14_2025.juegos));
-
-    const teamsNac_2025 = equiposNacional(dnac_2025);
-    // La liguilla (playoffs) 2025 SÍ debe contar para el rating: es el resultado
-    // de más peso de toda la temporada (define al campeón real), y omitirla
-    // deja huecos graves — ej. un equipo invicto en temporada regular que
-    // perdió la final se vería, sin la liguilla, mejor que el campeón real.
-    const juegosNac_2025 = [...dnac_2025.juegos, ...(dnac_2025.liguilla || [])];
-    const ratingsNac_2025 = centrar(masseyRatings(teamsNac_2025, juegosNac_2025));
-
-    const priorMap2025 = Object.assign({}, ratings14_2025, ratingsNac_2025);
-
-    // ---- 2) Roster unificado 2026 (excluyendo equipos fuera del modelo) ----
+    // ---- 0) Roster unificado 2026 y detección de equipos puente — esto va
+    //         ANTES de calcular los priors 2025 porque la brecha entre
+    //         conferencias (paso 1b) depende de saber quién ascendió y quién
+    //         descendió. ----
     const excl = new Set(EQUIPOS_EXCLUIDOS);
     const teamsSet14_2026 = new Set(d14_2026.equipos);
     const teamsSetNac_2026 = new Set(equiposNacional(dnac_2026));
@@ -205,9 +194,9 @@
     const conf2026 = {};
     teams2026.forEach(t => { conf2026[t] = teamsSet14_2026.has(t) ? '14g' : 'nacional'; });
 
-    // ---- 3) Detectar equipos puente: cambiaron de conferencia 2025 → 2026 ----
+    // Equipos puente: cambiaron de conferencia 2025 → 2026 (ascenso/descenso).
     const teamsSet14_2025 = new Set(d14_2025.equipos);
-    const teamsSetNac_2025 = new Set(teamsNac_2025);
+    const teamsSetNac_2025 = new Set(equiposNacional(dnac_2025));
     const equiposPuente = {}; // equipo -> 'sube' (Nac→14G) | 'baja' (14G→Nac)
     teams2026.forEach(t => {
       const estabaEn14 = teamsSet14_2025.has(t);
@@ -215,6 +204,58 @@
       if (estabaEnNac && conf2026[t] === '14g') equiposPuente[t] = 'sube';
       else if (estabaEn14 && conf2026[t] === 'nacional') equiposPuente[t] = 'baja';
     });
+    const equipoAscendido  = Object.keys(equiposPuente).find(t => equiposPuente[t] === 'sube')  || null;
+    const equipoDescendido = Object.keys(equiposPuente).find(t => equiposPuente[t] === 'baja') || null;
+
+    // ---- 1) Ratings 2025 por liga, cada una centrada en su propio promedio ----
+    // La liguilla (playoffs) 2025 SÍ debe contar para el rating de cada liga:
+    // es el resultado de más peso de toda la temporada (define al campeón
+    // real), y omitirla deja huecos graves — ej. un equipo invicto en
+    // temporada regular que perdió la final se vería, sin la liguilla, mejor
+    // que el campeón real.
+    const teams14_2025 = d14_2025.equipos;
+    const juegos14_2025 = [...d14_2025.juegos, ...(d14_2025.liguilla || [])];
+    const ratings14_2025 = centrar(masseyRatings(teams14_2025, juegos14_2025));
+
+    const teamsNac_2025 = equiposNacional(dnac_2025);
+    const juegosNac_2025 = [...dnac_2025.juegos, ...(dnac_2025.liguilla || [])];
+    const ratingsNac_2025_crudo = centrar(masseyRatings(teamsNac_2025, juegosNac_2025));
+
+    // ---- 1b) Brecha entre conferencias — CLAVE del sistema unificado.
+    // Nacional y 14G se calculan cada una centrada en su propio promedio
+    // (paso 1), así que por sí solas no dicen nada sobre cuál liga es más
+    // fuerte. La única evidencia real y verificable de esa diferencia son los
+    // propios equipos puente: el ascendido fue el MEJOR de Nacional, y el
+    // descendido fue el PEOR de 14G — ese es, por definición del sistema de
+    // ascenso/descenso, el punto donde ambas escalas se tocan.
+    //
+    // Se calcula brecha = rating14G[descendido] − ratingNacional[ascendido],
+    // y se suma esa misma brecha a TODOS los ratings de Nacional 2025. Dos
+    // efectos simultáneos, con una sola operación:
+    //   (a) Nacional completo queda desplazado por debajo de 14G (no solo el
+    //       ascendido/descendido) — resuelve el problema de fondo de que
+    //       ningún equipo de Nacional debería lucir más fuerte que uno de 14G.
+    //   (b) El ascendido, ya desplazado, queda EXACTAMENTE en el nivel que
+    //       tenía el descendido en 14G — y el descendido (que no se toca,
+    //       pues ya vive en la escala de 14G) queda en ese mismo número. Es
+    //       decir, "intercambian nivel" de forma exacta y automática, sin
+    //       tocarlos a mano.
+    // Si en algún año no se detecta un par ascenso/descenso claro (roster
+    // incompleto, etc.), la brecha cae a 0 y el sistema se comporta como
+    // antes (sin descuento estructural) — se prefiere no inventar un número
+    // sin evidencia real que lo respalde.
+    let gapConferencia = 0;
+    if (equipoAscendido && equipoDescendido &&
+        ratings14_2025[equipoDescendido] != null &&
+        ratingsNac_2025_crudo[equipoAscendido] != null) {
+      gapConferencia = ratings14_2025[equipoDescendido] - ratingsNac_2025_crudo[equipoAscendido];
+    }
+    const ratingsNac_2025 = {};
+    Object.keys(ratingsNac_2025_crudo).forEach(t => {
+      ratingsNac_2025[t] = ratingsNac_2025_crudo[t] + gapConferencia;
+    });
+
+    const priorMap2025 = Object.assign({}, ratings14_2025, ratingsNac_2025);
 
     // ---- 4) Juegos jugados por equipo en 2026 (para decaer el peso del prior) ----
     const juegosJugados = {};
@@ -295,7 +336,10 @@
       conf2026,
       equiposPuente,
       // se exponen por si se quieren mostrar/depurar en la UI
-      ratings2025: { catorceGrandes: ratings14_2025, nacional: ratingsNac_2025 }
+      ratings2025: { catorceGrandes: ratings14_2025, nacional: ratingsNac_2025, nacionalCrudo: ratingsNac_2025_crudo },
+      gapConferencia,
+      equipoAscendido,
+      equipoDescendido
     };
   }
 

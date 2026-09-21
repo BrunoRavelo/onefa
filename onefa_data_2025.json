@@ -459,5 +459,14 @@
       "scoreVisita": 16
     }
   ],
+  "liguilla": [
+    { "ronda": "Cuartos de Final", "jornada": 11, "local": "Borregos CCM",       "visita": "Aztecas UDLAP",    "scoreLocal": 35, "scoreVisita": 34 },
+    { "ronda": "Cuartos de Final", "jornada": 11, "local": "Auténticos Tigres", "visita": "Linces UVM",       "scoreLocal": 28, "scoreVisita": 7  },
+    { "ronda": "Cuartos de Final", "jornada": 11, "local": "Borregos PUE",      "visita": "Borregos GDL",     "scoreLocal": 22, "scoreVisita": 7  },
+    { "ronda": "Cuartos de Final", "jornada": 11, "local": "Borregos MTY",      "visita": "Águilas Blancas",  "scoreLocal": 38, "scoreVisita": 6  },
+    { "ronda": "Semifinal",        "jornada": 12, "local": "Auténticos Tigres", "visita": "Borregos CCM",     "scoreLocal": 29, "scoreVisita": 9  },
+    { "ronda": "Semifinal",        "jornada": 12, "local": "Borregos MTY",      "visita": "Borregos PUE",     "scoreLocal": 52, "scoreVisita": 34 },
+    { "ronda": "Final",            "jornada": 13, "local": "Auténticos Tigres", "visita": "Borregos MTY",     "scoreLocal": 33, "scoreVisita": 30 }
+  ],
   "temporada": 2025
 }
