@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 3,
+  "jornadas_jugadas": 4,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],
@@ -41,15 +41,15 @@
     {"jornada":3,"local":"Halcones UV","visita":"Panteras Siglo XXI","scoreLocal":14,"scoreVisita":9},
     {"jornada":3,"local":"Toros Salvajes","visita":"Búhos IPN","scoreLocal":7,"scoreVisita":20},
 
-    {"jornada":4,"local":"Potros ITSON","visita":"Águilas UACH","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Lobos UA de C","visita":"Indios UACJ","scoreLocal":0,"scoreVisita":0},
+    {"jornada":4,"local":"Potros ITSON","visita":"Águilas UACH","scoreLocal":20,"scoreVisita":31},
+    {"jornada":4,"local":"Lobos UA de C","visita":"Indios UACJ","scoreLocal":21,"scoreVisita":14},
     {"jornada":4,"local":"Liebres CD Juárez","visita":"Cimarrones UABC","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Halcones UV","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Pumas Acatlán","visita":"Frailes UT","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Panteras Siglo XXI","visita":"Toros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Tecos UAG","visita":"Correcaminos UAT","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"ASUCQ / RED WOLVES","visita":"Cardinals UIW","scoreLocal":0,"scoreVisita":0},
-    {"jornada":4,"local":"Lobos ULM","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":0},
+    {"jornada":4,"local":"Halcones UV","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":1},
+    {"jornada":4,"local":"Pumas Acatlán","visita":"Frailes UT","scoreLocal":19,"scoreVisita":12},
+    {"jornada":4,"local":"Panteras Siglo XXI","visita":"Toros Salvajes","scoreLocal":0,"scoreVisita":7},
+    {"jornada":4,"local":"Tecos UAG","visita":"Correcaminos UAT","scoreLocal":47,"scoreVisita":6},
+    {"jornada":4,"local":"ASUCQ / RED WOLVES","visita":"Cardinals UIW","scoreLocal":3,"scoreVisita":7},
+    {"jornada":4,"local":"Lobos ULM","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":38},
 
     {"jornada":5,"local":"Indios UACJ","visita":"Águilas UACH","scoreLocal":0,"scoreVisita":0},
     {"jornada":5,"local":"Cimarrones UABC","visita":"Potros ITSON","scoreLocal":0,"scoreVisita":0},
