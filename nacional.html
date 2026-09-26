@@ -765,15 +765,6 @@ cargarDatos();
     background: var(--bg); overflow-y: auto;
   }
   #prediccionOverlay.open { display: block; }
-  .pred-topbar {
-    position: sticky; top: 0; z-index: 5; background: var(--bg);
-    border-bottom: 1px solid var(--border-s); padding: .75rem 1.25rem;
-    display: flex; align-items: center; gap: 1rem;
-  }
-  .pred-topbar h2 {
-    font-family:'Bebas Neue',sans-serif; letter-spacing: 1px; margin: 0;
-    font-size: 1.3rem; color: var(--onefa-green);
-  }
   .btn-pred-back {
     background: transparent; border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
     color: rgba(255,255,255,.7); padding: .3rem .8rem; font-family:'Barlow Condensed',sans-serif;
@@ -808,10 +799,27 @@ cargarDatos();
 </style>
 
 <div id="prediccionOverlay">
-  <div class="pred-topbar">
-    <button class="btn-pred-back" id="btnPredBack" type="button">← Regresar</button>
-    <h2>Predicción de marcadores — Conferencia Nacional</h2>
-  </div>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-main">ONEFA</span>
+        <span class="brand-sub">Pronósticos</span>
+      </a>
+      <div class="nav-right">
+        <button class="btn-pred-back" id="btnPredBack" type="button">← Regresar</button>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-eye">Liga Mayor ONEFA — Modelo de predicción</div>
+      <h1 class="hero-title">PREDICCIÓN<br><em>NACIONAL</em></h1>
+      <div class="hero-bar"></div>
+      <p class="hero-meta">Solo de consulta — no guarda ni modifica tus pronósticos.</p>
+    </div>
+  </header>
+
   <div class="pred-body">
     <div class="pred-note">
       Modelo Massey unificado (14 Grandes + Nacional en una sola escala), con prior de
@@ -820,7 +828,7 @@ cargarDatos();
       nada ni modifica tus pronósticos.
     </div>
     <details class="pred-ranking">
-      <summary>Ver ranking lineal completo (ambas conferencias, para verificar el modelo)</summary>
+      <summary>Ver ranking lineal completo (Conferencia Nacional, para verificar el modelo)</summary>
       <div id="predRankingWrap"></div>
     </details>
     <div id="predContenido"><div class="pred-loading">Calculando…</div></div>
@@ -846,14 +854,13 @@ cargarDatos();
   }
 
   function renderRanking(modelo) {
-    const ranking = ONEFA_PRED.rankingUnificado(modelo);
+    const ranking = ONEFA_PRED.rankingConferencia(modelo);
     let html = `<div class="s-wrap"><table class="s-tbl"><thead><tr>
-      <th style="width:36px">#</th><th>Equipo</th><th>Conferencia</th><th>Rating</th>
+      <th style="width:36px">#</th><th>Equipo</th><th>Rating</th>
     </tr></thead><tbody>`;
     ranking.forEach((r, i) => {
       const tag = r.puente ? `<span class="badge-puente">${r.puente === 'sube' ? 'sube' : 'baja'}</span>` : '';
       html += `<tr><td class="pos-n">${i + 1}</td><td class="s-eq">${r.equipo}${tag}</td>
-        <td class="s-num">${r.conferencia === '14g' ? '14 Grandes' : 'Nacional'}</td>
         <td class="s-num">${r.rating.toFixed(2)}</td></tr>`;
     });
     html += `</tbody></table></div>`;
