@@ -343,6 +343,208 @@
   }
 
   // ==========================================================================
+  // PROYECCIÓN DE PLAYOFFS — "si se dieran los resultados de predicción,
+  // ¿cómo quedarían los playoffs?"
+  //
+  // Idea: se completan TODOS los juegos pendientes de temporada regular con
+  // el marcador que predice el modelo (los ya jugados no se tocan), y sobre
+  // esa temporada ya completa se corre EXACTAMENTE la misma lógica de tabla
+  // de posiciones y desempate que ya usan index.html (14G) y nacional.html
+  // (Nacional) — por diseño, la clasificación a playoffs se decide por
+  // récord real (PG/PCT + desempates), nunca por el rating Massey; el rating
+  // solo se usa para poner el marcador a los partidos que aún no se juegan,
+  // incluyendo los de la propia liguilla proyectada.
+  // ==========================================================================
+
+  // Resultado directo entre dos equipos dentro de un arreglo de juegos ya
+  // completo (real + proyectado). Empate en el marcador o juego inexistente
+  // -> null (no cuenta para desempate). Idéntica lógica a la que ya usan
+  // index.html y nacional.html.
+  function getDirecto(juegos, t1, t2) {
+    const g = juegos.find(x => (x.local === t1 && x.visita === t2) || (x.local === t2 && x.visita === t1));
+    if (!g || (g.scoreLocal + g.scoreVisita) === 0 || g.scoreLocal === g.scoreVisita) return null;
+    return g.local === t1 ? (g.scoreLocal > g.scoreVisita ? 1 : -1) : (g.scoreVisita > g.scoreLocal ? 1 : -1);
+  }
+
+  // Rellena con el marcador predicho todo juego cuya jornada sea posterior a
+  // "jornadasJugadas" (misma condición que usa generarPredicciones); los
+  // juegos ya jugados se devuelven sin tocar. No modifica el arreglo original.
+  function proyectarJuegos(juegos, jornadasJugadas, modelo) {
+    return juegos.map(g => {
+      if (g.jornada > jornadasJugadas) {
+        const p = predecirPartido(g.local, g.visita, modelo);
+        return Object.assign({}, g, { scoreLocal: p.scoreLocal, scoreVisita: p.scoreVisita, _proyectado: true });
+      }
+      return g;
+    });
+  }
+
+  // Tabla de posiciones de 14 Grandes (una sola tabla) — misma lógica que
+  // calcStandings() en index.html, aplicada aquí sobre la temporada ya
+  // completa (real + proyectada). Devuelve las filas ordenadas, mejor primero.
+  function calcularStandings14G(teams, juegos) {
+    const stats = {};
+    teams.forEach(t => { stats[t] = { pj: 0, pg: 0, pf: 0, pc: 0 }; });
+    juegos.forEach(g => {
+      const sl = g.scoreLocal, sv = g.scoreVisita;
+      if (sl + sv > 0 && sl !== sv && stats[g.local] && stats[g.visita]) {
+        stats[g.local].pj++; stats[g.visita].pj++;
+        stats[g.local].pf += sl; stats[g.local].pc += sv;
+        stats[g.visita].pf += sv; stats[g.visita].pc += sl;
+        if (sl > sv) stats[g.local].pg++; else stats[g.visita].pg++;
+      }
+    });
+    let rows = teams.map(eq => Object.assign({ equipo: eq }, stats[eq], {
+      pp: stats[eq].pj - stats[eq].pg,
+      pct: stats[eq].pj ? stats[eq].pg / stats[eq].pj : 0
+    })).sort((a, b) => b.pct - a.pct);
+
+    let i = 0;
+    while (i < rows.length) {
+      const s = i, p = rows[i].pct;
+      while (i < rows.length && rows[i].pct === p) i++;
+      const grp = rows.slice(s, i);
+      if (grp.length > 1) {
+        let win = null;
+        for (const t of grp) {
+          if (grp.every(o => o.equipo === t.equipo || getDirecto(juegos, t.equipo, o.equipo) === 1)) { win = t; break; }
+        }
+        grp.sort((a, b) => {
+          if (win) { if (a.equipo === win.equipo) return -1; if (b.equipo === win.equipo) return 1; }
+          return a.pc - b.pc;
+        });
+        rows.splice(s, grp.length, ...grp);
+      }
+    }
+    rows.forEach((r, i) => { r.seed = i + 1; });
+    return rows;
+  }
+
+  // Tablas de grupo + sembrado general de Conferencia Nacional — misma
+  // lógica que calcGroupStandings()/renderPlayoffs() en nacional.html:
+  // top 2 de cada grupo + los 2 mejores terceros lugares (comodines, tope de
+  // 3 equipos por grupo), sembrado general 1-8 por PG con desempate por
+  // resultado directo -> menor PC.
+  function calcularStandingsNacional(grupos, juegos) {
+    const stats = {};
+    Object.values(grupos).forEach(teams => teams.forEach(t => { stats[t] = { pj: 0, pg: 0, pc: 0 }; }));
+    juegos.forEach(g => {
+      const sl = g.scoreLocal, sv = g.scoreVisita;
+      if (sl + sv === 0 || sl === sv) return;
+      const cLocal  = !g.cuentaSoloPara || g.cuentaSoloPara.includes(g.local);
+      const cVisita = !g.cuentaSoloPara || g.cuentaSoloPara.includes(g.visita);
+      if (cLocal && stats[g.local])   { stats[g.local].pj++;  stats[g.local].pc += sv;  if (sl > sv) stats[g.local].pg++; }
+      if (cVisita && stats[g.visita]) { stats[g.visita].pj++; stats[g.visita].pc += sl; if (sv > sl) stats[g.visita].pg++; }
+    });
+
+    const ordenarEmpateDirecto = (tied) => [...tied].sort((a, b) => {
+      const h2h = getDirecto(juegos, a.equipo, b.equipo);
+      if (h2h === 1) return -1;
+      if (h2h === -1) return 1;
+      return a.pc - b.pc;
+    });
+
+    const allRows = {};
+    Object.entries(grupos).forEach(([grp, teams]) => {
+      let rows = teams.map(eq => {
+        const s = stats[eq] || { pj: 0, pg: 0, pc: 0 };
+        return { equipo: eq, grupo: grp, pg: s.pg, pp: s.pj - s.pg, pct: s.pj ? s.pg / s.pj : 0, pc: s.pc, pj: s.pj };
+      });
+      rows.sort((a, b) => b.pct - a.pct);
+      let i = 0;
+      while (i < rows.length) {
+        const s0 = i, p = rows[i].pct;
+        while (i < rows.length && rows[i].pct === p) i++;
+        if (i - s0 > 1) rows.splice(s0, i - s0, ...ordenarEmpateDirecto(rows.slice(s0, i)));
+      }
+      allRows[grp] = rows;
+    });
+
+    const playoffs = new Set();
+    Object.values(allRows).forEach(rows => rows.slice(0, 2).forEach(r => playoffs.add(r.equipo)));
+    const terceros = Object.values(allRows).map(rows => rows[2]).filter(Boolean);
+    terceros.sort((a, b) => b.pct - a.pct || a.pc - b.pc);
+    terceros.slice(0, 2).forEach(r => playoffs.add(r.equipo));
+
+    const flat = {};
+    Object.values(allRows).forEach(rows => rows.forEach(r => { flat[r.equipo] = r; }));
+    let seeds = [...playoffs].map(eq => flat[eq]);
+    seeds.sort((a, b) => b.pg - a.pg);
+    let gi = 0;
+    while (gi < seeds.length) {
+      let gj = gi;
+      while (gj < seeds.length && seeds[gj].pg === seeds[gi].pg) gj++;
+      if (gj - gi > 1) seeds.splice(gi, gj - gi, ...ordenarEmpateDirecto(seeds.slice(gi, gj)));
+      gi = gj;
+    }
+    seeds.forEach((t, i) => { t.seed = i + 1; });
+
+    return { allRows, seeds };
+  }
+
+  // Bracket clásico de 8 equipos (1v8, 2v7, 3v6, 4v5 en cuartos; el mejor
+  // sembrado de los dos avanzados es local en cada ronda siguiente, incluida
+  // la final) — mismo formato que ya usa nacional.html para el bracket en
+  // vivo, y el mismo que confirman los brackets reales 2025 de ambas
+  // conferencias. Cada partido se predice con el modelo de ESA conferencia.
+  function construirBracketPrediccion(seeds8, modelo) {
+    if (!seeds8 || seeds8.length < 8) return null;
+
+    const jugar = (a, b) => {
+      const p = predecirPartido(a.equipo, b.equipo, modelo);
+      const ganador = p.scoreLocal >= p.scoreVisita ? a : b;
+      return { local: a, visita: b, scoreLocal: p.scoreLocal, scoreVisita: p.scoreVisita, ganador, forzado: p.forzado };
+    };
+    const mejorLocal = (x, y) => (x.seed <= y.seed ? [x, y] : [y, x]);
+
+    const cf1 = jugar(seeds8[0], seeds8[7]); // 1 vs 8
+    const cf2 = jugar(seeds8[3], seeds8[4]); // 4 vs 5
+    const cf3 = jugar(seeds8[1], seeds8[6]); // 2 vs 7
+    const cf4 = jugar(seeds8[2], seeds8[5]); // 3 vs 6
+
+    const [sf1L, sf1V] = mejorLocal(cf1.ganador, cf2.ganador);
+    const sf1 = jugar(sf1L, sf1V);
+    const [sf2L, sf2V] = mejorLocal(cf3.ganador, cf4.ganador);
+    const sf2 = jugar(sf2L, sf2V);
+
+    const [fL, fV] = mejorLocal(sf1.ganador, sf2.ganador);
+    const final = jugar(fL, fV);
+
+    return { cuartos: [cf1, cf2, cf3, cf4], semifinal: [sf1, sf2], final, campeon: final.ganador };
+  }
+
+  // ==========================================================================
+  // Punto de entrada: dado el estado real de la temporada, proyecta el resto
+  // de los juegos con el modelo y arma tabla(s) + bracket de ESA conferencia.
+  // Recibe los modelos ya construidos para no recalcularlos si el llamador
+  // (generarPredicciones) ya los tiene a la mano.
+  // ==========================================================================
+  function proyectarPlayoffsConModelos(datos, conferencia, modelos) {
+    const { d14_2026, dnac_2026 } = datos;
+    if (conferencia === '14g') {
+      const modelo = modelos.modelo14;
+      const juegosProyectados = proyectarJuegos(d14_2026.juegos, d14_2026.jornadas_jugadas, modelo);
+      const standings = calcularStandings14G(d14_2026.equipos, juegosProyectados);
+      const seeds = standings.slice(0, 8);
+      const bracket = construirBracketPrediccion(seeds, modelo);
+      return { standings, seeds, bracket };
+    } else {
+      const modelo = modelos.modeloNac;
+      const juegosProyectados = proyectarJuegos(dnac_2026.juegos, dnac_2026.jornadas_jugadas, modelo);
+      const { allRows, seeds } = calcularStandingsNacional(dnac_2026.grupos, juegosProyectados);
+      const bracket = construirBracketPrediccion(seeds, modelo);
+      return { allRows, seeds, bracket };
+    }
+  }
+
+  // Versión standalone (construye sus propios modelos) — útil para llamarla
+  // suelta desde consola/pruebas sin pasar por generarPredicciones.
+  function proyectarPlayoffs(datos, conferencia) {
+    const modelos = construirModelosPorConferencia(datos);
+    return Object.assign({ modelos }, proyectarPlayoffsConModelos(datos, conferencia, modelos));
+  }
+
+  // ==========================================================================
   // Genera las predicciones de todos los partidos pendientes de UNA
   // conferencia ('14g' | 'nacional'), usando SOLO el modelo de esa
   // conferencia (los dos modelos se construyen siempre juntos porque el
@@ -362,7 +564,9 @@
         return { jornada: g.jornada, local: g.local, visita: g.visita, scoreLocal: p.scoreLocal, scoreVisita: p.scoreVisita, forzado: p.forzado };
       });
 
-    return { predicciones, modelo, modelos };
+    const playoffs = proyectarPlayoffsConModelos(datos, conferencia, modelos);
+
+    return { predicciones, modelo, modelos, playoffs };
   }
 
   // ==========================================================================
@@ -395,7 +599,10 @@
     rankingConferencia,
     predecirPartido,
     generarPredicciones,
-    calcularPredicciones
+    calcularPredicciones,
+    proyectarPlayoffs,
+    calcularStandings14G,
+    calcularStandingsNacional
   };
 
   // UMD simple: funciona en Node (module.exports) y en navegador (window.ONEFA_PRED)

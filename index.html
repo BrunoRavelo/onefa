@@ -458,10 +458,11 @@ cargarDatos();
 
   <div class="pred-body">
     <div class="pred-note">
-      Modelo Massey unificado (14 Grandes + Nacional en una sola escala), con prior de
+      Modelo Massey de 14 Grandes, resuelto por separado del de Nacional, con prior de
       temporada 2025 que se va apagando cada jornada. Es de solo consulta — no guarda
       nada ni modifica tus pronósticos.
     </div>
+    <div id="predBracketWrap"></div>
     <details class="pred-ranking">
       <summary>Ver ranking lineal completo (14 Grandes, para verificar el modelo)</summary>
       <div id="predRankingWrap"></div>
@@ -502,6 +503,61 @@ cargarDatos();
     document.getElementById('predRankingWrap').innerHTML = html;
   }
 
+  function renderBracket(playoffs) {
+    const wrap = document.getElementById('predBracketWrap');
+    if (!playoffs || !playoffs.bracket) {
+      wrap.innerHTML = '';
+      return;
+    }
+    const { seeds, bracket } = playoffs;
+
+    let html = `<div class="pred-jornada-label">Sembrado proyectado (1–8) si se cumplen las predicciones</div>
+      <div class="s-wrap"><table class="s-tbl"><thead><tr>
+        <th style="width:36px">#</th><th>Equipo</th><th>PG</th><th>PP</th><th class="hide-sm">PC</th>
+      </tr></thead><tbody>`;
+    seeds.forEach(s => {
+      html += `<tr><td class="pos-n">${s.seed}</td><td class="s-eq">${s.equipo}</td>
+        <td class="s-num">${s.pg}</td><td class="s-num">${s.pp}</td><td class="s-num hide-sm">${s.pc}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+
+    const matchHtml = (label, p) => {
+      const localGana = p.scoreLocal >= p.scoreVisita;
+      return `<div class="bracket-match">
+        <div class="bracket-label">${label}</div>
+        <div class="bracket-team bracket-local${localGana ? ' bracket-winner' : ''}">
+          <span class="bracket-seed">${p.local.seed}</span>
+          <span class="bracket-name">${p.local.equipo}</span>
+          <span class="bracket-score">${p.scoreLocal}</span>
+        </div>
+        <div class="bracket-team${!localGana ? ' bracket-winner' : ''}">
+          <span class="bracket-seed">${p.visita.seed}</span>
+          <span class="bracket-name">${p.visita.equipo}</span>
+          <span class="bracket-score">${p.scoreVisita}</span>
+        </div>
+      </div>`;
+    };
+
+    html += `<div class="pred-jornada-label" style="margin-top:1.5rem;">Bracket proyectado</div>
+      <div class="bracket-wrap"><div class="bracket-cols">
+        <div class="bracket-col">
+          <div class="bracket-col-title">Cuartos de Final</div>
+          ${bracket.cuartos.map((p, i) => matchHtml('CF' + (i + 1), p)).join('')}
+        </div>
+        <div class="bracket-col">
+          <div class="bracket-col-title">Semifinal</div>
+          ${bracket.semifinal.map((p, i) => matchHtml('SF' + (i + 1), p)).join('')}
+        </div>
+        <div class="bracket-col">
+          <div class="bracket-col-title">Final</div>
+          ${matchHtml('FINAL', bracket.final)}
+        </div>
+      </div></div>
+      <div class="bracket-champion">🏆 Campeón proyectado: ${bracket.campeon.equipo}</div>`;
+
+    wrap.innerHTML = html;
+  }
+
   function renderPredicciones(predicciones) {
     const cont = document.getElementById('predContenido');
     if (!predicciones.length) {
@@ -538,8 +594,9 @@ cargarDatos();
     document.body.style.overflow = 'hidden';
     if (calculado) return; // ya se calculó una vez, no repetir trabajo
     try {
-      const { predicciones, modelo } = await ONEFA_PRED.calcularPredicciones(CONF, './');
+      const { predicciones, modelo, playoffs } = await ONEFA_PRED.calcularPredicciones(CONF, './');
       renderRanking(modelo);
+      renderBracket(playoffs);
       renderPredicciones(predicciones);
       calculado = true;
     } catch (err) {

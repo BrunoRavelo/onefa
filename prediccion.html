@@ -65,11 +65,13 @@
   </div>
 
   <div class="pred-note">
-    Modelo Massey resuelto con 14 Grandes y Nacional en una sola escala (usando las scrimmages
-    2026 entre conferencias como puente), con un prior de temporada 2025 cuyo peso baja conforme
+    Modelo Massey resuelto por separado para cada conferencia (14 Grandes y Nacional nunca
+    comparten escala ni cálculo), con un prior de temporada 2025 cuyo peso baja conforme
     cada equipo acumula juegos reales en 2026. Liebres CD Juárez queda fuera del cálculo — sus
     partidos se muestran fijos en 1-0, tal como establece la regla de la liga.
   </div>
+
+  <div id="predBracketWrap"></div>
 
   <div id="contenido"><div class="loading-msg">Calculando predicciones…</div></div>
 
@@ -103,6 +105,60 @@ function leerPronosticoUsuario() {
   return m;
 }
 
+function renderBracket(playoffs) {
+  const wrap = document.getElementById('predBracketWrap');
+  if (!playoffs || !playoffs.bracket) { wrap.innerHTML = ''; return; }
+  const { seeds, bracket } = playoffs;
+  const conGrupo = CONF === 'nacional';
+
+  let html = `<div class="pred-jornada-label">Sembrado proyectado (1–8) si se cumplen las predicciones</div>
+    <div class="s-wrap"><table class="s-tbl"><thead><tr>
+      <th style="width:36px">#</th><th>Equipo</th>${conGrupo ? '<th>Grupo</th>' : ''}<th>PG</th><th>PP</th><th class="hide-sm">PC</th>
+    </tr></thead><tbody>`;
+  seeds.forEach(s => {
+    html += `<tr><td class="s-eq" style="font-family:'Bebas Neue',sans-serif;">${s.seed}</td><td class="s-eq">${s.equipo}</td>
+      ${conGrupo ? `<td class="hide-sm">${s.grupo || ''}</td>` : ''}
+      <td class="s-num">${s.pg}</td><td class="s-num">${s.pp}</td><td class="s-num hide-sm">${s.pc}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  const matchHtml = (label, p) => {
+    const localGana = p.scoreLocal >= p.scoreVisita;
+    return `<div class="bracket-match">
+      <div class="bracket-label">${label}</div>
+      <div class="bracket-team bracket-local${localGana ? ' bracket-winner' : ''}">
+        <span class="bracket-seed">${p.local.seed}</span>
+        <span class="bracket-name">${p.local.equipo}</span>
+        <span class="bracket-score">${p.scoreLocal}</span>
+      </div>
+      <div class="bracket-team${!localGana ? ' bracket-winner' : ''}">
+        <span class="bracket-seed">${p.visita.seed}</span>
+        <span class="bracket-name">${p.visita.equipo}</span>
+        <span class="bracket-score">${p.scoreVisita}</span>
+      </div>
+    </div>`;
+  };
+
+  html += `<div class="pred-jornada-label" style="margin-top:1.5rem;">Bracket proyectado</div>
+    <div class="bracket-wrap"><div class="bracket-cols">
+      <div class="bracket-col">
+        <div class="bracket-col-title">Cuartos de Final</div>
+        ${bracket.cuartos.map((p, i) => matchHtml('CF' + (i + 1), p)).join('')}
+      </div>
+      <div class="bracket-col">
+        <div class="bracket-col-title">Semifinal</div>
+        ${bracket.semifinal.map((p, i) => matchHtml('SF' + (i + 1), p)).join('')}
+      </div>
+      <div class="bracket-col">
+        <div class="bracket-col-title">Final</div>
+        ${matchHtml('FINAL', bracket.final)}
+      </div>
+    </div></div>
+    <div class="bracket-champion">🏆 Campeón proyectado: ${bracket.campeon.equipo}</div>`;
+
+  wrap.innerHTML = html;
+}
+
 async function main() {
   const cont = document.getElementById('contenido');
   let resultado;
@@ -113,6 +169,8 @@ async function main() {
     cont.innerHTML = '<div class="error-msg">No se pudo calcular la predicción. Verifica que los 4 archivos JSON (onefa_data_2025.json, onefa_data_2026.json, onefa_nacional_2025.json, onefa_nacional_2026.json) estén en la misma carpeta que esta página.</div>';
     return;
   }
+
+  renderBracket(resultado.playoffs);
 
   const { predicciones } = resultado;
   if (!predicciones.length) {

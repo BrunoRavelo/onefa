@@ -481,6 +481,19 @@ body {
 }
 .bracket-match.bracket-tbd .bracket-team.bracket-local { background: transparent; }
 .bracket-match.bracket-tbd .bracket-seed { background: transparent; }
+.bracket-score {
+  margin-left: auto; font-family: 'Bebas Neue', sans-serif; font-size: 1rem;
+  color: var(--muted); letter-spacing: .5px;
+}
+.bracket-team.bracket-winner { color: var(--onefa-green); }
+.bracket-team.bracket-winner .bracket-score { color: var(--onefa-green); }
+.bracket-team.bracket-winner .bracket-seed { background: var(--hi-bg); color: var(--onefa-green); }
+.bracket-champion {
+  text-align: center; margin-top: 1rem; padding: .6rem 1rem;
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 1px;
+  color: var(--onefa-green); background: var(--hi-bg); border: 1px solid var(--hi-border);
+  border-radius: 8px;
+}
 
 /* ── Comparador de equipos ───────────────────────────────── */
 .compare-wrap {
