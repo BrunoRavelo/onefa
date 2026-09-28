@@ -861,7 +861,7 @@ cargarDatos();
     </tr></thead><tbody>`;
     ranking.forEach((r, i) => {
       const tag = r.puente ? `<span class="badge-puente">${r.puente === 'sube' ? 'sube' : 'baja'}</span>` : '';
-      html += `<tr><td class="pos-n">${i + 1}</td><td class="s-eq">${r.equipo}${tag}</td>
+      html += `<tr><td><span class="pos-n">${i + 1}</span></td><td class="s-eq">${r.equipo}${tag}</td>
         <td class="s-num">${r.rating.toFixed(2)}</td></tr>`;
     });
     html += `</tbody></table></div>`;
@@ -881,7 +881,7 @@ cargarDatos();
         <th style="width:36px">#</th><th>Equipo</th><th>Grupo</th><th>PG</th><th>PP</th><th class="hide-sm">PC</th>
       </tr></thead><tbody>`;
     seeds.forEach(s => {
-      html += `<tr><td class="pos-n">${s.seed}</td><td class="s-eq">${s.equipo}</td>
+      html += `<tr><td><span class="pos-n">${s.seed}</span></td><td class="s-eq">${s.equipo}</td>
         <td>${badgeHtml(s.grupo)}</td>
         <td class="s-num">${s.pg}</td><td class="s-num">${s.pp}</td><td class="s-num hide-sm">${s.pc}</td></tr>`;
     });
