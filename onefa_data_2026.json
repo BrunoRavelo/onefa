@@ -35,7 +35,7 @@
     {"jornada":4,"local":"Zorros CETYS","visita":"Borregos GDL","scoreLocal":10,"scoreVisita":20},
     {"jornada":4,"local":"Borregos MTY","visita":"Pumas CU","scoreLocal":73,"scoreVisita":20},
     {"jornada":4,"local":"Borregos PUE","visita":"Burros Blancos","scoreLocal":54,"scoreVisita":14},
-    {"jornada":4,"local":"Aztecas UDLAP","visita":"Leones UAC","scoreLocal":8,"scoreVisita":28},
+    {"jornada":4,"local":"Aztecas UDLAP","visita":"Leones UAC","scoreLocal":28,"scoreVisita":8},
 
     {"jornada":5,"local":"Auténticos Tigres","visita":"Borregos MTY","scoreLocal":0,"scoreVisita":0},
     {"jornada":5,"local":"Borregos GDL","visita":"Aztecas UDLAP","scoreLocal":0,"scoreVisita":0},
