@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 4,
+  "jornadas_jugadas": 5,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],
@@ -43,7 +43,7 @@
 
     {"jornada":4,"local":"Potros ITSON","visita":"Águilas UACH","scoreLocal":20,"scoreVisita":31},
     {"jornada":4,"local":"Lobos UA de C","visita":"Indios UACJ","scoreLocal":21,"scoreVisita":14},
-    {"jornada":4,"local":"Liebres CD Juárez","visita":"Cimarrones UABC","scoreLocal":0,"scoreVisita":0},
+    {"jornada":4,"local":"Liebres CD Juárez","visita":"Cimarrones UABC","scoreLocal":0,"scoreVisita":1},
     {"jornada":4,"local":"Halcones UV","visita":"Potros Salvajes","scoreLocal":7,"scoreVisita":41},
     {"jornada":4,"local":"Pumas Acatlán","visita":"Frailes UT","scoreLocal":19,"scoreVisita":12},
     {"jornada":4,"local":"Panteras Siglo XXI","visita":"Toros Salvajes","scoreLocal":0,"scoreVisita":7},
@@ -51,15 +51,15 @@
     {"jornada":4,"local":"ASUCQ / RED WOLVES","visita":"Cardinals UIW","scoreLocal":3,"scoreVisita":7},
     {"jornada":4,"local":"Lobos ULM","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":38},
 
-    {"jornada":5,"local":"Indios UACJ","visita":"Águilas UACH","scoreLocal":0,"scoreVisita":0},
+    {"jornada":5,"local":"Indios UACJ","visita":"Águilas UACH","scoreLocal":0,"scoreVisita":51},
     {"jornada":5,"local":"Cimarrones UABC","visita":"Potros ITSON","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Liebres CD Juárez","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Panteras Siglo XXI","visita":"Pumas Acatlán","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Frailes UT","visita":"Halcones UV","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Búhos IPN","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Correcaminos UAT","visita":"Lobos ULM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"Cardinals UIW","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":0},
-    {"jornada":5,"local":"ASUCQ / RED WOLVES","visita":"Tecos UAG","scoreLocal":0,"scoreVisita":0},
+    {"jornada":5,"local":"Liebres CD Juárez","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":1},
+    {"jornada":5,"local":"Panteras Siglo XXI","visita":"Pumas Acatlán","scoreLocal":7,"scoreVisita":49},
+    {"jornada":5,"local":"Frailes UT","visita":"Halcones UV","scoreLocal":21,"scoreVisita":6},
+    {"jornada":5,"local":"Búhos IPN","visita":"Potros Salvajes","scoreLocal":14,"scoreVisita":17},
+    {"jornada":5,"local":"Correcaminos UAT","visita":"Lobos ULM","scoreLocal":14,"scoreVisita":12},
+    {"jornada":5,"local":"Cardinals UIW","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":52},
+    {"jornada":5,"local":"ASUCQ / RED WOLVES","visita":"Tecos UAG","scoreLocal":0,"scoreVisita":19},
 
     {"jornada":6,"local":"Águilas UACH","visita":"Liebres CD Juárez","scoreLocal":0,"scoreVisita":0},
     {"jornada":6,"local":"Lobos UA de C","visita":"Cimarrones UABC","scoreLocal":0,"scoreVisita":0},
