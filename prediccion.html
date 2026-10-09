@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Predicción matemática — ONEFA</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fuentes NO bloqueantes: si Google Fonts tarda o no responde, la página igual se pinta con la fuente de respaldo -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap"></noscript>
   <link rel="stylesheet" href="onefa.css">
   <style>
     /* Esta pestaña es de solo lectura: no guarda nada en localStorage y no
@@ -212,6 +216,38 @@ async function main() {
 }
 
 main();
+</script>
+<script>
+/* Service Worker: guarda la app en el celular para que cargue sin depender de la señal */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () {});
+  });
+
+  /* Actualización automática y silenciosa cuando llegan resultados nuevos:
+     - Si la persona aún no ha tocado nada, recarga al instante (sale de caché, es inmediato).
+     - Si ya la estaba usando (escribiendo marcadores, jornadas abiertas) NO la interrumpe:
+       recarga cuando vuelva a la pestaña/app, o en su próxima visita. */
+  var tocado = false, pendiente = false;
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) {
+    window.addEventListener(ev, function () { tocado = true; }, { once: true, passive: true });
+  });
+  function recargarUnaVez() {
+    try {
+      var t = Number(sessionStorage.getItem('swReload') || 0);
+      if (Date.now() - t < 30000) return;              /* freno anti-bucle */
+      sessionStorage.setItem('swReload', String(Date.now()));
+    } catch (e) {}
+    location.reload();
+  }
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'DATA_UPDATED') return;
+    if (!tocado) recargarUnaVez(); else pendiente = true;
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && pendiente) recargarUnaVez();
+  });
+}
 </script>
 </body>
 </html>

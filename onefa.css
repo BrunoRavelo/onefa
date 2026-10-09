@@ -407,7 +407,20 @@ body {
 }
 .group-card {
   background: var(--surface); border-radius: 8px;
-  box-shadow: var(--shadow); overflow: hidden;
+  box-shadow: var(--shadow); overflow-x: auto; overflow-y: hidden; /* red de seguridad: si algo no cabe, hace scroll en vez de cortarse */
+  container-type: inline-size;
+}
+/* Tablas de grupo: se compactan según el ancho REAL de la tarjeta (no de la pantalla),
+   así no se desbordan ni en celular ni en escritorio con 3 tarjetas en fila. */
+@container (max-width: 460px) {
+  .group-card .s-tbl td,
+  .group-card .s-tbl thead th { padding-left: .45rem; padding-right: .45rem; }
+  .group-card .s-tbl thead th { letter-spacing: 1px; }
+}
+@container (max-width: 340px) {
+  .group-card .s-tbl td,
+  .group-card .s-tbl thead th { padding-left: .3rem; padding-right: .3rem; }
+  .group-card .s-tbl .s-eq { font-size: .95rem; }
 }
 .group-card-hdr {
   padding: .55rem 1rem;

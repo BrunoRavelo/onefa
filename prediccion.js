@@ -577,7 +577,7 @@
   async function calcularPredicciones(conferencia, baseUrl) {
     baseUrl = baseUrl || './';
     const fetchJSON = async (nombre) => {
-      const res = await fetch(baseUrl + nombre, { cache: 'no-store' });
+      const res = await fetch(baseUrl + nombre, { cache: 'no-cache' });
       return res.json();
     };
     const [d14_2025, d14_2026, dnac_2025, dnac_2026] = await Promise.all([

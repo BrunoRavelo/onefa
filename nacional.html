@@ -4,7 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ONEFA Conferencia Nacional 2026</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+  /* Arranca la descarga del JSON YA (en paralelo con CSS y fuentes), antes de que nada la bloquee */
+  window.__DATOS = fetch('./onefa_nacional_' + (new URLSearchParams(location.search).get('temporada') === '2025' ? 2025 : 2026) + '.json', { cache: 'no-cache' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  window.__DATOS.catch(function () {});
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fuentes NO bloqueantes: si Google Fonts tarda o no responde, la página igual se pinta con la fuente de respaldo -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&display=swap"></noscript>
   <link rel="stylesheet" href="onefa.css">
 </head>
 <body>
@@ -190,8 +200,7 @@ function cambiarTemp(v) { window.location.href = `nacional.html?temporada=${v}`;
 
 async function cargarDatos() {
   try {
-    const res = await fetch(DATA_FILE, { cache:'no-store' });
-    const d   = await res.json();
+    const d = await (window.__DATOS || fetch(DATA_FILE, { cache:'no-cache' }).then(r => r.json()));
     grupos = d.grupos || {};
     juegos = d.juegos || [];
     scrimmages = d.scrimmages || [];
@@ -203,7 +212,7 @@ async function cargarDatos() {
     for (const [grp, teams] of Object.entries(grupos)) {
       teams.forEach(t => { teamGroup[t] = grp; allTeams.push(t); });
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); window.__ERR = true; }
 
   const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
   try {
@@ -227,6 +236,8 @@ async function cargarDatos() {
   } catch {}
 
   
+
+  if (window.__ERR) { const m = document.querySelector('.hero-meta'); if (m) m.innerHTML = '⚠ Sin conexión: no se pudieron cargar los datos. <a href="" onclick="location.reload();return false">Reintentar</a>'; }
 
   generarMenu();
   generarCalendario();
@@ -980,6 +991,38 @@ cargarDatos();
   document.getElementById('btnPrediccion').addEventListener('click', abrirPrediccion);
   document.getElementById('btnPredBack').addEventListener('click', cerrarPrediccion);
 })();
+</script>
+<script>
+/* Service Worker: guarda la app en el celular para que cargue sin depender de la señal */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () {});
+  });
+
+  /* Actualización automática y silenciosa cuando llegan resultados nuevos:
+     - Si la persona aún no ha tocado nada, recarga al instante (sale de caché, es inmediato).
+     - Si ya la estaba usando (escribiendo marcadores, jornadas abiertas) NO la interrumpe:
+       recarga cuando vuelva a la pestaña/app, o en su próxima visita. */
+  var tocado = false, pendiente = false;
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) {
+    window.addEventListener(ev, function () { tocado = true; }, { once: true, passive: true });
+  });
+  function recargarUnaVez() {
+    try {
+      var t = Number(sessionStorage.getItem('swReload') || 0);
+      if (Date.now() - t < 30000) return;              /* freno anti-bucle */
+      sessionStorage.setItem('swReload', String(Date.now()));
+    } catch (e) {}
+    location.reload();
+  }
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'DATA_UPDATED') return;
+    if (!tocado) recargarUnaVez(); else pendiente = true;
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && pendiente) recargarUnaVez();
+  });
+}
 </script>
 </body>
 </html>
