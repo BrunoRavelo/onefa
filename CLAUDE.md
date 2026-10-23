@@ -1,6 +1,6 @@
 # ONEFA Pronósticos — Contexto del Proyecto
 
-> Última actualización de este documento: 2026-10-13.
+> Última actualización de este documento: 2026-10-17 (motor e interfaz de escenarios, ver §8.9).
 > **La fuente de verdad es el código.** Si algo de aquí contradice a un archivo, gana el archivo
 > (y conviene corregir este documento). Las secciones marcadas con ⚠ son diferencias o
 > limitaciones detectadas al leer el código vigente.
@@ -65,6 +65,12 @@ Conferencias:
 ├── calendario_equipo.html      ← Calendario/resultados de UN equipo (ambas conferencias)
 ├── prediccion.html             ← Predicción como página independiente (?conf=14g|nacional)
 ├── prediccion.js               ← MOTOR del modelo de predicción y de la proyección de playoffs
+├── escenarios.js               ← MOTOR de escenarios de clasificación a playoffs (14G) (ver §8.9)
+├── escenarios-worker.js        ← Web Worker: corre el motor fuera del hilo principal (se carga con `new Worker`)
+├── escenarios-ui.js            ← INTERFAZ ÚNICA y compartida del módulo (crea su propio overlay; estilos `.esc-*` en onefa.css)
+├── tests/escenarios.test.js    ← Pruebas del motor y del protocolo del Worker: `node tests/escenarios.test.js`
+├── tests/ui/                   ← Pruebas de interfaz con jsdom (solo desarrollo): `cd tests/ui && npm install && node ui.test.js`
+├── plan.md                     ← Plan de diseño del módulo de escenarios (decisiones, fases, resultados medidos)
 ├── onefa.css                   ← Hoja de estilos compartida por TODAS las páginas
 ├── sw.js                       ← Service Worker (caché + actualización automática)
 ├── onefa_data_2025.json        ← 14 Grandes 2025 (histórico, completo + liguilla)
@@ -118,7 +124,9 @@ Resumen de dependencias:
 | `prediccion.html` | `onefa.css`, `prediccion.js`, `sw.js` | **Nadie la enlaza**: se entra por URL directa (está en la precaché) |
 | `prediccion.js` | Los 4 JSON (vía `fetch`) | `index.html`, `nacional.html`, `prediccion.html` |
 | `onefa.css` | Google Fonts (por nombre de familia) | Todas las páginas HTML |
-| `sw.js` | Lista `PRECACHE` (HTML, CSS, JS, 4 JSON) + Google Fonts | Registrado por las 4 páginas |
+| `sw.js` | Lista `PRECACHE` (HTML, CSS, JS incl. `escenarios*.js`, 4 JSON) + Google Fonts | Registrado por las 4 páginas |
+| `escenarios-ui.js` | `prediccion.js` (`ONEFA_PRED`), `escenarios-worker.js`; carga `escenarios.js` solo si no hay Worker | `index.html` (botón `data-esc-conf="14g"`); `nacional.html` en la Fase 5 |
+| `escenarios-worker.js` | `importScripts('prediccion.js','escenarios.js')` | `escenarios-ui.js` |
 | `maximizar_onefa.py` | `onefa_data_YYYY.json` (misma carpeta que el script) | Ejecución manual (CLI) |
 
 **Duplicación de código intencional (importante al editar):** `index.html`, `nacional.html` y
@@ -267,11 +275,11 @@ del calendario de equipo.
 - Estado al escribir este documento: **14G 2026 = 6**, **Nacional 2026 = 6**, 2025 = 10 (14G) y 9 (Nacional).
 - Nacional empezó 2026 con `-1` para que la Jornada 0 no quedara bloqueada; al jugarse, pasó a 0, luego 1, etc.
   La condición `j <= JORNADAS_JUGADAS` funciona sin casos especiales.
-- ⚠ **Juegos aplazados:** hoy hay un juego 0-0 dentro de una jornada ya cerrada en cada conferencia
-  (14G J5: Auténticos Tigres vs Borregos MTY; Nacional J5: Cimarrones UABC vs Potros ITSON). Consecuencias:
-  los inputs de esa jornada están bloqueados (el usuario no puede simularlos), el modelo **no los predice**
-  (solo predice `jornada > jornadas_jugadas`) y por tanto **no entran** en la tabla ni en el bracket proyectado.
-  Ver §12.
+- **Juegos aplazados:** hoy hay un juego 0-0 dentro de una jornada ya cerrada en cada conferencia
+  (14G J5: Auténticos Tigres vs Borregos MTY; Nacional J5: Cimarrones UABC vs Potros ITSON). Ambos **se van a jugar**.
+  Desde `esPendiente()` en `prediccion.js`, un juego es pendiente si su jornada es posterior a `jornadas_jugadas` **o** si no
+  tiene marcador (0-0): por eso la predicción, la proyección de playoffs y el módulo de escenarios **sí** los incluyen.
+  ⚠ En los calendarios (`index.html`/`nacional.html`) esos inputs **siguen bloqueados** (`j <= JORNADAS_JUGADAS`); ver §12.
 
 ### 6.5 Equipos 2026 (según los JSON vigentes)
 
@@ -333,6 +341,7 @@ Parámetro de URL: `?temporada=2025|2026` (default 2026). Elementos (en orden):
   - Filas 1–8 con borde verde medio (`r-playoff`); fila 8 con línea punteada (`r-cutoff`). Leyenda "Zona playoffs (Top 8)".
 - **Ranking Colley** (`calcColley`): método matricial estándar (Colley 2001), resuelto con eliminación gaussiana.
   Se calcula en cada cambio pero **la sección está oculta** (`display:none`). Solo informativo, no oficial.
+- **Botón "Escenarios de playoffs"** (`#btnEscenarios`, `data-esc-conf="14g"`): lo activa `escenarios-ui.js` (ver §8.9); se oculta en `?temporada=2025`.
 - **Overlay de predicción** (`#prediccionOverlay`): capa `position:fixed; inset:0` que se muestra/oculta con la
   clase `.open` (no navega ni abre ventana). Contiene su propia `.topbar` + `.hero` (mismo diseño que el resto del sitio),
   botón "← Regresar", nota del modelo, **sembrado + bracket proyectado**, ranking colapsable (`<details>`) y predicciones por jornada.
@@ -394,7 +403,13 @@ cada llamada vuelve a leer los 4 JSON (`fetch` con `cache:'no-cache'`) y recalcu
 
 **API pública (`ONEFA_PRED`):** `K_PESO_TEMPORADA_ANTERIOR`, `JORNADAS_TRANSICION`, `VENTAJA_LOCAL`, `EQUIPOS_EXCLUIDOS`,
 `masseyRatings`, `construirModelosPorConferencia`, `rankingConferencia`, `predecirPartido`, `generarPredicciones`,
-`calcularPredicciones` (async, hace el `fetch`), `proyectarPlayoffs`, `calcularStandings14G`, `calcularStandingsNacional`.
+`calcularPredicciones` (async), `cargarDatos` (los 4 JSON con caché en memoria; la comparten la predicción y los escenarios),
+`proyectarPlayoffs`, `calcularStandings14G`, `calcularStandingsNacional`, `getDirecto`, `esPendiente`,
+`probabilidadVictoria`, `Phi`, `SIGMA_MARGEN`, `P_MIN`, `P_MAX`.
+
+**Probabilidad de victoria** (`probabilidadVictoria`, la usa `escenarios.js`): `p(local gana) = Φ(margen/σ)` con el mismo margen de
+`predecirPartido`, acotada a **[3 %, 97 %]** (decisión D9: ningún juego es "seguro"). σ por conferencia (`SIGMA_MARGEN`):
+**14G = 12.4, Nacional = 11.4** (calibradas con 2025). Un juego con equipo excluido (Liebres) es resultado forzado (p = 0 o 1).
 
 **Parámetros ajustables (arriba del archivo):**
 
@@ -488,6 +503,61 @@ Lee `onefa_data_{year}.json` **de la misma carpeta del script**. Con OR-Tools CP
 - Calcula la tabla proyectada con la misma regla de la web (% Vict, desempate directo → menor PC) e imprime la posición final.
 - No soporta Nacional; ignora la `liguilla`.
 
+### 8.9 Escenarios de playoffs — `escenarios.js` (motor) + `escenarios-worker.js` + `escenarios-ui.js` (Fases 1 y 2 listas)
+
+Módulo **puro** (sin DOM; UMD: `window.ONEFA_ESC` / `module.exports`; funciona en Node, navegador y Web Worker). Depende de `prediccion.js`.
+**Cómo se conecta (Fase 2):** `index.html` solo tiene el botón `#btnEscenarios` (`data-esc-conf="14g"`) y `<script src="escenarios-ui.js">`. `escenarios-ui.js` crea su overlay al primer clic
+(mismo `.topbar` + `.hero` del sitio), carga los datos con `ONEFA_PRED.cargarDatos()`, llena el selector con los equipos **ordenados como la tabla actual** (posición. equipo (G-P)) y calcula en
+un **Web Worker** (`new Worker('escenarios-worker.js')`; protocolo `analizar`/`progreso`/`resultado`/`error`). **Cancelar = `worker.terminate()`.** Si no se puede crear el Worker (p. ej. `file://`)
+usa un **respaldo en el hilo principal** (avisa "Modo compatible", oculta Cancelar y carga `escenarios.js` por su cuenta). Muestra "Simulando opciones…" con barra por fases.
+Compuertas: solo temporada 2026 (botón oculto con `?temporada=2025`), J6 a J9 concluidas (`ESC_JORNADA_MIN/MAX` en `escenarios-ui.js`, se pasan al motor). Es de solo lectura (no toca `localStorage`).
+**Pantalla:** resumen (probabilidad, situación, cotas exactas) · tabla "según tus victorias propias" · juegos clave (propios y ayuda de otros) · pestañas de escenarios con resultados necesarios,
+marcadores por jornada (roles necesario/libre, etiquetas sorpresa/aplazado/ajustado, juego del equipo resaltado), nota de desempate y tabla final proyectada · aviso de límites del modelo.
+Todo el CSS vive en `onefa.css` (`.esc-*`); el módulo **no depende** del `<style>` interno de `index.html` (así podrá reutilizarse en `nacional.html`).
+
+Diseño completo, decisiones y fases en `plan.md`. Responde:
+"¿qué tiene que pasar para que el equipo X clasifique a playoffs (Top 8)?". Solo **14 Grandes** y con **J6 a J9 concluidas**
+(`jornadaMin = 6`, `jornadaMax = 9`); Nacional es la Fase 5.
+
+```js
+const r = ONEFA_ESC.analizar(datos, { equipo: 'Linces UVM' }, { progreso: (fase, pct) => {}, cancelado: () => false });
+// datos = { d14_2025, d14_2026, dnac_2025, dnac_2026 }  (los mismos 4 JSON; en el navegador: await ONEFA_PRED.cargarDatos())
+```
+
+**Qué devuelve** (`r`): `estado` (`ok`/`fuera_de_rango`), `situacion` (`clasificado`, `eliminado`, `solo_desempate`, `favorito`, `burbuja`, `casi_eliminado`),
+`probabilidad` (`p`, `ic95` y `cotasExactas` mín–máx), `distribucionPosicion` (1.º…14.º), `porVictoriasPropias` (P de clasificar según cuántos de sus juegos
+restantes gane), `juegosClave` y `juegosClaveOtros` (impacto de cada resultado sobre la probabilidad), `escenarios` (hasta K=5) y `busqueda`.
+Cada escenario es una **familia** definida por su **condición mínima** (`necesarios`) y trae `marcadores` por juego (rol `necesario`/`libre`, `sorpresa`,
+`aplazado`, `ajustado`), `probabilidad` (= P(condición) × P(objetivo | condición)), `via` (`ganadores`, `resultado_directo`, `desempate_pc`),
+`exigencia` del marcador (`facil`/`exigente`/`muy_exigente`), `tablaFinal` y, si es exacto, `completaciones`.
+
+**Cómo funciona (resumen; detalle en `plan.md` §4–§6):**
+1. **Dos capas.** Capa 1: *quién gana* cada juego pendiente. Capa 2: *con qué marcador*, porque el lugar muchas veces se decide por desempate (resultado directo → menor PC);
+   con J6, ~35 % de las combinaciones de ganadores de un equipo en la burbuja dependen del desempate.
+2. **Clasificación rápida por victorias:** la posición final está en `[A+1, A+B+1]` (A = equipos con más victorias, B = empatados) → `SEGURO` / `EN EL FILO` / `FUERA`.
+3. **Enumeración exacta** (código Gray, ~2 s con 25 juegos): cotas exactas de P y detección demostrada de "clasificado"/"eliminado".
+4. **Monte Carlo** (20,000 simulaciones con semilla): cada juego se sortea con **su** probabilidad (no es aleatorio puro); el margen del ganador sale de una normal truncada y los
+   marcadores de un total esperado; la posición se calcula con `calcularStandings14G` (la regla de desempate de la app; **no** se reimplementa).
+5. **Búsqueda best-first** sobre el "costo de sorpresa" (`ln(p_fav/(1−p_fav))`): explora de más a menos probable. **Verificada contra fuerza bruta**: halla el vector más probable.
+   Modo `clasificar` (cómo clasificar) o `riesgo` (cómo fallar; se activa solo para favoritos, o si el equipo ya clasifica sin condiciones). Se omite si el favorito tiene P ≥ 99.5 %.
+6. **Condición mínima:** juegos "pivote" (si se invierte solo ese juego, el objetivo deja de cumplirse) + refuerzo voraz si queda floja; los vectores que repiten una condición se descartan.
+7. **Marcadores de desempate:** voraz por costo marginal sobre la plausibilidad (`σ_puntos = 13.6`), con resultados directos y PC estrictamente menor; el resultado se verifica con la tabla real.
+
+**Parámetros** (`ONEFA_ESC.DEF`, sobrescribibles en `analizar`): `sims`, `K`, `semilla`, `sigma`, `sigmaTotal` (14, por calibrar), `sigmaPuntos`, `maxPuntos` (73), `pMin`/`pMax`,
+`maxExp`, `maxMsBusqueda` (20 s), `presupuestoTotalMs` (45 s), `umbralFavorito` (0.85), `umbralPracticamenteSeguro` (0.995), `jornadaMin`/`jornadaMax`.
+
+**Rendimiento medido** (escritorio, J6 concluida): 3–9 s por análisis (enumeración ≈ 2 s, Monte Carlo 0.5 s, tabla de victorias propias 0.4 s, búsqueda 0.7–5 s, verificación de completaciones 1–2 s).
+En teléfono se **estima** ~4× más lento (por medir). Decisión D10: se acepta hasta ~1 minuto con mensaje "Simulando opciones…".
+
+**Pruebas de interfaz:** `cd tests/ui && npm install && node ui.test.js` (36 pruebas, jsdom): carga el `index.html` real con sus scripts, emula el Worker, y comprueba apertura, selector, progreso, resultados, pestañas, cancelación, respaldo sin Worker,
+solo lectura (`localStorage` vacío) y compuertas. **No verifican el aspecto visual** (jsdom no calcula estilos): hay que revisarlo en un navegador real y en un teléfono.
+
+**Pruebas del motor:** `node tests/escenarios.test.js` (54 pruebas, ~70 s, sin dependencias; incluye el protocolo del Worker): paridad de la tabla contra una referencia, enumeración exacta contra fuerza bruta, invariantes de probabilidad
+(Monte Carlo dentro de las cotas exactas), escenarios que se cumplen al reevaluarlos, monotonía, determinismo, validez de marcadores, optimalidad de la búsqueda y ausencia de falsos negativos evidentes.
+
+**Limitaciones:** solo 14G; probabilidades según el modelo Massey (ratings fijos dentro de cada escenario, juegos independientes); los marcadores propuestos son sugerencias plausibles, no pronósticos;
+`σ_total` es un valor provisional; el optimizador de marcadores es heurístico (no hay falsos negativos evidentes, pero no está demostrado que no existan).
+
 ---
 
 ## 9. Service Worker y carga rápida / baja señal
@@ -502,8 +572,8 @@ Lee `onefa_data_{year}.json` **de la misma carpeta del script**. Con OR-Tools CP
 4. Si es la primera visita (nada guardado) espera a la red. Sin red y sin caché: intenta mostrar `nacional.html` guardada; si no, falla normal.
 
 Detalles de implementación:
-- `VERSION = 'v1'`, caché `onefa-v1`.
-- **Instalación:** descarga y guarda todo `PRECACHE` (`./`, los 4 HTML, `onefa.css`, `prediccion.js`, los 4 JSON) con `cache:'reload'` (salta la caché HTTP);
+- `VERSION = 'v2'` (subida al agregar `escenarios*.js`), caché `onefa-v2`.
+- **Instalación:** descarga y guarda todo `PRECACHE` (`./`, los 4 HTML, `onefa.css`, `prediccion.js`, `escenarios.js`, `escenarios-worker.js`, `escenarios-ui.js`, los 4 JSON) con `cache:'reload'` (salta la caché HTTP);
   si un archivo no existe se omite sin romper nada. Luego `skipWaiting()`.
 - **Activación:** borra cachés `onefa-*` de otras versiones y hace `clients.claim()`.
 - **Alcance de la interceptación:** solo peticiones `GET`, del mismo origen **o** de `fonts.googleapis.com` / `fonts.gstatic.com`.
@@ -561,8 +631,9 @@ prediccion.html?conf=14g | ?conf=nacional    → predicción independiente (sin 
 
 ## 12. Limitaciones y problemas conocidos (detectados al documentar)
 
-1. **Juegos aplazados dentro de jornadas ya cerradas (0-0):** quedan bloqueados en la UI, no los predice el modelo y no entran en la tabla/bracket proyectados
-   (hoy: Tigres–MTY en 14G J5 y Cimarrones–ITSON en Nacional J5 — justo contendientes). Posible arreglo: tratar como pendiente todo juego 0-0 sin importar su jornada.
+1. **Juegos aplazados dentro de jornadas ya cerradas (0-0):** *resuelto en el modelo* (la predicción, la proyección de playoffs y los escenarios los tratan como pendientes; ver `esPendiente`),
+   pero **siguen bloqueados en los calendarios** de `index.html`/`nacional.html` (el usuario no puede simularlos). Hoy: Tigres–MTY en 14G J5 y Cimarrones–ITSON en Nacional J5.
+   Efecto visible del arreglo: el campeón proyectado de 14G dejó de ser Tigres (con el aplazado, el modelo da 57 % a MTY).
 2. **Overlay de predicción siempre en 2026**, incluso viendo `?temporada=2025`; y clave de `localStorage` fija en 2026.
 3. **Columna "Tu pronóstico" puede desactualizarse** dentro de una misma sesión (el overlay se calcula una sola vez).
 4. **Cambios de HTML/CSS/JS llegan una visita tarde** por el Service Worker (solo los JSON recargan solos).
@@ -584,6 +655,8 @@ prediccion.html?conf=14g | ?conf=nacional    → predicción independiente (sin 
 **Cambiar el comportamiento del modelo:** editar las constantes al inicio de `prediccion.js`. Si se cambia el nombre/forma de lo que devuelve `ONEFA_PRED`, actualizar las 3 copias de render (§4).
 
 **Agregar una temporada nueva:** crear `onefa_data_YYYY.json` y `onefa_nacional_YYYY.json`, ampliar los selectores de temporada y las condiciones `=== 2025 ? 2025 : 2026` de las páginas, definir sus claves de `localStorage`, añadir los JSON a `PRECACHE`, y revisar que los equipos puente se detecten (comparar rosters entre años).
+
+**Correr las pruebas del motor de escenarios:** `node tests/escenarios.test.js` (usa los JSON reales de la raíz; ~70 s). **De interfaz:** `cd tests/ui && npm install && node ui.test.js` (no subir `tests/ui/node_modules` al repo).
 
 **Probar el modelo sin navegador (Node):**
 ```js
@@ -623,8 +696,13 @@ Pendientes del proyecto:
 - [x] Temporada 2025 de Conferencia Nacional (ya existe `onefa_nacional_2025.json`, con liguilla).
 - [x] Jornada 8 de Nacional: contiene 6 cruces Bajío–Centro de temporada regular (no son de otra conferencia).
 
+Módulo de escenarios (ver `plan.md`):
+- [x] Fase 1: motor 14G + corrección de aplazados + pruebas (`escenarios.js`, `tests/escenarios.test.js`).
+- [x] Fase 2: interfaz (botón en `index.html`, overlay compartido, Web Worker + respaldo, `sw.js` PRECACHE + VERSION v2, estilos `.esc-*`). [ ] Falta revisarla visualmente en un navegador/teléfono reales y medir tiempos en un teléfono.
+- [ ] Fase 3: pulido ("ver más", copiar a mis pronósticos, fijar resultados propios). [ ] Fase 4: posición específica. [ ] Fase 5: Nacional.
+
 Mejoras sugeridas al documentar (no solicitadas aún):
-- [ ] Resolver juegos aplazados 0-0 en jornadas cerradas (UI + modelo, ver §12.1).
+- [x] Juegos aplazados 0-0 como pendientes en el modelo (hecho). [ ] Falta desbloquear sus inputs en los calendarios (§12.1).
 - [ ] Hacer que el overlay de predicción respete `?temporada` u ocultar el botón en el histórico.
 - [ ] Extraer el render del overlay/bracket a un solo lugar para eliminar la triple copia.
 - [ ] Bracket en vivo con resultados reales de Semifinal/Final en `nacional.html` (y uno equivalente en `index.html`).

@@ -366,12 +366,20 @@
     return g.local === t1 ? (g.scoreLocal > g.scoreVisita ? 1 : -1) : (g.scoreVisita > g.scoreLocal ? 1 : -1);
   }
 
-  // Rellena con el marcador predicho todo juego cuya jornada sea posterior a
-  // "jornadasJugadas" (misma condición que usa generarPredicciones); los
-  // juegos ya jugados se devuelven sin tocar. No modifica el arreglo original.
+  // Un juego está PENDIENTE si su jornada es posterior a "jornadasJugadas" O si
+  // no tiene marcador (0-0) aunque su jornada ya esté cerrada: así los juegos
+  // APLAZADOS (ej. Tigres–MTY de J5) cuentan como pendientes en la predicción,
+  // en la proyección de playoffs y en el módulo de escenarios. Los juegos con
+  // marcador de una jornada ya cerrada siguen siendo "jugados".
+  function esPendiente(g, jornadasJugadas) {
+    return g.jornada > jornadasJugadas || ((g.scoreLocal || 0) + (g.scoreVisita || 0)) === 0;
+  }
+
+  // Rellena con el marcador predicho todo juego pendiente (ver esPendiente);
+  // los juegos ya jugados se devuelven sin tocar. No modifica el arreglo original.
   function proyectarJuegos(juegos, jornadasJugadas, modelo) {
     return juegos.map(g => {
-      if (g.jornada > jornadasJugadas) {
+      if (esPendiente(g, jornadasJugadas)) {
         const p = predecirPartido(g.local, g.visita, modelo);
         return Object.assign({}, g, { scoreLocal: p.scoreLocal, scoreVisita: p.scoreVisita, _proyectado: true });
       }
@@ -545,6 +553,38 @@
   }
 
   // ==========================================================================
+  // PROBABILIDAD DE VICTORIA (la usa escenarios.js)
+  // p(local gana) = Φ(margen / σ), con margen = (ratingLocal − ratingVisita) + VENTAJA_LOCAL
+  // (el mismo margen que usa predecirPartido), acotada a [P_MIN, P_MAX] para que
+  // ningún juego sea "seguro" (decisión D9: 3 %–97 %). σ es propia de cada conferencia
+  // (calibrada con 2025: 14G 12.4, Nacional 11.4). Un juego con un equipo EXCLUIDO es
+  // un resultado forzado: p = 0 o 1 sin tope.
+  // ==========================================================================
+  const SIGMA_MARGEN = { '14g': 12.4, 'nacional': 11.4 };
+  const P_MIN = 0.03, P_MAX = 0.97;
+
+  function Phi(x) { // CDF normal estándar (Abramowitz–Stegun, error < 1e-7)
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989423 * Math.exp(-((x * x) / 2));
+    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
+  }
+
+  function probabilidadVictoria(local, visita, modelo, opciones) {
+    opciones = opciones || {};
+    const excl = new Set(EQUIPOS_EXCLUIDOS);
+    if (excl.has(local))  return { p: 0, mu: -Infinity, forzado: true };
+    if (excl.has(visita)) return { p: 1, mu: Infinity, forzado: true };
+    const sigma = opciones.sigma || SIGMA_MARGEN[opciones.conferencia || '14g'];
+    const pMin = opciones.pMin != null ? opciones.pMin : P_MIN;
+    const pMax = opciones.pMax != null ? opciones.pMax : P_MAX;
+    const r = modelo.ratings;
+    const mu = (r[local] != null ? r[local] : 0) - (r[visita] != null ? r[visita] : 0) + VENTAJA_LOCAL;
+    const p = Math.min(pMax, Math.max(pMin, Phi(mu / sigma)));
+    return { p, mu, forzado: false };
+  }
+
+  // ==========================================================================
   // Genera las predicciones de todos los partidos pendientes de UNA
   // conferencia ('14g' | 'nacional'), usando SOLO el modelo de esa
   // conferencia (los dos modelos se construyen siempre juntos porque el
@@ -558,7 +598,7 @@
     const jj = json.jornadas_jugadas;
 
     const predicciones = json.juegos
-      .filter(g => g.jornada > jj)
+      .filter(g => esPendiente(g, jj))
       .map(g => {
         const p = predecirPartido(g.local, g.visita, modelo);
         return { jornada: g.jornada, local: g.local, visita: g.visita, scoreLocal: p.scoreLocal, scoreVisita: p.scoreVisita, forzado: p.forzado };
@@ -574,19 +614,30 @@
   // las predicciones de una conferencia. Esta es la función que llamaría el
   // botón de la UI.
   // ==========================================================================
-  async function calcularPredicciones(conferencia, baseUrl) {
+  // Los 4 JSON, con caché en memoria dentro de la página: la predicción y el módulo
+  // de escenarios comparten una sola descarga. (Una recarga de la página la reinicia;
+  // el Service Worker ya se encarga de que los archivos sean los más recientes.)
+  let _cacheDatos = null;
+  function cargarDatos(baseUrl, forzar) {
+    if (_cacheDatos && !forzar) return _cacheDatos;
     baseUrl = baseUrl || './';
     const fetchJSON = async (nombre) => {
       const res = await fetch(baseUrl + nombre, { cache: 'no-cache' });
       return res.json();
     };
-    const [d14_2025, d14_2026, dnac_2025, dnac_2026] = await Promise.all([
+    _cacheDatos = Promise.all([
       fetchJSON('onefa_data_2025.json'),
       fetchJSON('onefa_data_2026.json'),
       fetchJSON('onefa_nacional_2025.json'),
       fetchJSON('onefa_nacional_2026.json')
-    ]);
-    return generarPredicciones({ d14_2025, d14_2026, dnac_2025, dnac_2026 }, conferencia);
+    ]).then(([d14_2025, d14_2026, dnac_2025, dnac_2026]) => ({ d14_2025, d14_2026, dnac_2025, dnac_2026 }));
+    _cacheDatos.catch(() => { _cacheDatos = null; }); // si falla, el siguiente intento vuelve a pedir
+    return _cacheDatos;
+  }
+
+  async function calcularPredicciones(conferencia, baseUrl) {
+    const datos = await cargarDatos(baseUrl);
+    return generarPredicciones(datos, conferencia);
   }
 
   const API = {
@@ -600,9 +651,17 @@
     predecirPartido,
     generarPredicciones,
     calcularPredicciones,
+    cargarDatos,
     proyectarPlayoffs,
     calcularStandings14G,
-    calcularStandingsNacional
+    calcularStandingsNacional,
+    getDirecto,
+    esPendiente,
+    probabilidadVictoria,
+    Phi,
+    SIGMA_MARGEN,
+    P_MIN,
+    P_MAX
   };
 
   // UMD simple: funciona en Node (module.exports) y en navegador (window.ONEFA_PRED)

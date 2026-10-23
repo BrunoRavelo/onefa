@@ -70,7 +70,8 @@
 
   <div class="s-label">Calendario y Pronósticos</div>
   <div class="j-list" id="calendarioAccordion"></div>
-  <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem;">
+  <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem;flex-wrap:wrap;">
+    <button id="btnEscenarios" class="btn-clr-all" type="button" data-esc-conf="14g">Escenarios de playoffs</button>
     <button id="btnPrediccion" class="btn-clr-all" type="button">Predicción de marcadores</button>
     <button id="btnClearAll" class="btn-clr-all" type="button">Borrar todos los pronósticos</button>
   </div>
@@ -483,6 +484,7 @@ cargarDatos();
 </div>
 
 <script src="prediccion.js"></script>
+<script src="escenarios-ui.js"></script>
 <script>
 (function () {
   const CONF = '14g';

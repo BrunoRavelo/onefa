@@ -1,0 +1,7 @@
+{
+  "name": "onefa-pruebas-ui",
+  "private": true,
+  "description": "Pruebas de interfaz del módulo de escenarios (solo desarrollo)",
+  "scripts": { "test": "node ui.test.js" },
+  "devDependencies": { "jsdom": "^24.1.0" }
+}
