@@ -1,0 +1,15 @@
+
+todo lo que te pido a continuacion seran modificaciones al .md para describir siguientes pasos, descripcion dep ptograma, etc. 
+ok, mi intencion s seguir haciendo estos para proximos años, por lo que la condicion para ocultar el boton debe ser que el numero de jornadas jugadas sea = a el numero de jornadas totales de la temporada.  hacer este cmbio 
+ademas analiza, existiria una mejor distribucion de carpetas ahora que el proyecto esta creciendo ? 
+ya no existe onefa colley para ue elimines eso del .md
+duda, la duplucacion de codigo que teneos como intencional en tres archivos, es mejor mantenerlo duplicado por simplicidad, o seria mejor unirlo en un archivo, analiza las opciones y dime que opinas ponlo en el .md
+para que es el archivo maximizar onefa, ahrota se utiliza? en que afecta que leones sea por defecto 
+explicame que es un overlay de predicion Overlay de predicción siempre en 2026, incluso viendo ?temporada=2025; y clave de localStorage fija en 2026.
+tambien explicame Columna "Tu pronóstico" puede desactualizarse dentro de una misma sesión (el overlay se calcula una sola vez).
+lo de la visita tarde por el sw lo podriamos arreglar sin romper lo que ya funciona, mi prioridad es la disponibilidad aun sin conexion, no es tan grave que los resultados se reflejen al instante 
+analiza, los codigos que aparecen con displa none, se utilizan en algo? para wue se utilizaban antes? 
+ todos los equipos ddeben quedar con el mismo numero de partidos jugados, por lo que ordenarpor partidos ganados o por % de vicctorias deberia ser indiferente, a pesar de eso, la regla de al liga pide que sea por partidos ganados. 
+pon pendiente en el .md que onefa pode que se ordene 1) mas partidos ganados 2) menos partidos perdidos entre los que lleven igual de ganados, y si llevan igual entonces por puntos en contra. onefa no pide utilizar % de victorias por lo que podemos ocultarlo, y si no se utiliza en ningun calculo borrarlo, ponerlo como pendiente en .md
+actualiar el claude.md con un paso por paso detallado de como se calculan los rankings, como se calculan marcadores, como se calculan escenarios de playoffs. necesito que ncuyas ejemplos simples. como si estuvieras explicndolo a un niño de preparatoria, es decir con conociumeitno matematico simple. muy muy detallado, utilizando ejemplos y un caso completo a desarrollar para ue se entienda 
+evalua opciones parapoder monetizar con la pagina, evalua la incorporacion de anunciios y cual seria la mejor manera para poder ganar al menos 1000mxn mensuales con esta pagina
