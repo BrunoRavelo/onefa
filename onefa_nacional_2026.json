@@ -1,7 +1,7 @@
 {
   "temporada": 2026,
   "conferencia": "Nacional",
-  "jornadas_jugadas": 7,
+  "jornadas_jugadas": 8,
   "grupos": {
     "Norte": ["Águilas UACH","Potros ITSON","Indios UACJ","Lobos UA de C","Cimarrones UABC","Liebres CD Juárez"],
     "Centro": ["Panteras Siglo XXI","Halcones UV","Búhos IPN","Frailes UT","Potros Salvajes","Toros Salvajes","Pumas Acatlán"],
@@ -81,12 +81,12 @@
     {"jornada":7,"local":"Tecos UAG","visita":"Cardinals UIW","scoreLocal":57,"scoreVisita":0},
     {"jornada":7,"local":"Leones UAQ","visita":"Correcaminos UAT","scoreLocal":58,"scoreVisita":0},
 
-    {"jornada":8,"local":"Leones UAQ","visita":"Búhos IPN","scoreLocal":0,"scoreVisita":0},
-    {"jornada":8,"local":"Tecos UAG","visita":"Toros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":8,"local":"Cardinals UIW","visita":"Frailes UT","scoreLocal":0,"scoreVisita":0},
-    {"jornada":8,"local":"ASUCQ / RED WOLVES","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":8,"local":"Lobos ULM","visita":"Halcones UV","scoreLocal":0,"scoreVisita":0},
-    {"jornada":8,"local":"Correcaminos UAT","visita":"Pumas Acatlán","scoreLocal":0,"scoreVisita":0},
+    {"jornada":8,"local":"Leones UAQ","visita":"Búhos IPN","scoreLocal":14,"scoreVisita":10},
+    {"jornada":8,"local":"Tecos UAG","visita":"Toros Salvajes","scoreLocal":24,"scoreVisita":6},
+    {"jornada":8,"local":"Cardinals UIW","visita":"Frailes UT","scoreLocal":6,"scoreVisita":7},
+    {"jornada":8,"local":"ASUCQ / RED WOLVES","visita":"Potros Salvajes","scoreLocal":13,"scoreVisita":17},
+    {"jornada":8,"local":"Lobos ULM","visita":"Halcones UV","scoreLocal":0,"scoreVisita":7},
+    {"jornada":8,"local":"Correcaminos UAT","visita":"Pumas Acatlán","scoreLocal":3,"scoreVisita":47},
 
     {"jornada":9,"local":"Águilas UACH","visita":"Potros ITSON","scoreLocal":0,"scoreVisita":0},
     {"jornada":9,"local":"Indios UACJ","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":0},
