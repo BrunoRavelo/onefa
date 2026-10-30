@@ -9,7 +9,7 @@
  *
  * Para forzar que todos descarguen una versión nueva de todo, cambia VERSION.
  */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'onefa-' + VERSION;
 
 // Archivos que se guardan al instalar. Si alguno no existe se omite sin romper nada.
@@ -23,6 +23,7 @@ const PRECACHE = [
   './onefa.css',
   './prediccion.js',
   './escenarios.js',
+  './escenarios-nacional.js',
   './escenarios-worker.js',
   './escenarios-ui.js',
   './onefa_data_2025.json',

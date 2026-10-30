@@ -1,21 +1,41 @@
 /* escenarios-ui.js — Interfaz del módulo "Escenarios de playoffs"
    ============================================================================
-   UNA sola copia de la interfaz, compartida por todas las páginas (hoy 14 Grandes;
-   Nacional en la Fase 5). Se activa sola en cualquier elemento con
-   data-esc-conf="14g":   <button data-esc-conf="14g">Escenarios de playoffs</button>
+   UNA sola copia de la interfaz, compartida por todas las páginas (14 Grandes y
+   Conferencia Nacional). Se activa sola en cualquier elemento con
+   data-esc-conf="14g" | "nacional":   <button data-esc-conf="nacional">Escenarios de playoffs</button>
    Crea su propio overlay (no hay HTML del módulo dentro de las páginas).
 
    Es de SOLO LECTURA: nunca escribe en localStorage ni toca los pronósticos.
-   El cálculo corre en un Web Worker (escenarios-worker.js). Si el navegador no
-   puede crear el Worker (p. ej. abriendo con file://), se usa un respaldo en el
-   hilo principal (la pantalla puede tardar en responder).
+   El cálculo corre en un Web Worker (escenarios-worker.js), que elige el motor
+   según la conferencia (escenarios.js / escenarios-nacional.js). Si el navegador
+   no puede crear el Worker (p. ej. abriendo con file://), se usa un respaldo en
+   el hilo principal (la pantalla puede tardar en responder).
    Depende de prediccion.js (window.ONEFA_PRED). Estilos: clases .esc-* de onefa.css.
    ============================================================================ */
 (function () {
   'use strict';
 
-  // El módulo se habilita con J6..J9 concluidas (decisión del usuario). Se pasa al motor.
-  const ESC_JORNADA_MIN = 6, ESC_JORNADA_MAX = 9;
+  // El módulo se habilita desde la J6 concluida (decisión del usuario). La jornada máxima depende de
+  // la conferencia: 14 Grandes = 9 (fija); Nacional = última jornada regular − 1 (se deriva de los datos).
+  const ESC_JORNADA_MIN = 6;
+  const CONFS = {
+    '14g': {
+      clave: '14g', prefijo: 'd14', nombre: '14 Grandes', pagina: 'index.html',
+      obj: 'el Top 8', totalJuegos: 9,
+      nota: 'Elige un equipo de 14 Grandes y calculamos qué tiene que pasar para que clasifique a playoffs (Top 8). ' +
+            'Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
+      jornadaMax: function () { return 9; }, motor: 'ONEFA_ESC', scripts: ['escenarios.js']
+    },
+    'nacional': {
+      clave: 'nacional', prefijo: 'dnac', nombre: 'Conferencia Nacional', pagina: 'nacional.html',
+      obj: 'los 8 de playoffs', totalJuegos: null,
+      nota: 'Elige un equipo de la Conferencia Nacional y calculamos qué tiene que pasar para que clasifique a playoffs ' +
+            '(los 2 primeros de cada grupo y los 2 mejores terceros lugares). Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
+      jornadaMax: function (d) { let u = 0; d.juegos.forEach(function (g) { if (g.jornada > u) u = g.jornada; }); return u - 1; },
+      motor: 'ONEFA_ESC_NAC', scripts: ['escenarios.js', 'escenarios-nacional.js']
+    }
+  };
+  let CONF = CONFS['14g'];
 
   const FASES = {
     preparando:  { txt: 'Preparando…',                          a: 0.00, b: 0.02 },
@@ -28,11 +48,11 @@
   };
   const SITUACION = {
     clasificado:    { txt: 'Clasificado matemáticamente', cls: 'clasificado',
-                      ayuda: 'Pase lo que pase en los juegos que quedan, terminas en el Top 8, sin depender de desempates.' },
+                      ayuda: 'Pase lo que pase en los juegos que quedan, terminas en {OBJ}, sin depender de desempates.' },
     eliminado:      { txt: 'Eliminado matemáticamente', cls: 'eliminado',
-                      ayuda: 'Ni ganando todos tus juegos y todos los desempates alcanzarías el Top 8.' },
+                      ayuda: 'Ni ganando todos tus juegos y todos los desempates alcanzarías {OBJ}.' },
     solo_desempate: { txt: 'Solo por desempate', cls: 'burbuja',
-                      ayuda: 'Ninguna combinación de victorias te asegura el Top 8: solo clasificarías si ganas el desempate (resultado directo o menos puntos en contra).' },
+                      ayuda: 'Ninguna combinación de victorias te asegura {OBJ}: solo clasificarías si ganas el desempate (resultado directo o menos puntos en contra).' },
     favorito:       { txt: 'Favorito', cls: 'favorito',
                       ayuda: 'Según el modelo, clasificas en la gran mayoría de los escenarios.' },
     burbuja:        { txt: 'En la burbuja', cls: 'burbuja',
@@ -40,11 +60,12 @@
     casi_eliminado: { txt: 'Casi eliminado', cls: 'eliminado',
                       ayuda: 'Es muy difícil: necesitarías varios resultados contrarios a lo esperado.' }
   };
-  const VIA = { ganadores: 'Se decide solo por victorias', resultado_directo: 'Se decide por resultado directo', desempate_pc: 'Se decide por desempate de puntos en contra (PC)' };
+  const VIA = { ganadores: 'Se decide solo por victorias', resultado_directo: 'Se decide por resultado directo', desempate_pc: 'Se decide por desempate de puntos en contra (PC)',
+                desempate_comodin: 'Se decide por puntos en contra (PC) contra otro tercer lugar' };
   const EXIGENCIA = { facil: 'marcadores fáciles de lograr', exigente: 'marcadores exigentes', muy_exigente: 'marcadores muy exigentes' };
 
   let overlay = null, datos = null, jj = null, equipoActual = null;
-  let worker = null, corrida = 0, bodyOverflowPrevio = '';
+  let worker = null, workerPan = null, corrida = 0, bodyOverflowPrevio = '';
 
   // ---------------------------------------------------------------- utilidades
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -63,6 +84,16 @@
     return p.toFixed(1) + ' %';
   }
   function $(id) { return document.getElementById(id); }
+  // JSON de la temporada más reciente de la conferencia (sin años escritos a mano): d14_2026, dnac_2026…
+  function jsonActual(d, prefijo) {
+    let mejor = null, anio = -1;
+    Object.keys(d).forEach(function (k) {
+      const m = new RegExp('^' + prefijo + '_(\\d{4})$').exec(k);
+      if (m && +m[1] > anio && d[k]) { anio = +m[1]; mejor = d[k]; }
+    });
+    return mejor;
+  }
+  function ayudaSituacion(s) { return s.ayuda.replace('{OBJ}', CONF.obj); }
 
   // ---------------------------------------------------------------- overlay
   function construirOverlay() {
@@ -72,18 +103,17 @@
     overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', 'Escenarios de playoffs');
     overlay.innerHTML =
       '<nav class="topbar"><div class="topbar-inner">' +
-        '<a class="brand" href="index.html"><span class="brand-main">ONEFA</span><span class="brand-sub">Pronósticos</span></a>' +
+        '<a class="brand" id="escBrand" href="index.html"><span class="brand-main">ONEFA</span><span class="brand-sub">Pronósticos</span></a>' +
         '<div class="nav-right"><button class="btn-esc-back" id="escBack" type="button">← Regresar</button></div>' +
       '</div></nav>' +
       '<header class="hero"><div class="hero-inner">' +
-        '<div class="hero-eye">Liga Mayor ONEFA — Escenarios</div>' +
+        '<div class="hero-eye" id="escEye">Liga Mayor ONEFA — Escenarios</div>' +
         '<h1 class="hero-title">ESCENARIOS DE<br><em>PLAYOFFS</em></h1>' +
         '<div class="hero-bar"></div>' +
         '<p class="hero-meta" id="escMeta">Solo de consulta — no guarda ni modifica tus pronósticos.</p>' +
       '</div></header>' +
       '<div class="esc-body">' +
-        '<div class="esc-note">Elige un equipo de 14 Grandes y calculamos qué tiene que pasar para que clasifique a playoffs (Top 8). ' +
-          'Usa el modelo de predicción de marcadores; puede tardar unos segundos.</div>' +
+        '<div class="esc-note" id="escNota"></div>' +
         '<div class="esc-controles">' +
           '<label for="escEquipo">Equipo</label>' +
           '<select id="escEquipo" class="esc-select" disabled><option value="">Cargando…</option></select>' +
@@ -106,8 +136,14 @@
     return overlay;
   }
 
-  function abrir() {
+  function abrir(conf) {
+    const nueva = CONFS[conf] || CONF;
+    if (nueva !== CONF) { CONF = nueva; equipoActual = null; }
     construirOverlay();
+    $('escNota').textContent = CONF.nota;
+    $('escBrand').setAttribute('href', CONF.pagina);
+    $('escEye').textContent = 'Liga Mayor ONEFA — Escenarios · ' + CONF.nombre;
+    $('escResultado').innerHTML = '';
     overlay.classList.add('open');
     bodyOverflowPrevio = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -119,19 +155,21 @@
 
   function cerrar() {
     cancelarCorrida(false);
+    cerrarWorkerPan();
     if (overlay) overlay.classList.remove('open');
     document.body.style.overflow = bodyOverflowPrevio;
   }
 
   // ---------------------------------------------------------------- controles
   function prepararControles() {
-    const PRED = window.ONEFA_PRED, d = datos.d14_2026;
+    const PRED = window.ONEFA_PRED, d = jsonActual(datos, CONF.prefijo);
     jj = d.jornadas_jugadas;
+    const jmax = CONF.jornadaMax(d);
     const sel = $('escEquipo'), btn = $('escAnalizar'), res = $('escResultado');
     $('escMeta').textContent = 'Jornada ' + jj + ' concluida · Solo de consulta — no guarda ni modifica tus pronósticos.';
     let aviso = '';
     if (jj < ESC_JORNADA_MIN) aviso = 'Disponible a partir de la Jornada ' + ESC_JORNADA_MIN + ' concluida (hoy: Jornada ' + jj + ').';
-    else if (jj > ESC_JORNADA_MAX) aviso = 'La temporada regular ya concluyó; no quedan escenarios por calcular.';
+    else if (jj > jmax) aviso = 'La temporada regular ya concluyó; no quedan escenarios por calcular.';
     if (aviso) {
       sel.innerHTML = '<option value="">—</option>'; sel.disabled = true; btn.disabled = true;
       res.innerHTML = '<div class="esc-aviso">' + esc(aviso) + '</div>';
@@ -139,12 +177,55 @@
     }
     // Equipos ordenados como la tabla actual (solo juegos ya jugados)
     const jugados = d.juegos.filter(function (g) { return !PRED.esPendiente(g, jj); });
-    const filas = PRED.calcularStandings14G(d.equipos, jugados);
-    sel.innerHTML = '<option value="">Elige un equipo…</option>' + filas.map(function (r) {
-      return '<option value="' + esc(r.equipo) + '">' + r.seed + '. ' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
-    }).join('');
+    if (CONF.clave === 'nacional') {
+      const t = PRED.calcularStandingsNacional(d.grupos, jugados), excl = PRED.EQUIPOS_EXCLUIDOS || [];
+      sel.innerHTML = '<option value="">Elige un equipo…</option>' + Object.keys(d.grupos).map(function (gn) {
+        return '<optgroup label="Grupo ' + esc(gn) + '">' + t.allRows[gn].filter(function (r) { return excl.indexOf(r.equipo) < 0; }).map(function (r, i) {
+          return '<option value="' + esc(r.equipo) + '">' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
+        }).join('') + '</optgroup>';
+      }).join('');
+    } else {
+      const filas = PRED.calcularStandings14G(d.equipos, jugados);
+      sel.innerHTML = '<option value="">Elige un equipo…</option>' + filas.map(function (r) {
+        return '<option value="' + esc(r.equipo) + '">' + r.seed + '. ' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
+      }).join('');
+    }
     sel.disabled = false; btn.disabled = false;
     if (equipoActual) sel.value = equipoActual;
+    if (CONF.clave === 'nacional') cargarPanorama();
+  }
+
+  // Panorama (solo Nacional): estado exacto de todos los equipos para marcar ✓ clasificado / ✕ eliminado
+  // en el selector antes de analizar. Es opcional: si algo falla, el selector queda como está.
+  function cerrarWorkerPan() { if (workerPan) { try { workerPan.terminate(); } catch (e) { /* nada */ } workerPan = null; } }
+  function marcarPanorama(r) {
+    if (!r || r.estado !== 'ok') return;
+    const sel = $('escEquipo'); if (!sel) return;
+    const m = {}; r.equipos.forEach(function (e) { m[e.equipo] = e.estado; });
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (!o.value) return;
+      if (!o.hasAttribute('data-base')) o.setAttribute('data-base', o.textContent);
+      const st = m[o.value];
+      o.textContent = o.getAttribute('data-base') + (st === 'clasificado' ? '  ✓ clasificado' : (st === 'eliminado' ? '  ✕ eliminado' : ''));
+    });
+  }
+  function cargarPanorama() {
+    cerrarWorkerPan();
+    const opc = { conferencia: 'nacional', jornadaMin: ESC_JORNADA_MIN };
+    const enHilo = function () {
+      cargarMotor().then(function (motor) { setTimeout(function () { try { marcarPanorama(motor.panorama(datos, opc, {})); } catch (e) { /* opcional */ } }, 30); }).catch(function () {});
+    };
+    let w;
+    try { w = new Worker('escenarios-worker.js'); } catch (e) { enHilo(); return; }
+    workerPan = w;
+    w.onmessage = function (ev) {
+      const m = ev.data || {};
+      if (m.id !== 'panorama') return;
+      if (m.tipo === 'resultado') { cerrarWorkerPan(); marcarPanorama(m.resultado); }
+      else if (m.tipo === 'error') { cerrarWorkerPan(); }
+    };
+    w.onerror = function () { cerrarWorkerPan(); enHilo(); };
+    w.postMessage({ tipo: 'panorama', id: 'panorama', datos: datos, opciones: opc });
   }
 
   // ---------------------------------------------------------------- ejecución
@@ -206,13 +287,23 @@
       const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
     });
   }
+  // Carga (si hace falta) los scripts del motor de la conferencia y devuelve el motor
+  function cargarMotor() {
+    let p = Promise.resolve();
+    CONF.scripts.forEach(function (src) {
+      p = p.then(function () {
+        const ya = (src === 'escenarios.js') ? window.ONEFA_ESC : (src === 'escenarios-nacional.js' ? window.ONEFA_ESC_NAC : null);
+        return ya ? null : cargarScript(src);
+      });
+    });
+    return p.then(function () { return window[CONF.motor]; });
+  }
   function correrEnHiloPrincipal(opciones, id) {
     mostrarProgreso(true);
-    const listo = window.ONEFA_ESC ? Promise.resolve() : cargarScript('escenarios.js');
-    return listo.then(function () {
+    return cargarMotor().then(function (motor) {
       return new Promise(function (resolve, reject) {
         setTimeout(function () {                 // deja pintar el mensaje antes de bloquear el hilo
-          try { resolve(window.ONEFA_ESC.analizar(datos, opciones, { progreso: alProgreso(id), cancelado: function () { return id !== corrida; } })); }
+          try { resolve(motor.analizar(datos, opciones, { progreso: alProgreso(id), cancelado: function () { return id !== corrida; } })); }
           catch (e) { reject(e); }
         }, 60);
       });
@@ -228,7 +319,8 @@
     const id = ++corrida;
     res.innerHTML = '';
     mostrarProgreso(false);
-    const opciones = { equipo: equipo, conferencia: '14g', jornadaMin: ESC_JORNADA_MIN, jornadaMax: ESC_JORNADA_MAX };
+    const opciones = { equipo: equipo, conferencia: CONF.clave, jornadaMin: ESC_JORNADA_MIN };
+    if (CONF.clave === '14g') opciones.jornadaMax = CONF.jornadaMax();     // Nacional: el motor la deriva de los datos
     correrEnWorker(opciones, id)
       .catch(function (err) {
         if (err && err.fallback && id === corrida) return correrEnHiloPrincipal(opciones, id);
@@ -249,27 +341,39 @@
   function render(r, equipo) {
     const cont = $('escResultado');
     if (!r || r.estado === 'fuera_de_rango') { cont.innerHTML = '<div class="esc-aviso">' + esc((r && r.mensaje) || 'Fuera de rango.') + '</div>'; return; }
-    cont.innerHTML = htmlResumen(r, equipo) + htmlVictorias(r) + htmlClave(r, equipo) + htmlEscenarios(r, equipo) + htmlAviso(r);
+    // Equipo ya decidido (clasificado / eliminado con prueba exacta): solo el resumen con su explicación
+    cont.innerHTML = r.explicacion
+      ? htmlResumen(r, equipo) + htmlAviso(r)
+      : htmlResumen(r, equipo) + htmlVictorias(r) + htmlClave(r, equipo) + htmlEscenarios(r, equipo) + htmlAviso(r);
     activarTabs(cont);
   }
 
-  function posicionModal(r) {
+  function posicionModal(r, dist) {
     let mejor = 0, pm = 0;
-    r.distribucionPosicion.forEach(function (p, i) { if (p > pm) { pm = p; mejor = i + 1; } });
+    if (!dist) return { pos: 0, p: 0 };
+    dist.forEach(function (p, i) { if (p > pm) { pm = p; mejor = i + 1; } });
     return { pos: mejor, p: pm };
   }
 
   function htmlResumen(r, equipo) {
     const s = SITUACION[r.situacion] || SITUACION.burbuja, m = r.meta, pr = r.probabilidad, c = pr.cotasExactas;
-    const ic = (pr.ic95[1] - pr.ic95[0]) / 2, pm = posicionModal(r);
+    const ic = (pr.ic95[1] - pr.ic95[0]) / 2, nac = CONF.clave === 'nacional';
+    const pm = nac ? posicionModal(r, r.distribucionGrupo) : posicionModal(r, r.distribucionPosicion);
     let h = '<section class="esc-card esc-resumen"><div class="esc-resumen-top">' +
       '<div><div class="esc-eq">' + esc(equipo) + '</div><span class="esc-badge esc-b-' + s.cls + '">' + esc(s.txt) + '</span></div>' +
       '<div class="esc-prob"><span class="esc-prob-num">' + pct(pr.p) + '</span>' +
         '<span class="esc-prob-lbl">probabilidad de clasificar</span>' +
         '<span class="esc-prob-ic" title="Margen de error de la simulación (95 %)">±' + (ic * 100).toFixed(1) + ' pts</span></div>' +
-      '</div><p class="esc-explica">' + esc(s.ayuda) + '</p><ul class="esc-datos">';
+      '</div><p class="esc-explica">' + esc(ayudaSituacion(s)) + '</p>' +
+      (r.explicacion ? r.explicacion.map(function (t) { return '<p class="esc-explica"><b>' + esc(t) + '</b></p>'; }).join('') : '') + '<ul class="esc-datos">';
     h += '<li>Quedan <b>' + m.nPendientes + '</b> juegos por jugar en la liga' + (m.aplazados ? ' (incluye <b>' + m.aplazados + '</b> aplazado' + (m.aplazados > 1 ? 's' : '') + ')' : '') + '.</li>';
-    h += '<li>Posición final más probable: <b>' + pm.pos + '.º</b> (' + pct(pm.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de 9.</li>';
+    if (nac && r.distribucionGrupo) {
+      h += '<li>Grupo <b>' + esc(m.grupo) + '</b>. Lugar final más probable en tu grupo: <b>' + pm.pos + '.º</b> (' + pct(pm.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de ' + m.juegosPorEquipo + '.</li>';
+      const v = r.viaClasificacion;
+      h += '<li>Clasificas como <b>top 2 de tu grupo</b> en ' + pct(v.top2) + ' de las simulaciones y como <b>mejor tercer lugar (comodín)</b> en ' + pct(v.comodin) + '.</li>';
+    } else if (!nac && r.distribucionPosicion) {
+      h += '<li>Posición final más probable: <b>' + pm.pos + '.º</b> (' + pct(pm.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de ' + CONF.totalJuegos + '.</li>';
+    }
     if (c) h += '<li title="Calculado con TODAS las combinaciones de ganadores posibles. El rango existe porque algunos lugares se deciden por desempate (marcadores).">' +
       'Según todas las combinaciones de ganadores: entre <b>' + pct(c.min) + '</b> (clasificas sin depender de desempates) y <b>' + pct(c.max) + '</b> (si ganas todos los desempates).</li>';
     return h + '</ul></section>';
@@ -291,7 +395,8 @@
   function textoClave(j, equipo) {
     const gana = j.resultadoQueAyuda === 'local' ? j.local : j.visita;
     const ap = j.aplazado ? ' <span class="esc-tag esc-tag-apl">APLAZADO</span>' : '';
-    return '<li><span class="esc-j">J' + j.jornada + '</span> ' + esc(j.local) + ' vs ' + esc(j.visita) + ap +
+    const rel = j.relacion === 'carrera_comodin' ? ' <span class="esc-tag esc-tag-lib">carrera por el comodín</span>' : (j.relacion === 'mi_grupo' && !j.propio ? ' <span class="esc-tag esc-tag-lib">tu grupo</span>' : '');
+    return '<li><span class="esc-j">J' + j.jornada + '</span> ' + esc(j.local) + ' vs ' + esc(j.visita) + ap + rel +
       ' — te conviene que gane <b>' + esc(gana) + '</b> <span class="esc-imp">(' + Math.round(Math.abs(j.impacto) * 100) + ' pts de probabilidad)</span></li>';
   }
   function htmlClave(r, equipo) {
@@ -338,13 +443,21 @@
     if (!e.necesarios.length) h += '<p class="esc-explica">Ningún resultado en particular es indispensable.</p>';
     else h += '<ul class="esc-lista">' + e.necesarios.map(function (n) {
       return '<li><span class="esc-j">J' + n.jornada + '</span> ' + esc(n.local) + ' vs ' + esc(n.visita) + ': gana <b>' + esc(n.ganador) + '</b>' +
-        (n.sorpresa ? ' <span class="esc-tag esc-tag-sor">SORPRESA</span>' : '') + (n.aplazado ? ' <span class="esc-tag esc-tag-apl">APLAZADO</span>' : '') + '</li>';
+        (n.relacion === 'carrera_comodin' ? ' <span class="esc-tag esc-tag-lib">carrera por el comodín</span>' : '') + (n.sorpresa ? ' <span class="esc-tag esc-tag-sor">SORPRESA</span>' : '') + (n.aplazado ? ' <span class="esc-tag esc-tag-apl">APLAZADO</span>' : '') + '</li>';
     }).join('') + '</ul>';
     // desempate
-    if (e.desempate && e.via === 'desempate_pc' && e.desempate.pcRivales) {
-      h += '<div class="esc-desempate"><b>Desempate:</b> ' + esc(e.desempate.grupo.join(', ')) + ' empatan en victorias y se acomodan por menos puntos en contra (PC). ' +
+    if (e.desempate && e.via === 'desempate_comodin' && e.desempate.pcRivales) {
+      const riv = e.desempate.pcRivales.filter(function (x) { return !x.mismoGrupo; });
+      h += '<div class="esc-desempate"><b>Desempate por el comodín:</b> ' + esc(equipo) + ' y ' + riv.map(function (x) { return esc(x.equipo); }).join(', ') +
+        ' terminan con las mismas victorias en el tercer lugar de sus grupos y el último lugar de comodín se decide por menos puntos en contra (PC). ' +
         'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' +
-        e.desempate.pcRivales.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.</div>';
+        riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.</div>';
+    } else if (e.desempate && e.via === 'desempate_pc' && e.desempate.pcRivales) {
+      const riv = CONF.clave === 'nacional' ? e.desempate.pcRivales.filter(function (x) { return x.mismoGrupo; }) : e.desempate.pcRivales;
+      const eq = CONF.clave === 'nacional' ? [equipo].concat(riv.map(function (x) { return x.equipo; })) : e.desempate.grupo;
+      h += '<div class="esc-desempate"><b>Desempate:</b> ' + esc(eq.join(', ')) + ' empatan en victorias y se acomodan por menos puntos en contra (PC). ' +
+        'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' +
+        riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.</div>';
     }
     // completaciones exactas
     if (e.completaciones) {
@@ -383,7 +496,29 @@
     }).join('');
   }
 
+  function htmlTablaFinalNac(e, equipo) {
+    const t = e.tablaFinal;
+    let h = '';
+    Object.keys(t.grupos).forEach(function (gn) {
+      h += '<div class="esc-jl">Grupo ' + esc(gn) + '</div><div class="s-wrap"><table class="s-tbl"><thead><tr><th style="width:36px">#</th><th>Equipo</th><th class="ta-r">PG</th><th class="ta-r">PC</th><th class="hide-sm"></th></tr></thead><tbody>';
+      t.grupos[gn].forEach(function (r) {
+        h += '<tr class="' + (r.estado !== 'fuera' ? 'r-playoff' : '') + (r.pos === 2 ? ' r-cutoff' : '') + (r.equipo === equipo ? ' esc-row-eq' : '') + '">' +
+          '<td><span class="pos-n' + (r.pos === 1 ? ' top' : '') + '">' + r.pos + '</span></td><td class="s-eq">' + esc(r.equipo) + '</td>' +
+          '<td class="ta-r s-num">' + r.pg + '</td><td class="ta-r s-num">' + r.pc + '</td>' +
+          '<td class="esc-tags hide-sm">' + (r.estado === 'comodin' ? '<span class="esc-tag esc-tag-aj">COMODÍN</span>' : '') + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    });
+    h += '<div class="esc-jl">Los 8 clasificados (sembrado por PG)</div><div class="s-wrap"><table class="s-tbl"><thead><tr><th style="width:36px">#</th><th>Equipo</th><th class="ta-r">PG</th><th class="ta-r">PC</th></tr></thead><tbody>';
+    t.seeds.forEach(function (r) {
+      h += '<tr class="r-playoff' + (r.equipo === equipo ? ' esc-row-eq' : '') + '"><td><span class="pos-n' + (r.pos === 1 ? ' top' : '') + '">' + r.pos + '</span></td><td class="s-eq">' + esc(r.equipo) + '</td>' +
+        '<td class="ta-r s-num">' + r.pg + '</td><td class="ta-r s-num">' + r.pc + '</td></tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+
   function htmlTablaFinal(e, equipo) {
+    if (!Array.isArray(e.tablaFinal)) return htmlTablaFinalNac(e, equipo);
     let h = '<div class="s-wrap"><table class="s-tbl"><thead><tr><th style="width:36px">#</th><th>Equipo</th><th class="ta-r">PG</th><th class="ta-r">PC</th></tr></thead><tbody>';
     e.tablaFinal.forEach(function (t) {
       h += '<tr class="' + (t.pos <= 8 ? 'r-playoff' : '') + (t.pos === 8 ? ' r-cutoff' : '') + (t.equipo === equipo ? ' esc-row-eq' : '') + '">' +
@@ -418,8 +553,9 @@
     document.querySelectorAll('[data-esc-conf]').forEach(function (btn) {
       if (temp === '2025') { btn.style.display = 'none'; return; }   // solo temporada en curso
       btn.addEventListener('click', function () {
-        if (btn.getAttribute('data-esc-conf') !== '14g') return;     // Nacional: Fase 5
-        abrir();
+        const conf = btn.getAttribute('data-esc-conf');
+        if (!CONFS[conf]) return;
+        abrir(conf);
       });
     });
   }

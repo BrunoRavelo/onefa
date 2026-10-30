@@ -387,6 +387,24 @@
     });
   }
 
+  // Regla de desempate de ONEFA para un grupo de equipos EMPATADOS en victorias
+  // (2 o más) — la ÚNICA copia de la regla dentro de este archivo:
+  //   · si un equipo venció directamente a TODOS los demás empatados, va primero;
+  //   · el resto (y todos, si nadie venció a todos o hay equipos que no se
+  //     enfrentaron) se ordena por menor puntaje en contra (PC).
+  // Con 2 empatados equivale a "gana el que venció al otro; si no se enfrentaron,
+  // menor PC". `tied` son filas { equipo, pc, ... }; no se modifica, devuelve una copia.
+  function ordenarEmpatados(tied, juegos) {
+    let win = null;
+    for (const t of tied) {
+      if (tied.every(o => o.equipo === t.equipo || getDirecto(juegos, t.equipo, o.equipo) === 1)) { win = t; break; }
+    }
+    return [...tied].sort((a, b) => {
+      if (win) { if (a.equipo === win.equipo) return -1; if (b.equipo === win.equipo) return 1; }
+      return a.pc - b.pc;
+    });
+  }
+
   // Tabla de posiciones de 14 Grandes (una sola tabla) — misma lógica que
   // calcStandings() en index.html, aplicada aquí sobre la temporada ya
   // completa (real + proyectada). Devuelve las filas ordenadas, mejor primero.
@@ -411,18 +429,7 @@
     while (i < rows.length) {
       const s = i, p = rows[i].pct;
       while (i < rows.length && rows[i].pct === p) i++;
-      const grp = rows.slice(s, i);
-      if (grp.length > 1) {
-        let win = null;
-        for (const t of grp) {
-          if (grp.every(o => o.equipo === t.equipo || getDirecto(juegos, t.equipo, o.equipo) === 1)) { win = t; break; }
-        }
-        grp.sort((a, b) => {
-          if (win) { if (a.equipo === win.equipo) return -1; if (b.equipo === win.equipo) return 1; }
-          return a.pc - b.pc;
-        });
-        rows.splice(s, grp.length, ...grp);
-      }
+      if (i - s > 1) rows.splice(s, i - s, ...ordenarEmpatados(rows.slice(s, i), juegos));
     }
     rows.forEach((r, i) => { r.seed = i + 1; });
     return rows;
@@ -463,7 +470,7 @@
       while (i < rows.length) {
         const s0 = i, p = rows[i].pct;
         while (i < rows.length && rows[i].pct === p) i++;
-        if (i - s0 > 1) rows.splice(s0, i - s0, ...ordenarEmpateDirecto(rows.slice(s0, i)));
+        if (i - s0 > 1) rows.splice(s0, i - s0, ...ordenarEmpatados(rows.slice(s0, i), juegos));
       }
       allRows[grp] = rows;
     });
@@ -656,6 +663,7 @@
     calcularStandings14G,
     calcularStandingsNacional,
     getDirecto,
+    ordenarEmpatados,
     esPendiente,
     probabilidadVictoria,
     Phi,
