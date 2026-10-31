@@ -10,6 +10,54 @@
 
 ---
 
+## Cambios del 2026-10-30
+
+- **Selector de equipo de Nacional:** mismo formato que 14 Grandes (`1. Leones UAQ (8-0)`), lista plana, sin grupo y sin ✓/✕. La interfaz ya no llama al panorama.
+- **Equipo 100 % clasificado o 100 % eliminado (14 Grandes y Nacional):** solo se muestra el estado (insignia + frase; en Nacional también la explicación con números). Sin probabilidad, sin tablas ni aviso de límites.
+- **Juegos clave:** en «Ayuda de otros equipos» ya no se muestran juegos con impacto menor a **2 puntos** (`UMBRAL_CLAVE = 0.02` en `escenarios-ui.js`, para las dos conferencias). Eran ruido de la simulación; ver «Por qué aparecían».
+- **Nuevo selector «Lugar final»** debajo del de equipo (las dos conferencias): `Clasificado (cualquier lugar)` activo; `1.º … 8.º lugar` y `Desclasificado (cualquier lugar)` inactivos.
+- **Escenarios casi imposibles (decisión del usuario, 2026-10-31):** un escenario con menos de **0.5 %** (`UMBRAL_POCO_PROBABLE = 0.005` en `escenarios-ui.js`, las dos conferencias) no se muestra de entrada. Aparece el aviso **«Casi imposible»** y el botón **«Ver escenarios poco probables»**; al hacer clic se revelan (si todos eran casi imposibles, se abre el primero). Los escenarios llegan ordenados por probabilidad, así que los casi imposibles son siempre los últimos. En modo riesgo el texto dice «fallar» en vez de «clasificar».
+- **Escenarios:** el algoritmo es el mismo que el de 14 Grandes (ver «Cómo se generan los 5 escenarios»). No cambió.
+
+### Por qué aparecían «juegos clave» que no cambiaban nada
+
+El impacto de un juego se estima con Monte Carlo: `P(clasifica | gana el local) − P(clasifica | gana la visita)`, con unas 10,000 simulaciones por lado. Si el juego **no influye**, el valor verdadero es exactamente 0, pero la simulación devuelve ±0.5–1.5 puntos por azar, y la lista mostraba los 5 mayores sin importar su tamaño (con redondeo: «1 pts de probabilidad»). Ejemplo con datos de hoy: Indios UACJ depende **solo de ganar su juego** contra Lobos UA de C (impacto 100 %), pero salían además Búhos–Frailes (−1.0 %), Águilas–ITSON (+1.0 %), etc. Esos **no cambian nada al final**. En cambio, cuando un equipo depende de la derrota de un tercero el impacto sí es real: Halcones UV necesita ganar **y** que Frailes pierda (Búhos gana); Búhos–Frailes aparece con 2.9 puntos y se conserva. Si eso se quitara de la condición, el resultado final **sí cambiaría** (Halcones pasaría de 2.8 % a 0 %).
+
+### Cómo se generan los 5 escenarios (14 Grandes y Nacional, mismo método)
+
+1. **Búsqueda best-first** (`buscarVectores`, se reutiliza tal cual en Nacional): parte de «todos los favoritos ganan» y va volteando juegos en orden de «costo de sorpresa» (log-odds), de modo que los vectores de ganadores se visitan, en general, del más al menos probable.
+2. Cada vector que **cumple** (el equipo clasifica) y no está cubierto por una familia anterior genera una **familia**: la condición mínima = los juegos **pivote** (los que, al voltearse, hacen que deje de cumplir). Si la probabilidad condicionada es menor a 50 %, se agregan hasta 3 juegos más que la refuerzan. Probabilidad de la familia = P(condición) × P(clasificar | condición) (4,000 simulaciones).
+3. Se detiene al juntar `K + 3 = 8` familias, al encontrar una familia sin condiciones, o al agotar el presupuesto (200,000 expansiones / 20 s).
+4. Se ordenan por probabilidad y se muestran las **`K = 5`** mejores. Cada una trae marcadores plausibles (desempate resuelto con la tabla real).
+5. Si el equipo ya es favorito, o ya clasifica sin condiciones, se buscan escenarios de **riesgo** (qué podría hacerle fallar).
+
+**Por qué en Nacional salen menos de 5 hoy:** el método es el mismo; el número depende del espacio que queda. Medido: con J6 concluida casi todos los equipos tienen 5 escenarios; con J7, 1 a 4; con J8 (solo queda la J9, 5 juegos libres) basta 1 familia. 14 Grandes con J8 aún tiene J9 y J10 (12 juegos) y por eso muestra 5.
+**Única diferencia con 14 Grandes:** al reforzar la condición, Nacional exige que el juego agregado mejore la probabilidad **más que el ruido de la simulación**; sin eso se colaban juegos irrelevantes como «necesarios» (p. ej., «Lobos UA de C gana» para Lobos ULM). Si se desea, el mismo ajuste se puede llevar a `escenarios.js` (14 Grandes) — **pendiente de decidir**, porque ese archivo aún no tiene pruebas a la mano.
+
+---
+
+## Funciones a continuar
+
+**Selector «Lugar final» (ya está en pantalla, solo `Clasificado (cualquier lugar)` activo).** Habilitar, una por una:
+1. **`1.º … 8.º lugar`:** «¿qué tiene que pasar para quedar exactamente en el lugar N?». En 14 Grandes el objetivo ya existe en el motor (`califica(pos, obj)` con rango de posición). En Nacional el lugar es el **sembrado 1–8 por PG** (`seeds`), que hoy no afecta quién clasifica; hay que añadir el sembrado al objetivo y a la clasificación rápida (empates de PG con equipos de otros grupos se desempatan por la regla del sembrado, que en `prediccion.js` sigue siendo por pares).
+2. **`Desclasificado (cualquier lugar)`:** el modo «riesgo» ya existe (qué podría hacerte fallar); falta exponerlo como objetivo elegible y poner textos propios.
+3. Pasar el valor elegido a las opciones del motor (`opciones.lugar`) y ajustar los textos («Escenarios más probables para…»). Hoy el valor no se envía.
+
+**Marcas ✅ y ✖️ en el calendario de las páginas principales (`index.html` y `nacional.html`)** — *solo documentado, no programado:*
+- ✅ junto a los equipos **100 % clasificados** y ✖️ junto a los **100 % desclasificados** (prueba exacta, nunca por simulación) en el calendario de esas páginas.
+- Eso obliga a **calcular el estado también en las páginas principales**, no solo al abrir «Escenarios». Nacional ya tiene la función `ONEFA_ESC_NAC.panorama(datos)` (estado exacto de los 18 equipos en ~0.6 s con J6; también está disponible por el Worker con el mensaje `panorama`). **14 Grandes no tiene equivalente:** hay que escribir `panorama` en `escenarios.js` (o un `panorama14g` en archivo aparte) reutilizando `enumerarExacto` por equipo.
+- A decidir al programarlo: cargar el motor (y el Worker) también en las páginas principales; cachear el resultado en `sessionStorage` por `jornadas_jugadas`; que corra solo con `jornadaMin ≤ jornadas_jugadas ≤ jornadaMax` (J6–última−1) y limpiar las marcas fuera de ese rango; y, al terminar la temporada regular, mantener la marca final (clasificado/eliminado definitivo) sin recalcular. Agregar los archivos nuevos a `PRECACHE` de `sw.js` y subir `VERSION`.
+- Criterio de «100 %»: `situacion` = `clasificado` / `eliminado` según la enumeración exacta (todas las combinaciones `SEGURO` o todas `FUERA`).
+
+**Otras funciones pendientes**
+- Pruebas del motor de Nacional y de la interfaz (siguiente sprint; ver sección 7).
+- Revisar en teléfono real los tiempos y el aspecto del nuevo selector.
+- Calibrar `sigmaPuntos`, `maxPuntos` y `sigmaTotal` con el `onefa_data_2025.json` real.
+- Decidir si el ajuste de ruido de `construirFamilia` pasa también a 14 Grandes. Medido con los datos de hoy (equivalente a cambiar 3 líneas de `escenarios.js`): mismos escenarios en número (J6: 45 y 45; J7: 43 y 43; J8: 30 y 30), pero menos «resultados necesarios» por escenario (J6: 5.9 → 4.9; J7: 5.1 → 4.2; J8: 4.9 → 3.6) y menos juegos irrelevantes (J7: 6 % → 2 %; J8: 32 % → 20 %). La probabilidad total de clasificar, la situación y los marcadores no cambian. Aplicarlo solo después de correr las pruebas de 14 Grandes.
+- Preparar 2027: actualizar `construirModelosPorConferencia` y `cargarDatos` de `prediccion.js` para leer las nuevas temporadas.
+
+---
+
 ## Estado de implementación (2026-10-29)
 
 Fases 0, 1, 2, 3 y 4 programadas; **pruebas (fase 5) pendientes para el siguiente sprint**. Cambios respecto al diseño original:
@@ -354,7 +402,7 @@ Mismo formato que 14G, para que la UI cambie poco:
 
 ### 5.1 Qué cambia en `escenarios-ui.js` (detalle)
 
-- **Selector de equipo:** agrupado por grupo (`<optgroup>` Norte / Centro / Bajío), ordenado como la tabla actual, con el récord de cada uno. Los equipos excluidos (Liebres) **no aparecen**. Si ya hay panorama calculado (Fase 3), cada equipo ya decidido lleva ✓ o ✕.
+- **Selector de equipo:** lista plana igual a la de 14 Grandes (`N. Equipo (PG-PP)`, ordenada por récord), **sin grupo y sin marcas de clasificado/eliminado** (decisión del 2026-10-30). Los equipos excluidos (Liebres) no aparecen.
 - **Compuertas:** `jornadaMin = 6`; `jornadaMax` = última jornada regular − 1 (se lee de los datos). Mensajes igual que 14G.
 - **Resumen:** en vez de «posición final más probable» muestra **grupo, lugar en el grupo más probable y la vía** (top 2 / comodín); en vez de «victorias esperadas de 9», las de 8.
 - **Textos:** «Top 8» → «playoffs (top 2 de cada grupo + 2 mejores terceros)»; ayudas de situación adaptadas.
@@ -376,7 +424,7 @@ Orden recomendado: **0 → 1 → 4 → 2 → 3**. Razón: la temporada regular t
 | **1** | Motor núcleo: `prepararProblema`, `evaluarVictoriasNac` (con resultado directo), enumeración exacta, Monte Carlo, `situacionEquipo`, victorias propias, juegos clave con relación, `explicacion` para eliminado/clasificado. **Sin** búsqueda de escenarios | M | `analizar()` corre para los 19 equipos con `jj = 8` (y con `jj` recortado a 6 y 7) y devuelve situación y probabilidad coherentes | (a) Monte Carlo cae dentro de las cotas exactas; (b) `FILO` coincide con el muestreo de marcadores (el mismo chequeo que usé para el plan); (c) con `jj = 7`, el resultado real de la J8 y la J9 tiene probabilidad > 0 para cada equipo; (d) tiempo por análisis anotado |
 | **4** | Integración: Worker, `escenarios-ui.js` con `CONF`, botón en `nacional.html`, `sw.js` | M | Se elige un equipo de Nacional en la página y se ve el resumen; funciona sin señal tras la primera carga | Abrir en navegador de escritorio y en teléfono; revisar a mano el aspecto |
 | **2** | Escenarios: búsqueda best-first (copiada), familias, `resolverDesempateNac` (4.8), marcadores por jornada, `completaciones` | M | Equipos en burbuja muestran escenarios con marcadores que **cumplen al reevaluarlos con el oráculo** | Reevaluar cada escenario devuelto con `calcularStandingsNacional` y ver que el equipo queda dentro |
-| **3** | Panorama de todos los equipos en una sola pasada (✓/✕ en el selector) y pulido del último tramo (mensajes, `explicacion`) | S–M | El selector muestra el estado de cada equipo antes de analizarlo | Contraste con las tablas de la sección 1.3 (hoy: Águilas, ITSON, Pumas Acatlán, Potros Salvajes, Tecos y Leones UAQ ya clasificados; Indios y Lobos UA de C clasifican si ganan su juego entre sí) |
+| **3** | ~~Panorama ✓/✕ en el selector~~ (descartado en el selector; el cálculo `panorama` se conserva para las páginas principales, ver «Funciones a continuar») y pulido del último tramo (mensajes, `explicacion`) | S–M | Un equipo decidido responde solo con su estado | Contraste con las tablas de la sección 1.3 (hoy: Águilas, ITSON, Pumas Acatlán, Potros Salvajes, Tecos y Leones UAQ ya clasificados; Indios y Lobos UA de C clasifican si ganan su juego entre sí) |
 | **5** | **Pruebas** (siguiente sprint, sección 7) | M | — | — |
 | **6** *(opcional)* | Posición específica en Nacional: ganar el grupo, evitar el comodín, sembrado general | M | — | — |
 
@@ -422,5 +470,5 @@ Límites que se comunican en la pantalla (igual que 14G): probabilidades según 
 
 1. **H3:** ¿alineamos `calcularStandingsNacional` con el desempate de `nacional.html` (barrido de resultado directo → PC)? Mi recomendación: sí.
 2. **J9:** ¿sabes cuándo se juega? Define si conviene publicar primero la versión mínima (orden 0 → 1 → 4).
-3. **Panorama ✓/✕ en el selector** (Fase 3): recomiendo sí; es barato porque el espacio es chico y responde directo a tu punto de equipos sin posibilidad.
+3. ~~Panorama ✓/✕ en el selector~~ — **resuelto el 2026-10-30:** no va en el selector; irá como marca ✅ / ✖️ en el calendario de las páginas principales (ver «Funciones a continuar»).
 4. **Comodín:** confirmo que los terceros se comparan por victorias y, si empatan, por menor PC (como hoy en `nacional.html`). Si la liga usa otra regla, dímelo ahora.

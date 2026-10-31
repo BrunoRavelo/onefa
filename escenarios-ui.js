@@ -60,14 +60,27 @@
     casi_eliminado: { txt: 'Casi eliminado', cls: 'eliminado',
                       ayuda: 'Es muy difícil: necesitarías varios resultados contrarios a lo esperado.' }
   };
+  // Un "juego clave" de otro equipo solo se muestra si cambia la probabilidad al menos esto (2 puntos).
+  // Menos que eso es ruido de la simulación (el impacto se estima con ~10 000 simulaciones por lado).
+  const UMBRAL_CLAVE = 0.02;
+  // Un escenario con menos de esto (0.5 %) se considera "casi imposible": no se muestra de entrada;
+  // aparece un aviso y el botón "Ver escenarios poco probables" (decisión del usuario).
+  const UMBRAL_POCO_PROBABLE = 0.005;
   const VIA = { ganadores: 'Se decide solo por victorias', resultado_directo: 'Se decide por resultado directo', desempate_pc: 'Se decide por desempate de puntos en contra (PC)',
                 desempate_comodin: 'Se decide por puntos en contra (PC) contra otro tercer lugar' };
   const EXIGENCIA = { facil: 'marcadores fáciles de lograr', exigente: 'marcadores exigentes', muy_exigente: 'marcadores muy exigentes' };
 
   let overlay = null, datos = null, jj = null, equipoActual = null;
-  let worker = null, workerPan = null, corrida = 0, bodyOverflowPrevio = '';
+  let worker = null, corrida = 0, bodyOverflowPrevio = '';
 
   // ---------------------------------------------------------------- utilidades
+  // Lugar final deseado. Por ahora SOLO "Clasificado (cualquier lugar)" está activo; el resto se
+  // muestra inactivo y se irá habilitando (ver plan-nacional.md, "Funciones a continuar").
+  function htmlLugares() {
+    let h = '<option value="clasificado" selected>Clasificado (cualquier lugar)</option>';
+    for (let i = 1; i <= 8; i++) h += '<option value="' + i + '" disabled>' + i + '.º lugar</option>';
+    return h + '<option value="descalificado" disabled>Desclasificado (cualquier lugar)</option>';
+  }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function pct(x) {                       // probabilidad 0..1 → texto
     const p = x * 100;
@@ -117,6 +130,10 @@
         '<div class="esc-controles">' +
           '<label for="escEquipo">Equipo</label>' +
           '<select id="escEquipo" class="esc-select" disabled><option value="">Cargando…</option></select>' +
+        '</div>' +
+        '<div class="esc-controles" style="margin-top:.6rem">' +
+          '<label for="escLugar">Lugar final</label>' +
+          '<select id="escLugar" class="esc-select" disabled>' + htmlLugares() + '</select>' +
           '<button id="escAnalizar" class="esc-btn" type="button" disabled>Analizar</button>' +
         '</div>' +
         '<div id="escProgreso" class="esc-progreso" role="status" aria-live="polite" hidden>' +
@@ -155,7 +172,6 @@
 
   function cerrar() {
     cancelarCorrida(false);
-    cerrarWorkerPan();
     if (overlay) overlay.classList.remove('open');
     document.body.style.overflow = bodyOverflowPrevio;
   }
@@ -171,18 +187,20 @@
     if (jj < ESC_JORNADA_MIN) aviso = 'Disponible a partir de la Jornada ' + ESC_JORNADA_MIN + ' concluida (hoy: Jornada ' + jj + ').';
     else if (jj > jmax) aviso = 'La temporada regular ya concluyó; no quedan escenarios por calcular.';
     if (aviso) {
-      sel.innerHTML = '<option value="">—</option>'; sel.disabled = true; btn.disabled = true;
+      sel.innerHTML = '<option value="">—</option>'; sel.disabled = true; btn.disabled = true; $('escLugar').disabled = true;
       res.innerHTML = '<div class="esc-aviso">' + esc(aviso) + '</div>';
       return;
     }
     // Equipos ordenados como la tabla actual (solo juegos ya jugados)
     const jugados = d.juegos.filter(function (g) { return !PRED.esPendiente(g, jj); });
     if (CONF.clave === 'nacional') {
+      // Lista plana ordenada por récord (como la de 14 Grandes): sin grupo y sin marcas de estado
       const t = PRED.calcularStandingsNacional(d.grupos, jugados), excl = PRED.EQUIPOS_EXCLUIDOS || [];
-      sel.innerHTML = '<option value="">Elige un equipo…</option>' + Object.keys(d.grupos).map(function (gn) {
-        return '<optgroup label="Grupo ' + esc(gn) + '">' + t.allRows[gn].filter(function (r) { return excl.indexOf(r.equipo) < 0; }).map(function (r, i) {
-          return '<option value="' + esc(r.equipo) + '">' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
-        }).join('') + '</optgroup>';
+      const filas = [].concat.apply([], Object.keys(t.allRows).map(function (gn) { return t.allRows[gn]; }))
+        .filter(function (r) { return excl.indexOf(r.equipo) < 0; })
+        .sort(function (a, b) { return b.pct - a.pct || a.pc - b.pc; });
+      sel.innerHTML = '<option value="">Elige un equipo…</option>' + filas.map(function (r, i) {
+        return '<option value="' + esc(r.equipo) + '">' + (i + 1) + '. ' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
       }).join('');
     } else {
       const filas = PRED.calcularStandings14G(d.equipos, jugados);
@@ -190,43 +208,10 @@
         return '<option value="' + esc(r.equipo) + '">' + r.seed + '. ' + esc(r.equipo) + ' (' + r.pg + '-' + r.pp + ')</option>';
       }).join('');
     }
-    sel.disabled = false; btn.disabled = false;
+    sel.disabled = false; btn.disabled = false; $('escLugar').disabled = false;
     if (equipoActual) sel.value = equipoActual;
-    if (CONF.clave === 'nacional') cargarPanorama();
   }
 
-  // Panorama (solo Nacional): estado exacto de todos los equipos para marcar ✓ clasificado / ✕ eliminado
-  // en el selector antes de analizar. Es opcional: si algo falla, el selector queda como está.
-  function cerrarWorkerPan() { if (workerPan) { try { workerPan.terminate(); } catch (e) { /* nada */ } workerPan = null; } }
-  function marcarPanorama(r) {
-    if (!r || r.estado !== 'ok') return;
-    const sel = $('escEquipo'); if (!sel) return;
-    const m = {}; r.equipos.forEach(function (e) { m[e.equipo] = e.estado; });
-    Array.prototype.forEach.call(sel.options, function (o) {
-      if (!o.value) return;
-      if (!o.hasAttribute('data-base')) o.setAttribute('data-base', o.textContent);
-      const st = m[o.value];
-      o.textContent = o.getAttribute('data-base') + (st === 'clasificado' ? '  ✓ clasificado' : (st === 'eliminado' ? '  ✕ eliminado' : ''));
-    });
-  }
-  function cargarPanorama() {
-    cerrarWorkerPan();
-    const opc = { conferencia: 'nacional', jornadaMin: ESC_JORNADA_MIN };
-    const enHilo = function () {
-      cargarMotor().then(function (motor) { setTimeout(function () { try { marcarPanorama(motor.panorama(datos, opc, {})); } catch (e) { /* opcional */ } }, 30); }).catch(function () {});
-    };
-    let w;
-    try { w = new Worker('escenarios-worker.js'); } catch (e) { enHilo(); return; }
-    workerPan = w;
-    w.onmessage = function (ev) {
-      const m = ev.data || {};
-      if (m.id !== 'panorama') return;
-      if (m.tipo === 'resultado') { cerrarWorkerPan(); marcarPanorama(m.resultado); }
-      else if (m.tipo === 'error') { cerrarWorkerPan(); }
-    };
-    w.onerror = function () { cerrarWorkerPan(); enHilo(); };
-    w.postMessage({ tipo: 'panorama', id: 'panorama', datos: datos, opciones: opc });
-  }
 
   // ---------------------------------------------------------------- ejecución
   function mostrarProgreso(modoCompat) {
@@ -341,9 +326,9 @@
   function render(r, equipo) {
     const cont = $('escResultado');
     if (!r || r.estado === 'fuera_de_rango') { cont.innerHTML = '<div class="esc-aviso">' + esc((r && r.mensaje) || 'Fuera de rango.') + '</div>'; return; }
-    // Equipo ya decidido (clasificado / eliminado con prueba exacta): solo el resumen con su explicación
-    cont.innerHTML = r.explicacion
-      ? htmlResumen(r, equipo) + htmlAviso(r)
+    // Equipo ya decidido (clasificado o eliminado con prueba exacta): solo su estado, ninguna otra estadística
+    cont.innerHTML = (r.situacion === 'clasificado' || r.situacion === 'eliminado')
+      ? htmlSoloEstado(r, equipo)
       : htmlResumen(r, equipo) + htmlVictorias(r) + htmlClave(r, equipo) + htmlEscenarios(r, equipo) + htmlAviso(r);
     activarTabs(cont);
   }
@@ -353,6 +338,15 @@
     if (!dist) return { pos: 0, p: 0 };
     dist.forEach(function (p, i) { if (p > pm) { pm = p; mejor = i + 1; } });
     return { pos: mejor, p: pm };
+  }
+
+  function htmlSoloEstado(r, equipo) {
+    const s = SITUACION[r.situacion];
+    return '<section class="esc-card esc-resumen"><div class="esc-resumen-top">' +
+      '<div><div class="esc-eq">' + esc(equipo) + '</div><span class="esc-badge esc-b-' + s.cls + '">' + esc(s.txt) + '</span></div></div>' +
+      '<p class="esc-explica">' + esc(ayudaSituacion(s)) + '</p>' +
+      (r.explicacion ? r.explicacion.map(function (t) { return '<p class="esc-explica"><b>' + esc(t) + '</b></p>'; }).join('') : '') +
+      '</section>';
   }
 
   function htmlResumen(r, equipo) {
@@ -401,7 +395,7 @@
   }
   function htmlClave(r, equipo) {
     const propios = (r.juegosClave || []).filter(function (j) { return j.propio; }).slice(0, 3);
-    const otros = (r.juegosClaveOtros || []).slice(0, 5);
+    const otros = (r.juegosClaveOtros || []).filter(function (j) { return Math.abs(j.impacto) >= UMBRAL_CLAVE; }).slice(0, 5);
     if (!propios.length && !otros.length) return '';
     let h = '<h2 class="esc-h">Juegos clave</h2><div class="esc-card esc-claves">';
     if (propios.length) h += '<h3>Tus juegos</h3><ul class="esc-lista">' + propios.map(function (j) { return textoClave(j, equipo); }).join('') + '</ul>';
@@ -419,12 +413,29 @@
       return '<h2 class="esc-h">Escenarios</h2><div class="esc-aviso">No se encontraron escenarios dentro del tiempo de búsqueda.</div>';
     }
     const riesgo = r.modo === 'riesgo';
+    const hayProbables = esc_.some(function (e) { return e.probabilidad >= UMBRAL_POCO_PROBABLE; });
+    const nRaros = esc_.filter(function (e) { return e.probabilidad < UMBRAL_POCO_PROBABLE; }).length;
     let h = '<h2 class="esc-h">' + (riesgo ? 'Qué podría hacerte fallar' : 'Escenarios más probables para clasificar') + '</h2>';
-    if (r.modoAutomatico) h += '<div class="esc-aviso">Con los resultados esperados por el modelo ya clasificas; esto es lo que más probablemente te sacaría del Top 8.</div>';
+    if (r.modoAutomatico) h += '<div class="esc-aviso">Con los resultados esperados por el modelo ya clasificas; esto es lo que más probablemente te sacaría del ' + (CONF.clave === 'nacional' ? 'grupo de 8 de playoffs' : 'Top 8') + '.</div>';
+    // Los escenarios llegan ordenados de mayor a menor probabilidad: los casi imposibles son siempre los últimos
+    let primero = true;
     h += '<div class="esc-tabs" role="tablist">' + esc_.map(function (e, i) {
-      return '<button type="button" role="tab" class="esc-tab' + (i === 0 ? ' on' : '') + '" data-i="' + i + '">Escenario ' + e.id + ' · ' + pctFino(e.probabilidad) + '</button>';
+      const raro = e.probabilidad < UMBRAL_POCO_PROBABLE;
+      const on = !raro && primero; if (on) primero = false;
+      return '<button type="button" role="tab" class="esc-tab' + (on ? ' on' : '') + (raro ? ' esc-poco' : '') + '" data-i="' + i + '"' + (raro ? ' style="display:none"' : '') + '>Escenario ' + e.id + ' · ' + pctFino(e.probabilidad) + '</button>';
     }).join('') + '</div>';
-    h += esc_.map(function (e, i) { return htmlPanel(e, equipo, riesgo, i === 0); }).join('');
+    if (nRaros) {
+      h += '<div class="esc-aviso esc-raros"><b>Casi imposible.</b> ' +
+        (hayProbables
+          ? (nRaros === 1 ? 'Hay 1 escenario más' : 'Hay ' + nRaros + ' escenarios más') + (riesgo ? ' para fallar' : ' para clasificar') + ', pero ' + (nRaros === 1 ? 'tiene' : 'tienen') + ' menos de 0.5 % de probabilidad.'
+          : (riesgo ? 'Fallar por los caminos que encontramos' : 'Clasificar por los caminos que encontramos') + ' tiene menos de 0.5 % de probabilidad.') +
+        ' <button type="button" class="esc-btn esc-ver-raros" style="margin-top:.5rem">Ver escenarios poco probables</button></div>';
+    }
+    let marcado = false;
+    h += esc_.map(function (e, i) {
+      const visible = !marcado && e.probabilidad >= UMBRAL_POCO_PROBABLE; if (visible) marcado = true;
+      return htmlPanel(e, equipo, riesgo, visible);
+    }).join('');
     return h;
   }
 
@@ -538,6 +549,17 @@
 
   function activarTabs(cont) {
     const tabs = cont.querySelectorAll('.esc-tab'), paneles = cont.querySelectorAll('.esc-panel');
+    const verRaros = cont.querySelector('.esc-ver-raros');
+    if (verRaros) verRaros.addEventListener('click', function () {
+      let hayActivo = false;
+      tabs.forEach(function (t) { if (t.classList.contains('on')) hayActivo = true; });
+      tabs.forEach(function (t) { t.style.display = ''; });
+      if (!hayActivo && tabs.length) {            // todos eran casi imposibles: se abre el primero
+        tabs[0].classList.add('on');
+        paneles.forEach(function (p) { p.classList.toggle('on', p.getAttribute('data-i') === tabs[0].getAttribute('data-i')); });
+      }
+      const aviso = cont.querySelector('.esc-raros'); if (aviso) aviso.parentNode.removeChild(aviso);
+    });
     tabs.forEach(function (t) {
       t.addEventListener('click', function () {
         const i = t.getAttribute('data-i');

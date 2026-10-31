@@ -592,10 +592,12 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
 - **Sin años escritos a mano:** usa el JSON `dnac_<año>` más reciente de `datos`; la última jornada regular sale de los juegos (`jornadaMax` = última − 1; `jornadaMin` = 6).
   **Para 2027:** `ONEFA_PRED.construirModelosPorConferencia` y `cargarDatos` siguen leyendo `…_2025/2026`; al agregar la temporada hay que actualizarlos allí (ver «Agregar una temporada»).
 - **Constantes medidas en Nacional:** `sigmaPuntos = 15.0`, `maxPuntos = 70`, `sigmaTotal = 12.4` (se calibraron con `onefa_data_2025.json` de relleno vacío; reaprobar con el real).
-- **API:** `ONEFA_ESC_NAC.analizar(datos, { equipo }, ctx)` y `ONEFA_ESC_NAC.panorama(datos, {}, ctx)` (estado exacto de todos los equipos, para marcar ✓ / ✕ en el selector).
+- **API:** `ONEFA_ESC_NAC.analizar(datos, { equipo }, ctx)` y `ONEFA_ESC_NAC.panorama(datos, {}, ctx)` (estado exacto de todos los equipos). El panorama **ya no se usa en el selector**; se conserva para las marcas ✅/✖️ del calendario de las páginas principales (pendiente, ver `plan-nacional.md`).
   Salida como 14G salvo: `meta.grupo`, `distribucionGrupo` (lugar dentro del grupo), `viaClasificacion` (`top2` | `comodin` | `fuera`), `explicacion`, `juegosClave[].relacion`
   (`propio` | `mi_grupo` | `carrera_comodin`) y `escenarios[].tablaFinal = { grupos:{Norte:[…],…}, seeds:[…] }`.
-- **Interfaz:** `escenarios-ui.js` tiene una tabla `CONFS` (`14g`, `nacional`): selector por grupos (sin Liebres), textos, tabla final por grupos, panorama ✓/✕ (en el Worker, mensaje `panorama`).
+- **Interfaz (dos conferencias en `escenarios-ui.js`, tabla `CONFS`):** selector de equipo con el mismo formato en ambas (`N. Equipo (PG-PP)`, lista plana, sin grupo ni marcas de estado; Nacional sin Liebres);
+  debajo, selector **«Lugar final»** (solo `Clasificado (cualquier lugar)` activo; `1.º…8.º` y `Desclasificado (cualquier lugar)` inactivos); un equipo ya `clasificado` o `eliminado` muestra **solo su estado**
+  (sin probabilidad ni tablas, en 14G y Nacional); en «Ayuda de otros equipos» se ocultan los juegos con impacto < 2 puntos (`UMBRAL_CLAVE`, ruido de la simulación); los escenarios con probabilidad < 0.5 % (`UMBRAL_POCO_PROBABLE`) se ocultan tras el aviso «Casi imposible» y el botón «Ver escenarios poco probables».
   `nacional.html` solo agrega el botón `#btnEscenarios` (`data-esc-conf="nacional"`) y `<script src="escenarios-ui.js">`.
 - **Estado actual (2026-10-29):** `jornadas_jugadas = 8`; solo falta la J9 (5 juegos libres): el motor ya se puede usar en la última semana.
 - **Limitación conocida:** `solo_desempate` y `FILO` siguen siendo conservadores en PC (el optimizador es heurístico: si no encuentra marcadores no prueba que sea imposible).
@@ -742,7 +744,7 @@ Módulo de escenarios (ver `plan.md`):
 - [x] Fase 1: motor 14G + corrección de aplazados + pruebas (`escenarios.js`, `tests/escenarios.test.js`).
 - [x] Fase 2: interfaz (botón en `index.html`, overlay compartido, Web Worker + respaldo, `sw.js` PRECACHE + VERSION v2, estilos `.esc-*`). [ ] Falta revisarla visualmente en un navegador/teléfono reales y medir tiempos en un teléfono.
 - [ ] Fase 3: pulido ("ver más", copiar a mis pronósticos, fijar resultados propios). [ ] Fase 4: posición específica.
-- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html`, panorama ✓/✕ (ver §8.10 y `plan-nacional.md`). [ ] Pendiente (siguiente sprint): pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
+- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [ ] Pendiente: habilitar el selector «Lugar final» (1.º…8.º y Desclasificado); marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
 
 Mejoras sugeridas al documentar (no solicitadas aún):
 - [x] Juegos aplazados 0-0 como pendientes en el modelo (hecho). [ ] Falta desbloquear sus inputs en los calendarios (§12.1).
