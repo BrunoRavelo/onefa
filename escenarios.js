@@ -559,8 +559,14 @@
     const objetivoP = function (forzados, N) { const q = probabilidadQ(P, T, obj, N, rng, forzados); return modo === 'clasificar' ? q : 1 - q; };
     const forzadosDe = function (ids) { const f = new Map(); ids.forEach(function (i) { f.set(i, !!hw[i]); }); return f; };
     let pCond = objetivoP(forzadosDe(C), P.o.simsFamilia);
-    // si la condición es demasiado floja, se agregan (voraz) los juegos que más la refuerzan
+    // si la condición es demasiado floja, se agregan (voraz) los juegos que más la refuerzan.
+    // AJUSTE DE RUIDO (2026-10-31, mismo criterio que escenarios-nacional.js): un juego solo se agrega si
+    // mejora la probabilidad MÁS de lo que explica el ruido de la simulación (2.5 errores estándar de la
+    // diferencia). La estimación es por simulación y se elige el mejor de hasta 10 candidatos, así que sin
+    // este umbral se colaban juegos que no influyen (y cada uno multiplicaba la probabilidad mostrada por la
+    // de su ganador, subestimándola). Se exige en la prueba piloto (800) y otra vez con simsFamilia.
     let aumentos = 0;
+    const ruido = function (p, N) { return 2.5 * Math.sqrt(2 * Math.max(p * (1 - p), 1e-4) / N); };
     while (pCond < 0.5 && aumentos < 3 && C.length < P.n) {
       let mejor = null;
       const cand = ordenCostos(P).filter(function (i) { return C.indexOf(i) < 0; }).slice(0, 10);
@@ -569,9 +575,10 @@
         const pr = objetivoP(forzadosDe(ids), 800);
         if (!mejor || pr > mejor.p) mejor = { i: cand[c], p: pr };
       }
-      if (!mejor || mejor.p <= pCond * 0.98) break;
-      C = C.concat([mejor.i]); aumentos++;
-      pCond = objetivoP(forzadosDe(C), P.o.simsFamilia);
+      if (!mejor || mejor.p <= pCond + ruido(pCond, 800)) break;
+      const pNueva = objetivoP(forzadosDe(C.concat([mejor.i])), P.o.simsFamilia);
+      if (pNueva <= pCond + ruido(pCond, P.o.simsFamilia)) break;
+      C = C.concat([mejor.i]); aumentos++; pCond = pNueva;
     }
     C.sort(function (a, b) { return a - b; });
     return { C: C, pCond: pCond, pC: probCondicion(P, hw, C) };

@@ -73,6 +73,7 @@ Conferencias:
 ├── tests/ui/                   ← Pruebas de interfaz con jsdom (solo desarrollo): `cd tests/ui && npm install && node ui.test.js`
 ├── plan.md                     ← Plan de diseño del módulo de escenarios 14G (decisiones, fases, resultados medidos)
 ├── plan-nacional.md            ← Plan de diseño del motor de escenarios de Conferencia Nacional
+├── plan-lugar-objetivos.md     ← Plan (solo diseño) de los objetivos «lugar 1.º–8.º» y «desclasificado» para 14G y Nacional
 ├── onefa.css                   ← Hoja de estilos compartida por TODAS las páginas
 ├── sw.js                       ← Service Worker (caché + actualización automática)
 ├── onefa_data_2025.json        ← 14 Grandes 2025 (histórico, completo + liguilla)
@@ -565,6 +566,8 @@ solo lectura (`localStorage` vacío) y compuertas. **No verifican el aspecto vis
 **Limitaciones:** solo 14G; probabilidades según el modelo Massey (ratings fijos dentro de cada escenario, juegos independientes); los marcadores propuestos son sugerencias plausibles, no pronósticos;
 `σ_total` es un valor provisional; el optimizador de marcadores es heurístico (no hay falsos negativos evidentes, pero no está demostrado que no existan).
 
+- **Ajuste de ruido en `construirFamilia` (2026-10-31):** ver §8.10. Medido con los datos de esa fecha (J6/J7/J8): mismos escenarios en número (45/43/30), probabilidad total, situación y cotas exactas idénticas, y menos «resultados necesarios» (264→221, 221→182, 148→107). **Las pruebas de `tests/escenarios.test.js` no se corrieron con este cambio: ejecutarlas.**
+
 ### 8.10 Escenarios de Conferencia Nacional — `escenarios-nacional.js` (motor) + `escenarios-worker.js` + `escenarios-ui.js`
 
 Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene que pasar para clasificar a playoffs?), mismas etapas
@@ -587,8 +590,9 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
   `explicacion` (sin Monte Carlo ni búsqueda): `probabilidad.metodo = 'exacto'`, `distribucionGrupo = null`. La simulación nunca declara eliminado/clasificado.
 - **Desempate de marcadores genérico (`resolverDesempate`):** rivales relevantes = empatados de su grupo + terceros de otros grupos con sus mismas victorias → subconjuntos
   (hasta 3) → `optimizarMarcadores` → **se verifica con la tabla real** (no hay falsos positivos). `via`: `ganadores` | `resultado_directo` | `desempate_pc` | `desempate_comodin`.
-- **`construirFamilia` de Nacional** solo agrega un juego a la «condición mínima» si mejora la probabilidad más de lo que explica el ruido de la simulación (si no, se colaban
-  juegos irrelevantes porque la condición suele depender de marcadores aleatorios).
+- **`construirFamilia` (Nacional y, desde 2026-10-31, también 14 Grandes)** solo agrega un juego a la «condición mínima» si mejora la probabilidad más de lo que explica el ruido de la simulación
+  (2.5 errores estándar de la diferencia, en la prueba piloto de 800 simulaciones y otra vez con `simsFamilia`); si no, se colaban juegos irrelevantes. Afecta solo a las listas de «resultados
+  necesarios» y a la probabilidad mostrada de cada escenario; no cambia la probabilidad total, la situación ni las cotas exactas. **Si se toca esta función, hacerlo en los dos archivos.**
 - **Sin años escritos a mano:** usa el JSON `dnac_<año>` más reciente de `datos`; la última jornada regular sale de los juegos (`jornadaMax` = última − 1; `jornadaMin` = 6).
   **Para 2027:** `ONEFA_PRED.construirModelosPorConferencia` y `cargarDatos` siguen leyendo `…_2025/2026`; al agregar la temporada hay que actualizarlos allí (ver «Agregar una temporada»).
 - **Constantes medidas en Nacional:** `sigmaPuntos = 15.0`, `maxPuntos = 70`, `sigmaTotal = 12.4` (se calibraron con `onefa_data_2025.json` de relleno vacío; reaprobar con el real).
@@ -744,7 +748,7 @@ Módulo de escenarios (ver `plan.md`):
 - [x] Fase 1: motor 14G + corrección de aplazados + pruebas (`escenarios.js`, `tests/escenarios.test.js`).
 - [x] Fase 2: interfaz (botón en `index.html`, overlay compartido, Web Worker + respaldo, `sw.js` PRECACHE + VERSION v2, estilos `.esc-*`). [ ] Falta revisarla visualmente en un navegador/teléfono reales y medir tiempos en un teléfono.
 - [ ] Fase 3: pulido ("ver más", copiar a mis pronósticos, fijar resultados propios). [ ] Fase 4: posición específica.
-- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [ ] Pendiente: habilitar el selector «Lugar final» (1.º…8.º y Desclasificado); marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
+- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [ ] Pendiente: habilitar el selector «Lugar final» (1.º…8.º y Desclasificado; diseño en `plan-lugar-objetivos.md`); marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
 
 Mejoras sugeridas al documentar (no solicitadas aún):
 - [x] Juegos aplazados 0-0 como pendientes en el modelo (hecho). [ ] Falta desbloquear sus inputs en los calendarios (§12.1).

@@ -17,7 +17,7 @@
 - **Juegos clave:** en «Ayuda de otros equipos» ya no se muestran juegos con impacto menor a **2 puntos** (`UMBRAL_CLAVE = 0.02` en `escenarios-ui.js`, para las dos conferencias). Eran ruido de la simulación; ver «Por qué aparecían».
 - **Nuevo selector «Lugar final»** debajo del de equipo (las dos conferencias): `Clasificado (cualquier lugar)` activo; `1.º … 8.º lugar` y `Desclasificado (cualquier lugar)` inactivos.
 - **Escenarios casi imposibles (decisión del usuario, 2026-10-31):** un escenario con menos de **0.5 %** (`UMBRAL_POCO_PROBABLE = 0.005` en `escenarios-ui.js`, las dos conferencias) no se muestra de entrada. Aparece el aviso **«Casi imposible»** y el botón **«Ver escenarios poco probables»**; al hacer clic se revelan (si todos eran casi imposibles, se abre el primero). Los escenarios llegan ordenados por probabilidad, así que los casi imposibles son siempre los últimos. En modo riesgo el texto dice «fallar» en vez de «clasificar».
-- **Escenarios:** el algoritmo es el mismo que el de 14 Grandes (ver «Cómo se generan los 5 escenarios»). No cambió.
+- **Escenarios:** el algoritmo es el mismo que el de 14 Grandes (ver «Cómo se generan los 5 escenarios»). Desde el 2026-10-31 el ajuste de ruido de `construirFamilia` está en **ambos** motores.
 
 ### Por qué aparecían «juegos clave» que no cambiaban nada
 
@@ -32,7 +32,7 @@ El impacto de un juego se estima con Monte Carlo: `P(clasifica | gana el local) 
 5. Si el equipo ya es favorito, o ya clasifica sin condiciones, se buscan escenarios de **riesgo** (qué podría hacerle fallar).
 
 **Por qué en Nacional salen menos de 5 hoy:** el método es el mismo; el número depende del espacio que queda. Medido: con J6 concluida casi todos los equipos tienen 5 escenarios; con J7, 1 a 4; con J8 (solo queda la J9, 5 juegos libres) basta 1 familia. 14 Grandes con J8 aún tiene J9 y J10 (12 juegos) y por eso muestra 5.
-**Única diferencia con 14 Grandes:** al reforzar la condición, Nacional exige que el juego agregado mejore la probabilidad **más que el ruido de la simulación**; sin eso se colaban juegos irrelevantes como «necesarios» (p. ej., «Lobos UA de C gana» para Lobos ULM). Si se desea, el mismo ajuste se puede llevar a `escenarios.js` (14 Grandes) — **pendiente de decidir**, porque ese archivo aún no tiene pruebas a la mano.
+**Ajuste de ruido (aplicado también a 14 Grandes el 2026-10-31):** al reforzar la condición, el juego agregado debe mejorar la probabilidad **más que el ruido de la simulación**; sin eso se colaban juegos irrelevantes como «necesarios» (p. ej., «Lobos UA de C gana» para Lobos ULM). Ahora `escenarios.js` y `escenarios-nacional.js` usan el mismo criterio.
 
 ---
 
@@ -53,7 +53,7 @@ El impacto de un juego se estima con Monte Carlo: `P(clasifica | gana el local) 
 - Pruebas del motor de Nacional y de la interfaz (siguiente sprint; ver sección 7).
 - Revisar en teléfono real los tiempos y el aspecto del nuevo selector.
 - Calibrar `sigmaPuntos`, `maxPuntos` y `sigmaTotal` con el `onefa_data_2025.json` real.
-- Decidir si el ajuste de ruido de `construirFamilia` pasa también a 14 Grandes. Medido con los datos de hoy (equivalente a cambiar 3 líneas de `escenarios.js`): mismos escenarios en número (J6: 45 y 45; J7: 43 y 43; J8: 30 y 30), pero menos «resultados necesarios» por escenario (J6: 5.9 → 4.9; J7: 5.1 → 4.2; J8: 4.9 → 3.6) y menos juegos irrelevantes (J7: 6 % → 2 %; J8: 32 % → 20 %). La probabilidad total de clasificar, la situación y los marcadores no cambian. Aplicarlo solo después de correr las pruebas de 14 Grandes.
+- **Correr `tests/escenarios.test.js` de 14 Grandes** (el ajuste de ruido de `construirFamilia` ya está aplicado en `escenarios.js`; no se pudieron correr sus pruebas). Medido: mismos escenarios en número (J6: 45 y 45; J7: 43 y 43; J8: 30 y 30), probabilidad total, situación y cotas exactas idénticas; menos «resultados necesarios» por escenario (J6: 5.9 → 4.9; J7: 5.1 → 4.2; J8: 4.9 → 3.6) y menos juegos irrelevantes (J7: 6 % → 2 %; J8: 32 % → 20 %). Si alguna prueba fija un número exacto de resultados necesarios, actualizarla.
 - Preparar 2027: actualizar `construirModelosPorConferencia` y `cargarDatos` de `prediccion.js` para leer las nuevas temporadas.
 
 ---
