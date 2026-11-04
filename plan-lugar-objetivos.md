@@ -1,9 +1,41 @@
 # Plan — Objetivos de «lugar final» y «desclasificado» (14 Grandes y Nacional)
 
-> Propuesta · 2026-11-01 · Complementa `plan-nacional.md` (sección «Funciones a continuar»).
+> Propuesta (implementada el 2026-11-01, ver «Estado de implementación») · Complementa `plan-nacional.md` (sección «Funciones a continuar»).
 > **Leído:** `escenarios.js`, `escenarios-nacional.js`, `escenarios-ui.js`, `prediccion.js` (sembrado de Nacional), `nacional.html` (`ordenarEmpate`), `plan-nacional.md`.
 > **Medido:** un prototipo (no se entrega) de las cotas de lugar de Nacional, validado contra la tabla real con marcadores aleatorios (sección 3).
 > **Alcance:** solo diseño. No se programó nada. Pruebas automáticas: siguiente sprint.
+
+---
+
+## Estado de implementación (2026-11-01)
+
+**Decisiones del usuario:** (1) alinear el sembrado de Nacional con la regla de desempate; (2) «lugar» en Nacional = sembrado 1–8 por PG; (3) camino **A1**; (4) texto «fuera de playoffs»; (5) habilitar también 9.º–14.º en 14 Grandes.
+
+**Hecho (fases 0 a 4):**
+- `prediccion.js` y `nacional.html`: el sembrado usa `ordenarEmpatados` (barrido de resultado directo → menor PC). Sembrado antiguo vs nuevo: 537 diferencias en 4,000 temporadas aleatorias; nuevo vs lógica de la página: 0.
+- `escenarios.js`: `objetivoDe`, `esObjetivoLegado`, `optimizarMarcadores` con signo (compatible hacia atrás), `resolverPorPatrones`, `resolverDesempateObj`, `evaluarVector` (riesgo completo solo para objetivos nuevos, A1), `situacionEquipo` y `analizar` con objetivo.
+- `escenarios-nacional.js`: `lugar` en `estadoDe`, `califica`, `clasificarObjetivoNac`, objetivo en enumeración/simulación/MC (`distribucionLugar`), desempate genérico, situaciones y explicaciones por objetivo.
+- `escenarios-ui.js`: selector «Lugar final» activo y por conferencia (14G: 1.º–14.º; Nacional: 1.º–8.º), frase de aclaración, textos y estados por objetivo, desempate con sentido del PC («más» / «menos»).
+
+**Medido:**
+
+| Comprobación | Resultado |
+|---|---|
+| 14G, objetivo omitido o `'clasificado'` vs motor anterior (J6, J7, J8 × 14 equipos) | 0 diferencias de 84 análisis |
+| 14G, Σ P(lugar 1..14) y Σ P(1..8) vs P(clasificado); P(clasif) + P(desclasif) | 1.000000 · igual · 1.000000 |
+| 14G, escenarios de objetivos nuevos reevaluados con la tabla real | 73 de 73 se cumplen |
+| Nacional, cotas por objetivo vs tabla real (J6/J7/J8 × 10 objetivos × 18 equipos) | 0 violaciones en 64,800 |
+| Nacional, objetivo omitido vs motor anterior | idéntico, salvo un equipo en modo riesgo (Lobos ULM con J7), por el modo riesgo completo |
+| Nacional, coherencias de probabilidad | exactas |
+| Nacional, escenarios de todos los objetivos reevaluados con la tabla real | 102 de 102 se cumplen |
+| Interfaz (jsdom, con y sin Worker, ambas páginas) | sin errores |
+
+**Desviaciones respecto al diseño:**
+- En 14 Grandes el modo riesgo del objetivo «clasificado» **no** se completó (A1: se conserva el comportamiento anterior); en Nacional sí se completó para todos los objetivos (no había comportamiento previo que proteger).
+- Las cotas de lugar de Nacional **no** incluyen todavía el afinamiento con resultado directo entre empatados (mejora opcional de la sección 3).
+- La opción «Desclasificado» vale `[9, 14]` en 14 Grandes y `[9, 9]` en Nacional.
+
+**Pendiente:** correr `tests/escenarios.test.js` de 14 Grandes con estos cambios; pruebas automáticas (sección 10); revisar tiempos y aspecto en teléfono; marcas ✅/✖️ del calendario (ver `plan-nacional.md`).
 
 ---
 

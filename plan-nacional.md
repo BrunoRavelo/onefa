@@ -38,7 +38,7 @@ El impacto de un juego se estima con Monte Carlo: `P(clasifica | gana el local) 
 
 ## Funciones a continuar
 
-**Selector «Lugar final» (ya está en pantalla, solo `Clasificado (cualquier lugar)` activo).** Habilitar, una por una:
+**Selector «Lugar final» — HECHO el 2026-11-01** (ver `plan-lugar-objetivos.md`, «Estado de implementación»): las 10 opciones están activas en Nacional (1.º–8.º como sembrado por PG) y 16 en 14 Grandes. Lo que sigue describe el plan original:
 1. **`1.º … 8.º lugar`:** «¿qué tiene que pasar para quedar exactamente en el lugar N?». En 14 Grandes el objetivo ya existe en el motor (`califica(pos, obj)` con rango de posición). En Nacional el lugar es el **sembrado 1–8 por PG** (`seeds`), que hoy no afecta quién clasifica; hay que añadir el sembrado al objetivo y a la clasificación rápida (empates de PG con equipos de otros grupos se desempatan por la regla del sembrado, que en `prediccion.js` sigue siendo por pares).
 2. **`Desclasificado (cualquier lugar)`:** el modo «riesgo» ya existe (qué podría hacerte fallar); falta exponerlo como objetivo elegible y poner textos propios.
 3. Pasar el valor elegido a las opciones del motor (`opciones.lugar`) y ajustar los textos («Escenarios más probables para…»). Hoy el valor no se envía.

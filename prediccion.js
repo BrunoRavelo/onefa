@@ -452,13 +452,6 @@
       if (cVisita && stats[g.visita]) { stats[g.visita].pj++; stats[g.visita].pc += sl; if (sv > sl) stats[g.visita].pg++; }
     });
 
-    const ordenarEmpateDirecto = (tied) => [...tied].sort((a, b) => {
-      const h2h = getDirecto(juegos, a.equipo, b.equipo);
-      if (h2h === 1) return -1;
-      if (h2h === -1) return 1;
-      return a.pc - b.pc;
-    });
-
     const allRows = {};
     Object.entries(grupos).forEach(([grp, teams]) => {
       let rows = teams.map(eq => {
@@ -489,7 +482,7 @@
     while (gi < seeds.length) {
       let gj = gi;
       while (gj < seeds.length && seeds[gj].pg === seeds[gi].pg) gj++;
-      if (gj - gi > 1) seeds.splice(gi, gj - gi, ...ordenarEmpateDirecto(seeds.slice(gi, gj)));
+      if (gj - gi > 1) seeds.splice(gi, gj - gi, ...ordenarEmpatados(seeds.slice(gi, gj), juegos));
       gi = gj;
     }
     seeds.forEach((t, i) => { t.seed = i + 1; });

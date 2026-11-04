@@ -145,7 +145,7 @@ tabla/desempate: existe en `index.html` (`calcStandings`), en `nacional.html`
 empatados de un mismo grupo vive en UNA sola función de `prediccion.js` (`ordenarEmpatados`)**, que usan `calcularStandings14G` y el
 empate dentro de cada grupo de `calcularStandingsNacional`; sigue siendo la misma regla que `index.html` y `nacional.html`
 (*venció a todos los demás empatados → primero; el resto, por menor PC*). Antes, Nacional ordenaba los empates de 3 o más por pares y
-discrepaba de la página. El sembrado general 1–8 de Nacional sigue usando `ordenarEmpateDirecto` (por pares), igual que `nacional.html`.
+discrepaba de la página. **Desde 2026-11-01 el sembrado general 1–8 de Nacional también usa `ordenarEmpatados`** (en `prediccion.js` y en `ordenarEmpate` de `nacional.html`); `ordenarEmpateDirecto` (por pares) se eliminó. En 4,000 temporadas aleatorias el sembrado antiguo y el nuevo diferían en 537.
 
 ---
 
@@ -568,6 +568,11 @@ solo lectura (`localStorage` vacío) y compuertas. **No verifican el aspecto vis
 
 - **Ajuste de ruido en `construirFamilia` (2026-10-31):** ver §8.10. Medido con los datos de esa fecha (J6/J7/J8): mismos escenarios en número (45/43/30), probabilidad total, situación y cotas exactas idénticas, y menos «resultados necesarios» (264→221, 221→182, 148→107). **Las pruebas de `tests/escenarios.test.js` no se corrieron con este cambio: ejecutarlas.**
 
+- **Objetivos de lugar (2026-11-01, camino A1 de `plan-lugar-objetivos.md`):** `analizar(datos, { equipo, objetivo })` acepta `'clasificado'` (por omisión) · `'1'…'14'` (lugar exacto) · `'descalificado'` (lugares 9–14) o un rango `{min,max}`; `objetivoDe(valor, rMax)` y `esObjetivoLegado(obj)` se exportan.
+  El resultado trae `objetivo` y, con objetivos distintos de «clasificado», la `situacion` usa `cumple_siempre` / `cumple_nunca` (con «clasificado» siguen `clasificado` / `eliminado`).
+  Piezas nuevas: `optimizarMarcadores(P, hw, T, restr)` acepta `{ arriba:[…], abajo:[…] }` (un arreglo sigue significando «T mejor que esos»; `abajo` = T queda **peor**), `resolverPorPatrones(P, hw, T, rivales, verificar)` (prueba los ≤ 32 patrones de signo del PC y **verifica cada candidato con la tabla real**) y `resolverDesempateObj`.
+  **Camino A1:** el objetivo «clasificado» conserva `resolverDesempate` y el modo riesgo anteriores (medido: 0 diferencias en 84 análisis, J6/J7/J8 × 14 equipos); los demás objetivos usan el desempate genérico (que además busca marcadores que hagan *fallar* el objetivo). El camino antiguo de `resolverDesempate` **solo es válido con `obj.min = 1`** (tiene un atajo sin verificar). Medido: Σ P(lugar 1..14) = 1, Σ P(lugar 1..8) = P(clasificado), P(clasificado) + P(descalificado) = 1, y 73 de 73 escenarios nuevos se cumplen con la tabla real. **Pruebas de `tests/escenarios.test.js` sin correr con estos cambios: ejecutarlas.**
+
 ### 8.10 Escenarios de Conferencia Nacional — `escenarios-nacional.js` (motor) + `escenarios-worker.js` + `escenarios-ui.js`
 
 Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene que pasar para clasificar a playoffs?), mismas etapas
@@ -600,9 +605,12 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
   Salida como 14G salvo: `meta.grupo`, `distribucionGrupo` (lugar dentro del grupo), `viaClasificacion` (`top2` | `comodin` | `fuera`), `explicacion`, `juegosClave[].relacion`
   (`propio` | `mi_grupo` | `carrera_comodin`) y `escenarios[].tablaFinal = { grupos:{Norte:[…],…}, seeds:[…] }`.
 - **Interfaz (dos conferencias en `escenarios-ui.js`, tabla `CONFS`):** selector de equipo con el mismo formato en ambas (`N. Equipo (PG-PP)`, lista plana, sin grupo ni marcas de estado; Nacional sin Liebres);
-  debajo, selector **«Lugar final»** (solo `Clasificado (cualquier lugar)` activo; `1.º…8.º` y `Desclasificado (cualquier lugar)` inactivos); un equipo ya `clasificado` o `eliminado` muestra **solo su estado**
+  debajo, selector **«Lugar final»** activo (`Clasificado (cualquier lugar)` · `1.º…N.º` · `Desclasificado (cualquier lugar)`; N = 14 en 14G, 8 en Nacional) que viaja al motor como `opciones.objetivo`, con una frase que explica qué es «lugar» en cada conferencia; un equipo ya `clasificado` o `eliminado` muestra **solo su estado**
   (sin probabilidad ni tablas, en 14G y Nacional); en «Ayuda de otros equipos» se ocultan los juegos con impacto < 2 puntos (`UMBRAL_CLAVE`, ruido de la simulación); los escenarios con probabilidad < 0.5 % (`UMBRAL_POCO_PROBABLE`) se ocultan tras el aviso «Casi imposible» y el botón «Ver escenarios poco probables».
   `nacional.html` solo agrega el botón `#btnEscenarios` (`data-esc-conf="nacional"`) y `<script src="escenarios-ui.js">`.
+- **Objetivos (2026-11-01):** el equipo tiene un «lugar final» `r` = **sembrado 1–8 por PG** si clasifica, o **9** si no. Objetivo = rango sobre `r` (`'clasificado'` [1,8] · `'1'…'8'` · `'descalificado'` [9,9]; `ESC.objetivoDe(valor, 9)`). `estadoDe` devuelve `lugar`; `califica(estado, obj)` compara.
+  Cotas por victorias para cualquier objetivo: `clasificarObjetivoNac` (lugares posibles = `[1 + (equipos con más victorias que SEGURO clasifican), min(8, 1 + equipos con ≥ victorias que PUEDEN clasificar)]`, más el 9 si puede no clasificar). Medido contra la tabla real con marcadores aleatorios: **0 violaciones en 64,800 comprobaciones** (J6/J7/J8 × 10 objetivos). Para «lugar exacto» hay más combinaciones «en el filo» (≈ 6–19 %) porque los empates entre grupos se resuelven por PC.
+  El desempate genérico (`resolverDesempateObj`, patrones de signo + tabla real) se usa para los objetivos de lugar/descalificado y, en Nacional, también para buscar cómo *fallar* en modo riesgo (cambio respecto al motor anterior solo en equipos en modo riesgo). La salida agrega `objetivo`, `distribucionLugar` (1..8 y fuera) y `desempate.pcRivales[].ordenPC` (`mas` = el rival termina con más PC que el equipo). `panorama` siempre usa «clasificado». Medido: 102 de 102 escenarios se cumplen con la tabla real; Σ P(lugar) = P(clasificado); P(clasificado) + P(descalificado) = 1.
 - **Estado actual (2026-10-29):** `jornadas_jugadas = 8`; solo falta la J9 (5 juegos libres): el motor ya se puede usar en la última semana.
 - **Limitación conocida:** `solo_desempate` y `FILO` siguen siendo conservadores en PC (el optimizador es heurístico: si no encuentra marcadores no prueba que sea imposible).
 
@@ -748,7 +756,7 @@ Módulo de escenarios (ver `plan.md`):
 - [x] Fase 1: motor 14G + corrección de aplazados + pruebas (`escenarios.js`, `tests/escenarios.test.js`).
 - [x] Fase 2: interfaz (botón en `index.html`, overlay compartido, Web Worker + respaldo, `sw.js` PRECACHE + VERSION v2, estilos `.esc-*`). [ ] Falta revisarla visualmente en un navegador/teléfono reales y medir tiempos en un teléfono.
 - [ ] Fase 3: pulido ("ver más", copiar a mis pronósticos, fijar resultados propios). [ ] Fase 4: posición específica.
-- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [ ] Pendiente: habilitar el selector «Lugar final» (1.º…8.º y Desclasificado; diseño en `plan-lugar-objetivos.md`); marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
+- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [x] Objetivos «lugar 1.º…N.º» y «Desclasificado» en ambas conferencias (ver §8.9 y §8.10; diseño y decisiones en `plan-lugar-objetivos.md`). [ ] Pendiente: marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
 
 Mejoras sugeridas al documentar (no solicitadas aún):
 - [x] Juegos aplazados 0-0 como pendientes en el modelo (hecho). [ ] Falta desbloquear sus inputs en los calendarios (§12.1).

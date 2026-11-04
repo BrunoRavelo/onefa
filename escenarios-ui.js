@@ -22,15 +22,17 @@
     '14g': {
       clave: '14g', prefijo: 'd14', nombre: '14 Grandes', pagina: 'index.html',
       obj: 'el Top 8', totalJuegos: 9,
-      nota: 'Elige un equipo de 14 Grandes y calculamos qué tiene que pasar para que clasifique a playoffs (Top 8). ' +
+      nota: 'Elige un equipo de 14 Grandes y el lugar que quieres que logre (por omisión, clasificar a playoffs: Top 8) y calculamos qué tiene que pasar. ' +
             'Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
+      nLugares: 14, notaLugar: 'Lugar = posición final en la tabla general (1.º a 14.º). «Desclasificado» = quedar fuera del Top 8.',
       jornadaMax: function () { return 9; }, motor: 'ONEFA_ESC', scripts: ['escenarios.js']
     },
     'nacional': {
       clave: 'nacional', prefijo: 'dnac', nombre: 'Conferencia Nacional', pagina: 'nacional.html',
       obj: 'los 8 de playoffs', totalJuegos: null,
-      nota: 'Elige un equipo de la Conferencia Nacional y calculamos qué tiene que pasar para que clasifique a playoffs ' +
-            '(los 2 primeros de cada grupo y los 2 mejores terceros lugares). Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
+      nota: 'Elige un equipo de la Conferencia Nacional y el lugar que quieres que logre (por omisión, clasificar a playoffs: los 2 primeros de cada grupo ' +
+            'y los 2 mejores terceros lugares) y calculamos qué tiene que pasar. Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
+      nLugares: 8, notaLugar: 'Lugar = sembrado 1–8 por partidos ganados (el del bracket de playoffs). «Desclasificado» = no entrar a los 8.',
       jornadaMax: function (d) { let u = 0; d.juegos.forEach(function (g) { if (g.jornada > u) u = g.jornada; }); return u - 1; },
       motor: 'ONEFA_ESC_NAC', scripts: ['escenarios.js', 'escenarios-nacional.js']
     }
@@ -60,6 +62,31 @@
     casi_eliminado: { txt: 'Casi eliminado', cls: 'eliminado',
                       ayuda: 'Es muy difícil: necesitarías varios resultados contrarios a lo esperado.' }
   };
+  // Textos según el objetivo elegido (r.objetivo: { tipo: 'clasificado' | 'lugar' | 'descalificado', k }).
+  function objetivoDe(r) { return (r && r.objetivo) || { tipo: 'clasificado' }; }
+  function esClasificado(o) { return o.tipo === 'clasificado' || o.tipo === 'playoffs'; }
+  function lograr(o) { return esClasificado(o) ? 'clasificar' : (o.tipo === 'lugar' ? 'quedar ' + o.k + '.º' : 'quedar fuera de playoffs'); }
+  function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  function verboTu(o, riesgo) {          // "clasificas" / "quedas 3.º" / "quedas fuera de playoffs" (y su negación)
+    const b = esClasificado(o) ? 'clasificas' : (o.tipo === 'lugar' ? 'quedas ' + o.k + '.º' : 'quedas fuera de playoffs');
+    return riesgo ? 'no ' + b : b;
+  }
+  function sitInfo(r) {
+    const o = objetivoDe(r), sit = r.situacion;
+    if (esClasificado(o) || !(sit === 'cumple_siempre' || sit === 'cumple_nunca' || sit === 'solo_desempate' || sit === 'favorito' || sit === 'burbuja' || sit === 'casi_eliminado')) return SITUACION[sit] || SITUACION.burbuja;
+    const L = lograr(o);
+    if (sit === 'cumple_siempre') return o.tipo === 'lugar'
+      ? { txt: 'Lugar asegurado', cls: 'clasificado', ayuda: 'Pase lo que pase en los juegos que quedan, terminas ' + o.k + '.º.' }
+      : { txt: 'Ya estás fuera de playoffs', cls: 'eliminado', ayuda: 'Pase lo que pase en los juegos que quedan, terminas fuera de los 8 de playoffs.' };
+    if (sit === 'cumple_nunca') return o.tipo === 'lugar'
+      ? { txt: 'Lugar imposible', cls: 'eliminado', ayuda: 'Ni con todos los resultados y desempates a tu favor podrías terminar ' + o.k + '.º.' }
+      : { txt: 'Imposible quedar fuera', cls: 'clasificado', ayuda: 'Ya estás clasificado: es imposible que termines fuera de playoffs.' };
+    if (sit === 'solo_desempate') return { txt: 'Solo por desempate', cls: 'burbuja', ayuda: 'Ninguna combinación de victorias te asegura ' + L + ': solo lo lograrías si ganas el desempate (resultado directo o puntos en contra).' };
+    if (sit === 'favorito') return { txt: 'Favorito', cls: 'favorito', ayuda: 'Según el modelo, ' + L + ' en la gran mayoría de los escenarios.' };
+    if (sit === 'casi_eliminado') return { txt: 'Casi imposible', cls: 'eliminado', ayuda: 'Es muy difícil: necesitarías varios resultados contrarios a lo esperado.' };
+    return { txt: 'En la burbuja', cls: 'burbuja', ayuda: 'Sigue abierto: depende de tus resultados y de los de otros equipos.' };
+  }
+  function decidido(r) { return r.situacion === 'clasificado' || r.situacion === 'eliminado' || r.situacion === 'cumple_siempre' || r.situacion === 'cumple_nunca'; }
   // Un "juego clave" de otro equipo solo se muestra si cambia la probabilidad al menos esto (2 puntos).
   // Menos que eso es ruido de la simulación (el impacto se estima con ~10 000 simulaciones por lado).
   const UMBRAL_CLAVE = 0.02;
@@ -74,12 +101,12 @@
   let worker = null, corrida = 0, bodyOverflowPrevio = '';
 
   // ---------------------------------------------------------------- utilidades
-  // Lugar final deseado. Por ahora SOLO "Clasificado (cualquier lugar)" está activo; el resto se
-  // muestra inactivo y se irá habilitando (ver plan-nacional.md, "Funciones a continuar").
+  // Lugar final deseado: Clasificado (cualquier lugar) · 1.º … N.º (14G: 14; Nacional: 8, el sembrado) · Desclasificado.
+  // El valor viaja al motor como opciones.objetivo (ver plan-lugar-objetivos.md).
   function htmlLugares() {
     let h = '<option value="clasificado" selected>Clasificado (cualquier lugar)</option>';
-    for (let i = 1; i <= 8; i++) h += '<option value="' + i + '" disabled>' + i + '.º lugar</option>';
-    return h + '<option value="descalificado" disabled>Desclasificado (cualquier lugar)</option>';
+    for (let i = 1; i <= (CONF.nLugares || 8); i++) h += '<option value="' + i + '">' + i + '.º lugar</option>';
+    return h + '<option value="descalificado">Desclasificado (cualquier lugar)</option>';
   }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function pct(x) {                       // probabilidad 0..1 → texto
@@ -136,6 +163,7 @@
           '<select id="escLugar" class="esc-select" disabled>' + htmlLugares() + '</select>' +
           '<button id="escAnalizar" class="esc-btn" type="button" disabled>Analizar</button>' +
         '</div>' +
+        '<div id="escLugarNota" class="esc-explica esc-peq" style="margin-top:.4rem"></div>' +
         '<div id="escProgreso" class="esc-progreso" role="status" aria-live="polite" hidden>' +
           '<div class="esc-progreso-txt"><span class="esc-spin" aria-hidden="true"></span><b>Simulando opciones…</b> <span id="escFase"></span></div>' +
           '<div class="esc-barra"><div id="escBarraFill"></div></div>' +
@@ -158,6 +186,8 @@
     if (nueva !== CONF) { CONF = nueva; equipoActual = null; }
     construirOverlay();
     $('escNota').textContent = CONF.nota;
+    $('escLugar').innerHTML = htmlLugares();
+    $('escLugarNota').textContent = CONF.notaLugar || '';
     $('escBrand').setAttribute('href', CONF.pagina);
     $('escEye').textContent = 'Liga Mayor ONEFA — Escenarios · ' + CONF.nombre;
     $('escResultado').innerHTML = '';
@@ -304,7 +334,7 @@
     const id = ++corrida;
     res.innerHTML = '';
     mostrarProgreso(false);
-    const opciones = { equipo: equipo, conferencia: CONF.clave, jornadaMin: ESC_JORNADA_MIN };
+    const opciones = { equipo: equipo, conferencia: CONF.clave, jornadaMin: ESC_JORNADA_MIN, objetivo: $('escLugar').value || 'clasificado' };
     if (CONF.clave === '14g') opciones.jornadaMax = CONF.jornadaMax();     // Nacional: el motor la deriva de los datos
     correrEnWorker(opciones, id)
       .catch(function (err) {
@@ -327,7 +357,7 @@
     const cont = $('escResultado');
     if (!r || r.estado === 'fuera_de_rango') { cont.innerHTML = '<div class="esc-aviso">' + esc((r && r.mensaje) || 'Fuera de rango.') + '</div>'; return; }
     // Equipo ya decidido (clasificado o eliminado con prueba exacta): solo su estado, ninguna otra estadística
-    cont.innerHTML = (r.situacion === 'clasificado' || r.situacion === 'eliminado')
+    cont.innerHTML = decidido(r)
       ? htmlSoloEstado(r, equipo)
       : htmlResumen(r, equipo) + htmlVictorias(r) + htmlClave(r, equipo) + htmlEscenarios(r, equipo) + htmlAviso(r);
     activarTabs(cont);
@@ -341,7 +371,7 @@
   }
 
   function htmlSoloEstado(r, equipo) {
-    const s = SITUACION[r.situacion];
+    const s = sitInfo(r);
     return '<section class="esc-card esc-resumen"><div class="esc-resumen-top">' +
       '<div><div class="esc-eq">' + esc(equipo) + '</div><span class="esc-badge esc-b-' + s.cls + '">' + esc(s.txt) + '</span></div></div>' +
       '<p class="esc-explica">' + esc(ayudaSituacion(s)) + '</p>' +
@@ -350,18 +380,22 @@
   }
 
   function htmlResumen(r, equipo) {
-    const s = SITUACION[r.situacion] || SITUACION.burbuja, m = r.meta, pr = r.probabilidad, c = pr.cotasExactas;
+    const s = sitInfo(r), m = r.meta, pr = r.probabilidad, c = pr.cotasExactas, ob = objetivoDe(r), clas = esClasificado(ob);
     const ic = (pr.ic95[1] - pr.ic95[0]) / 2, nac = CONF.clave === 'nacional';
     const pm = nac ? posicionModal(r, r.distribucionGrupo) : posicionModal(r, r.distribucionPosicion);
+    const plug = nac ? posicionModal(r, r.distribucionLugar) : pm;
     let h = '<section class="esc-card esc-resumen"><div class="esc-resumen-top">' +
       '<div><div class="esc-eq">' + esc(equipo) + '</div><span class="esc-badge esc-b-' + s.cls + '">' + esc(s.txt) + '</span></div>' +
       '<div class="esc-prob"><span class="esc-prob-num">' + pct(pr.p) + '</span>' +
-        '<span class="esc-prob-lbl">probabilidad de clasificar</span>' +
+        '<span class="esc-prob-lbl">probabilidad de ' + esc(lograr(ob)) + '</span>' +
         '<span class="esc-prob-ic" title="Margen de error de la simulación (95 %)">±' + (ic * 100).toFixed(1) + ' pts</span></div>' +
       '</div><p class="esc-explica">' + esc(ayudaSituacion(s)) + '</p>' +
       (r.explicacion ? r.explicacion.map(function (t) { return '<p class="esc-explica"><b>' + esc(t) + '</b></p>'; }).join('') : '') + '<ul class="esc-datos">';
     h += '<li>Quedan <b>' + m.nPendientes + '</b> juegos por jugar en la liga' + (m.aplazados ? ' (incluye <b>' + m.aplazados + '</b> aplazado' + (m.aplazados > 1 ? 's' : '') + ')' : '') + '.</li>';
-    if (nac && r.distribucionGrupo) {
+    if (!clas && (r.distribucionLugar || r.distribucionPosicion)) {
+      const dl = nac ? r.distribucionLugar : r.distribucionPosicion;
+      h += '<li>Lugar final más probable: <b>' + (nac && plug.pos === dl.length ? 'fuera de playoffs' : plug.pos + '.º') + '</b> (' + pct(plug.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de ' + (nac ? m.juegosPorEquipo : CONF.totalJuegos) + '.</li>';
+    } else if (nac && r.distribucionGrupo) {
       h += '<li>Grupo <b>' + esc(m.grupo) + '</b>. Lugar final más probable en tu grupo: <b>' + pm.pos + '.º</b> (' + pct(pm.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de ' + m.juegosPorEquipo + '.</li>';
       const v = r.viaClasificacion;
       h += '<li>Clasificas como <b>top 2 de tu grupo</b> en ' + pct(v.top2) + ' de las simulaciones y como <b>mejor tercer lugar (comodín)</b> en ' + pct(v.comodin) + '.</li>';
@@ -369,16 +403,16 @@
       h += '<li>Posición final más probable: <b>' + pm.pos + '.º</b> (' + pct(pm.p) + ').  Victorias esperadas: <b>' + r.victoriasEsperadas.toFixed(1) + '</b> de ' + CONF.totalJuegos + '.</li>';
     }
     if (c) h += '<li title="Calculado con TODAS las combinaciones de ganadores posibles. El rango existe porque algunos lugares se deciden por desempate (marcadores).">' +
-      'Según todas las combinaciones de ganadores: entre <b>' + pct(c.min) + '</b> (clasificas sin depender de desempates) y <b>' + pct(c.max) + '</b> (si ganas todos los desempates).</li>';
+      'Según todas las combinaciones de ganadores: entre <b>' + pct(c.min) + '</b> (' + esc(verboTu(ob, false)) + ' sin depender de desempates) y <b>' + pct(c.max) + '</b> (si ganas todos los desempates).</li>';
     return h + '</ul></section>';
   }
 
   function htmlVictorias(r) {
     const f = r.porVictoriasPropias || [];
-    if (!f.length) return '<h2 class="esc-h">Según tus victorias propias</h2><div class="esc-card"><p class="esc-explica">Ya no te quedan juegos por jugar: tu clasificación depende solo de otros equipos.</p></div>';
+    if (!f.length) return '<h2 class="esc-h">Según tus victorias propias</h2><div class="esc-card"><p class="esc-explica">Ya no te quedan juegos por jugar: esto depende solo de otros equipos.</p></div>';
     const m = f[0].de;
     let h = '<h2 class="esc-h">Según tus victorias propias (te quedan ' + m + ' juego' + (m > 1 ? 's' : '') + ')</h2><div class="s-wrap"><table class="s-tbl"><thead><tr>' +
-      '<th>Ganas…</th><th class="ta-r">Probabilidad de que ocurra</th><th class="ta-r">Probabilidad de clasificar</th></tr></thead><tbody>';
+      '<th>Ganas…</th><th class="ta-r">Probabilidad de que ocurra</th><th class="ta-r">Probabilidad de ' + esc(lograr(objetivoDe(r))) + '</th></tr></thead><tbody>';
     f.slice().reverse().forEach(function (x) {
       h += '<tr><td class="s-eq">' + x.victorias + ' de ' + x.de + '</td><td class="ta-r">' + pct(x.probabilidadDeEsaCantidad) + '</td>' +
            '<td class="ta-r esc-verde">' + pct(x.p) + '</td></tr>';
@@ -406,17 +440,22 @@
   function htmlEscenarios(r, equipo) {
     const esc_ = r.escenarios || [];
     if (r.busqueda && r.busqueda.omitida) {
-      return '<h2 class="esc-h">Escenarios</h2><div class="esc-aviso">Prácticamente clasificado (probabilidad ≥ 99.5 %): no hay escenarios de riesgo relevantes que mostrar.</div>';
+      return '<h2 class="esc-h">Escenarios</h2><div class="esc-aviso">' + (esClasificado(objetivoDe(r)) ? 'Prácticamente clasificado' : 'Prácticamente seguro') + ' (probabilidad ≥ 99.5 %): no hay escenarios de riesgo relevantes que mostrar.</div>';
     }
     if (!esc_.length) {
-      if (r.situacion === 'clasificado' || r.situacion === 'eliminado') return '';
+      if (decidido(r)) return '';
       return '<h2 class="esc-h">Escenarios</h2><div class="esc-aviso">No se encontraron escenarios dentro del tiempo de búsqueda.</div>';
     }
     const riesgo = r.modo === 'riesgo';
     const hayProbables = esc_.some(function (e) { return e.probabilidad >= UMBRAL_POCO_PROBABLE; });
     const nRaros = esc_.filter(function (e) { return e.probabilidad < UMBRAL_POCO_PROBABLE; }).length;
-    let h = '<h2 class="esc-h">' + (riesgo ? 'Qué podría hacerte fallar' : 'Escenarios más probables para clasificar') + '</h2>';
-    if (r.modoAutomatico) h += '<div class="esc-aviso">Con los resultados esperados por el modelo ya clasificas; esto es lo que más probablemente te sacaría del ' + (CONF.clave === 'nacional' ? 'grupo de 8 de playoffs' : 'Top 8') + '.</div>';
+    const ob = objetivoDe(r), clas = esClasificado(ob);
+    let h = '<h2 class="esc-h">' + (riesgo
+      ? (clas ? 'Qué podría hacerte fallar' : (ob.tipo === 'lugar' ? 'Qué podría sacarte del ' + ob.k + '.º lugar' : 'Qué podría evitar que quedes fuera de playoffs'))
+      : 'Escenarios más probables para ' + lograr(ob)) + '</h2>';
+    if (r.modoAutomatico) h += '<div class="esc-aviso">' + (clas
+      ? 'Con los resultados esperados por el modelo ya clasificas; esto es lo que más probablemente te sacaría del ' + (CONF.clave === 'nacional' ? 'grupo de 8 de playoffs' : 'Top 8') + '.'
+      : 'Con los resultados esperados por el modelo ya logras este objetivo (' + lograr(ob) + '); esto es lo que más probablemente te lo quitaría.') + '</div>';
     // Los escenarios llegan ordenados de mayor a menor probabilidad: los casi imposibles son siempre los últimos
     let primero = true;
     h += '<div class="esc-tabs" role="tablist">' + esc_.map(function (e, i) {
@@ -427,19 +466,29 @@
     if (nRaros) {
       h += '<div class="esc-aviso esc-raros"><b>Casi imposible.</b> ' +
         (hayProbables
-          ? (nRaros === 1 ? 'Hay 1 escenario más' : 'Hay ' + nRaros + ' escenarios más') + (riesgo ? ' para fallar' : ' para clasificar') + ', pero ' + (nRaros === 1 ? 'tiene' : 'tienen') + ' menos de 0.5 % de probabilidad.'
-          : (riesgo ? 'Fallar por los caminos que encontramos' : 'Clasificar por los caminos que encontramos') + ' tiene menos de 0.5 % de probabilidad.') +
+          ? (nRaros === 1 ? 'Hay 1 escenario más' : 'Hay ' + nRaros + ' escenarios más') + (riesgo ? ' para fallar' : ' para ' + lograr(ob)) + ', pero ' + (nRaros === 1 ? 'tiene' : 'tienen') + ' menos de 0.5 % de probabilidad.'
+          : (riesgo ? 'Fallar por los caminos que encontramos' : cap(lograr(ob)) + ' por los caminos que encontramos') + ' tiene menos de 0.5 % de probabilidad.') +
         ' <button type="button" class="esc-btn esc-ver-raros" style="margin-top:.5rem">Ver escenarios poco probables</button></div>';
     }
     let marcado = false;
     h += esc_.map(function (e, i) {
       const visible = !marcado && e.probabilidad >= UMBRAL_POCO_PROBABLE; if (visible) marcado = true;
-      return htmlPanel(e, equipo, riesgo, visible);
+      return htmlPanel(e, equipo, riesgo, visible, ob);
     }).join('');
     return h;
   }
 
-  function htmlPanel(e, equipo, riesgo, visible) {
+  // Frase de PC con sentido: ordenPC 'mas' = el rival termina con MÁS PC que el equipo (el equipo queda por delante);
+  // 'menos' = el rival termina con MENOS PC (el equipo queda por detrás).
+  function htmlPcConSentido(e, equipo, riv) {
+    const mas = riv.filter(function (x) { return x.ordenPC === 'mas'; }), menos = riv.filter(function (x) { return x.ordenPC === 'menos'; });
+    const lst = function (a) { return a.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', '); };
+    return 'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC' +
+      (mas.length ? '; <b>menos</b> PC que ' + lst(mas) + ' (queda por delante)' : '') +
+      (menos.length ? '; <b>más</b> PC que ' + lst(menos) + ' (queda por detrás)' : '') + '.';
+  }
+
+  function htmlPanel(e, equipo, riesgo, visible, ob) {
     let h = '<div class="esc-panel' + (visible ? ' on' : '') + '" data-i="' + (e.id - 1) + '">';
     h += '<div class="esc-card"><div class="esc-chips">';
     h += '<span class="esc-chip">' + (e.sorpresas ? e.sorpresas + ' sorpresa' + (e.sorpresas > 1 ? 's' : '') + ' (gana el no favorito)' : 'Resultados esperados por el modelo') + '</span>';
@@ -448,9 +497,9 @@
     h += '</div>';
     h += '<p class="esc-explica">' + (riesgo ? 'Este escenario ocurre' : 'Este escenario ocurre') + ' con probabilidad <b>' + pctFino(e.probabilidad) + '</b>: ' +
       'los resultados necesarios coinciden con probabilidad ' + pctFino(e.probabilidadDeLaCondicion) + ' y, dadas esas condiciones, ' +
-      (riesgo ? 'no clasificas' : 'clasificas') + ' en <b>' + pct(e.probabilidadCondicion) + '</b> de los casos. Los escenarios se traslapan: no son excluyentes.</p>';
+      verboTu(ob, riesgo) + ' en <b>' + pct(e.probabilidadCondicion) + '</b> de los casos. Los escenarios se traslapan: no son excluyentes.</p>';
     // resultados necesarios
-    h += '<h3>' + (riesgo ? 'Resultados que te dejarían fuera' : 'Resultados necesarios') + '</h3>';
+    h += '<h3>' + (riesgo ? (esClasificado(ob) ? 'Resultados que te dejarían fuera' : 'Resultados que lo evitarían') : 'Resultados necesarios') + '</h3>';
     if (!e.necesarios.length) h += '<p class="esc-explica">Ningún resultado en particular es indispensable.</p>';
     else h += '<ul class="esc-lista">' + e.necesarios.map(function (n) {
       return '<li><span class="esc-j">J' + n.jornada + '</span> ' + esc(n.local) + ' vs ' + esc(n.visita) + ': gana <b>' + esc(n.ganador) + '</b>' +
@@ -460,22 +509,26 @@
     if (e.desempate && e.via === 'desempate_comodin' && e.desempate.pcRivales) {
       const riv = e.desempate.pcRivales.filter(function (x) { return !x.mismoGrupo; });
       h += '<div class="esc-desempate"><b>Desempate por el comodín:</b> ' + esc(equipo) + ' y ' + riv.map(function (x) { return esc(x.equipo); }).join(', ') +
-        ' terminan con las mismas victorias en el tercer lugar de sus grupos y el último lugar de comodín se decide por menos puntos en contra (PC). ' +
-        'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' +
-        riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.</div>';
+        ' terminan con las mismas victorias en el tercer lugar de sus grupos y el último lugar de comodín se decide por puntos en contra (PC). ' +
+        (riv.length && riv[0].ordenPC ? htmlPcConSentido(e, equipo, riv)
+          : 'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' + riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.') + '</div>';
     } else if (e.desempate && e.via === 'desempate_pc' && e.desempate.pcRivales) {
-      const riv = CONF.clave === 'nacional' ? e.desempate.pcRivales.filter(function (x) { return x.mismoGrupo; }) : e.desempate.pcRivales;
+      const soloGrupo = CONF.clave === 'nacional' && esClasificado(ob);     // con otros objetivos el empate puede ser entre grupos (sembrado)
+      const riv = soloGrupo ? e.desempate.pcRivales.filter(function (x) { return x.mismoGrupo; }) : e.desempate.pcRivales;
       const eq = CONF.clave === 'nacional' ? [equipo].concat(riv.map(function (x) { return x.equipo; })) : e.desempate.grupo;
-      h += '<div class="esc-desempate"><b>Desempate:</b> ' + esc(eq.join(', ')) + ' empatan en victorias y se acomodan por menos puntos en contra (PC). ' +
-        'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' +
-        riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.</div>';
+      h += '<div class="esc-desempate"><b>Desempate:</b> ' + esc(eq.join(', ')) + ' empatan en victorias y se acomodan por puntos en contra (PC). ' +
+        (riv.length && riv[0].ordenPC ? htmlPcConSentido(e, equipo, riv)
+          : 'Con estos marcadores: ' + esc(equipo) + ' <b>' + e.desempate.pcEquipo + '</b> PC; ' + riv.map(function (x) { return esc(x.equipo) + ' ' + x.pc; }).join(', ') + '.') + '</div>';
     }
     // completaciones exactas
     if (e.completaciones) {
       const c = e.completaciones;
       h += '<p class="esc-explica esc-peq">Si solo se cumplen esos resultados y todo lo demás puede pasar de cualquier forma: ' +
-        (riesgo ? pct(c.pFuera) + ' quedas fuera seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pSeguro) + ' clasificas de todos modos.'
-                : pct(c.pSeguro) + ' clasificas seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pFuera) + ' no clasificas.') + '</p>';
+        (esClasificado(ob)
+          ? (riesgo ? pct(c.pFuera) + ' quedas fuera seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pSeguro) + ' clasificas de todos modos.'
+                    : pct(c.pSeguro) + ' clasificas seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pFuera) + ' no clasificas.')
+          : (riesgo ? pct(c.pFuera) + ' el objetivo falla seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pSeguro) + ' se cumple de todos modos.'
+                    : pct(c.pSeguro) + ' lo logras seguro, ' + pct(c.pFilo) + ' depende del desempate, ' + pct(c.pFuera) + ' no lo logras.')) + '</p>';
     }
     h += '</div>';
     // pantalla de marcadores

@@ -52,6 +52,19 @@
     verificarCompletacionesMaxF: 22
   };
   const OBJETIVO_PLAYOFFS = { tipo: 'playoffs', min: 1, max: 8 };
+  // Objetivo = rango [min, max] sobre el "lugar final" r (14G: posición 1..14; Nacional: sembrado 1..8, o 9 si no clasifica).
+  //   valor de la interfaz: 'clasificado' | '1'..'N' (lugar exacto) | 'descalificado'.   rMax: último lugar posible (14G: 14, Nacional: 9).
+  function objetivoDe(valor, rMax) {
+    if (valor && typeof valor === 'object') return Object.assign({}, valor);
+    const v = String(valor == null ? 'clasificado' : valor);
+    if (v === 'clasificado' || v === 'playoffs') return { tipo: 'clasificado', min: 1, max: 8 };
+    if (v === 'descalificado') return { tipo: 'descalificado', min: 9, max: rMax };
+    const k = parseInt(v, 10);
+    if (!(k >= 1 && k <= rMax)) throw new Error('Objetivo no válido: ' + v);
+    return { tipo: 'lugar', k: k, min: k, max: k };
+  }
+  // El objetivo "clasificado" conserva el comportamiento histórico del motor (camino A1 del plan-lugar-objetivos.md)
+  function esObjetivoLegado(obj) { return obj.tipo === 'playoffs' || obj.tipo === 'clasificado'; }
   const SEGURO = 0, FILO = 1, FUERA = 2;
 
   // ==========================================================================
@@ -378,23 +391,29 @@
     return out;
   }
 
-  // Ajusta marcadores (sin cambiar ganadores) para que PC_x − PC_T ≥ 1 para todo x∈S,
-  // moviendo de a 1 punto el marcador de mejor relación ganancia/costo de plausibilidad.
-  function optimizarMarcadores(P, hw, T, S) {
+  // Ajusta marcadores (sin cambiar ganadores) moviendo de a 1 punto el marcador de mejor relación
+  // ganancia/costo de plausibilidad hasta cumplir las restricciones de PC:
+  //   · `restr` como arreglo S (uso original): PC_x − PC_T ≥ 1 para todo x∈S (T queda mejor que los de S);
+  //   · `restr` como { arriba:[…], abajo:[…] }: `arriba` igual que S; `abajo`: PC_T − PC_x ≥ 1 (T queda PEOR que x).
+  function optimizarMarcadores(P, hw, T, restr) {
+    const arriba = Array.isArray(restr) ? restr : (restr.arriba || []), abajo = Array.isArray(restr) ? [] : (restr.abajo || []);
     const n = P.n, MAXP = P.o.maxPuntos, sg = P.o.sigmaPuntos, dos = 2 * sg * sg;
     const base = marcadoresBase(P, hw);
     const sl = Int16Array.from(base.sl), sv = Int16Array.from(base.sv);
     const pc = Float64Array.from(P.pcBase);
     for (let i = 0; i < n; i++) { const x = P.G[i]; pc[x.iL] += sv[i]; pc[x.iV] += sl[i]; }
     for (let it = 0; it < 900; it++) {
-      const viol = S.filter(function (x) { return pc[x] - pc[T] < 1; });
-      if (!viol.length) break;
+      const violA = arriba.filter(function (x) { return pc[x] - pc[T] < 1; });
+      const violB = abajo.filter(function (x) { return pc[T] - pc[x] < 1; });
+      if (!violA.length && !violB.length) break;
       let mejor = null;
       for (let i = 0; i < n; i++) {
         const x = P.G[i];
         for (let lado = 0; lado < 2; lado++) {
           const v = lado === 0 ? x.iV : x.iL;                  // quien "permite" estos puntos
-          let g = 0; for (let q = 0; q < viol.length; q++) g += (v === viol[q] ? 1 : 0) - (v === T ? 1 : 0);
+          let g = 0;
+          for (let q = 0; q < violA.length; q++) g += (v === violA[q] ? 1 : 0) - (v === T ? 1 : 0);
+          for (let q = 0; q < violB.length; q++) g += (v === T ? 1 : 0) - (v === violB[q] ? 1 : 0);
           if (g === 0) continue;
           const dl = g > 0 ? 1 : -1;
           const s0 = lado === 0 ? sl[i] : sv[i], b0 = lado === 0 ? base.sl[i] : base.sv[i], s1 = s0 + dl;
@@ -410,7 +429,7 @@
       if (mejor.lado === 0) sl[mejor.i] = mejor.s1; else sv[mejor.i] = mejor.s1;
       pc[mejor.v] += mejor.dl;
     }
-    if (S.some(function (x) { return pc[x] - pc[T] < 1; })) return null;
+    if (arriba.some(function (x) { return pc[x] - pc[T] < 1; }) || abajo.some(function (x) { return pc[T] - pc[x] < 1; })) return null;
     let J = 0, devMax = 0;
     for (let i = 0; i < n; i++) {
       const dL = sl[i] - base.sl[i], dV = sv[i] - base.sv[i];
@@ -463,9 +482,64 @@
     return { ok: true, via: 'desempate_pc', sl: mejor.sl, sv: mejor.sv, exigencia: exigenciaDe(mejor.devMax), desempate: desempateInfo(mejor.sl, mejor.sv) };
   }
 
+  // Desempate GENÉRICO (no razona la regla): prueba los patrones de signo del PC de T contra cada rival
+  // empatado (T "arriba" o "abajo" de cada uno), pide marcadores con el optimizador y VERIFICA cada candidato con
+  // la tabla real (`verificar(sl, sv)`), así que no puede haber falsos positivos. Sirve para cualquier objetivo
+  // (también para perder un desempate). Con ≤ 5 rivales son ≤ 32 patrones.
+  function resolverPorPatrones(P, hw, T, rivales, verificar) {
+    const base = marcadoresBase(P, hw);
+    if (verificar(base.sl, base.sv)) return { ok: true, sl: base.sl, sv: base.sv, J: 0, devMax: 0, signos: null };
+    const R = rivales.slice(0, 5), m = R.length;
+    const pc0 = Float64Array.from(P.pcBase);
+    for (let i = 0; i < P.n; i++) { const x = P.G[i]; pc0[x.iL] += base.sv[i]; pc0[x.iV] += base.sl[i]; }
+    const patrones = [];
+    for (let mask = 0; mask < (1 << m); mask++) {
+      const arriba = [], abajo = []; let viol = 0;
+      for (let j = 0; j < m; j++) {
+        if ((mask >> j) & 1) { arriba.push(R[j]); if (pc0[R[j]] - pc0[T] < 1) viol++; }   // rival con MÁS PC que T
+        else { abajo.push(R[j]); if (pc0[T] - pc0[R[j]] < 1) viol++; }                      // rival con MENOS PC que T
+      }
+      patrones.push({ arriba: arriba, abajo: abajo, viol: viol });
+    }
+    patrones.sort(function (a, b) { return a.viol - b.viol; });
+    let mejor = null, tier = -1;
+    for (let k = 0; k < patrones.length && k < 80; k++) {
+      const pt = patrones[k];
+      if (mejor && pt.viol > tier) break;               // ya hubo éxito en un nivel menos exigente
+      const opt = optimizarMarcadores(P, hw, T, { arriba: pt.arriba, abajo: pt.abajo });
+      if (!opt) continue;
+      if (mejor && opt.J >= mejor.J) continue;
+      if (verificar(opt.sl, opt.sv)) { mejor = opt; mejor.signos = { arriba: pt.arriba, abajo: pt.abajo }; tier = pt.viol; }
+    }
+    return mejor ? { ok: true, sl: mejor.sl, sv: mejor.sv, J: mejor.J, devMax: mejor.devMax, signos: mejor.signos } : { ok: false };
+  }
+
+  // Desempate para objetivos que no son "subir hasta el Top N" (lugar exacto, descalificado) y para
+  // buscar marcadores que hagan FALLAR el objetivo (`negar`).
+  function resolverDesempateObj(P, hw, T, obj, negar) {
+    const W = victorias(P, hw), base = marcadoresBase(P, hw);
+    const rivales = []; for (let t = 0; t < P.nEq; t++) if (t !== T && W[t] === W[T]) rivales.push(t);
+    const verificar = function (sl, sv) {
+      const ok = califica(posicionDe(tablaFinal(P, sl, sv), P.equipos[T]), obj);
+      return negar ? !ok : ok;
+    };
+    const r = resolverPorPatrones(P, hw, T, rivales, verificar);
+    if (!r.ok) return { ok: false };
+    const pc = Float64Array.from(P.pcBase);
+    for (let i = 0; i < P.n; i++) { const x = P.G[i]; pc[x.iL] += r.sv[i]; pc[x.iV] += r.sl[i]; }
+    const sg = r.signos;
+    return { ok: true, via: 'desempate_pc', sl: r.sl, sv: r.sv, exigencia: r.J === 0 ? 'facil' : exigenciaDe(r.devMax),
+             desempate: { grupo: [P.equipos[T]].concat(rivales.map(function (t) { return P.equipos[t]; })), plazas: obj.max, pcEquipo: pc[T],
+                          pcRivales: rivales.map(function (t) {
+                            return { equipo: P.equipos[t], pc: pc[t], ordenPC: (sg && sg.arriba.indexOf(t) >= 0) ? 'mas' : ((sg && sg.abajo.indexOf(t) >= 0) ? 'menos' : (pc[t] > pc[T] ? 'mas' : 'menos')) };
+                          }) } };
+  }
+
   // ==========================================================================
   // Evaluación de un vector de ganadores
   //   modo 'clasificar': el objetivo se cumple (Q)         modo 'riesgo': el objetivo FALLA (¬Q)
+  // Camino A1: con el objetivo "clasificado" se conserva el comportamiento anterior; los demás objetivos usan el
+  // desempate genérico (resolverDesempateObj), que también busca marcadores que hagan FALLAR en modo riesgo.
   // ==========================================================================
   function evaluarVector(P, hw, T, obj, modo) {
     const W = victorias(P, hw), c = clasificarVictorias(P, W, T, obj);
@@ -473,11 +547,14 @@
       if (c === FUERA) { const b = marcadoresBase(P, hw); return { cumple: true, via: 'ganadores', sl: b.sl, sv: b.sv, exigencia: null }; }
       if (c === SEGURO) return { cumple: false };
       const b = marcadoresBase(P, hw), rows = tablaFinal(P, b.sl, b.sv);
-      return califica(posicionDe(rows, P.equipos[T]), obj) ? { cumple: false } : { cumple: true, via: 'desempate_pc', sl: b.sl, sv: b.sv, exigencia: null };
+      if (!califica(posicionDe(rows, P.equipos[T]), obj)) return { cumple: true, via: 'desempate_pc', sl: b.sl, sv: b.sv, exigencia: null };
+      if (esObjetivoLegado(obj)) return { cumple: false };
+      const rr = resolverDesempateObj(P, hw, T, obj, true);
+      return rr.ok ? Object.assign({ cumple: true }, rr) : { cumple: false };
     }
     if (c === FUERA) return { cumple: false };
     if (c === SEGURO) { const b = marcadoresBase(P, hw); return { cumple: true, via: 'ganadores', sl: b.sl, sv: b.sv, exigencia: null }; }
-    const r = resolverDesempate(P, hw, T, obj);
+    const r = obj.min === 1 ? resolverDesempate(P, hw, T, obj) : resolverDesempateObj(P, hw, T, obj, false);
     return r.ok ? Object.assign({ cumple: true }, r) : { cumple: false };
   }
 
@@ -615,10 +692,12 @@
   // ==========================================================================
   // Situación del equipo y análisis completo
   // ==========================================================================
-  function situacionEquipo(exacto, pMC, o) {
+  // Con "clasificado": clasificado / eliminado (nombres históricos). Con otros objetivos: cumple_siempre / cumple_nunca.
+  function situacionEquipo(exacto, pMC, o, obj) {
+    const legado = !obj || esObjetivoLegado(obj);
     if (exacto) {
-      if (exacto.filo.n === 0 && exacto.fuera.n === 0) return 'clasificado';
-      if (exacto.seguro.n === 0 && exacto.filo.n === 0) return 'eliminado';
+      if (exacto.filo.n === 0 && exacto.fuera.n === 0) return legado ? 'clasificado' : 'cumple_siempre';
+      if (exacto.seguro.n === 0 && exacto.filo.n === 0) return legado ? 'eliminado' : 'cumple_nunca';
       if (exacto.seguro.n === 0) return 'solo_desempate';
     }
     if (pMC >= o.umbralFavorito) return 'favorito';
@@ -637,10 +716,10 @@
     const P = prepararProblema(datos, o);
     const T = P.idx[o.equipo];
     if (T === undefined) throw new Error('Equipo no encontrado en 14 Grandes: ' + o.equipo);
-    const obj = Object.assign({}, o.objetivo || OBJETIVO_PLAYOFFS);
+    const obj = o.objetivo ? objetivoDe(o.objetivo, P.nEq) : Object.assign({}, OBJETIVO_PLAYOFFS);
     const rng = crearRng(o.semilla + T * 7919 + jj);
     const nVar = P.G.filter(function (x) { return !x.forzado; }).length;
-    const meta = { equipo: o.equipo, jornadasJugadas: jj, nPendientes: P.n, nVariables: nVar, aplazados: P.G.filter(function (x) { return x.aplazado; }).length,
+    const meta = { equipo: o.equipo, objetivo: obj, jornadasJugadas: jj, nPendientes: P.n, nVariables: nVar, aplazados: P.G.filter(function (x) { return x.aplazado; }).length,
                    parametros: { sigma: o.sigma || PRED.SIGMA_MARGEN[P.conferencia], pMin: o.pMin != null ? o.pMin : PRED.P_MIN, pMax: o.pMax != null ? o.pMax : PRED.P_MAX,
                                  sims: o.sims, semilla: o.semilla, K: o.K }, advertencias: adv };
 
@@ -654,9 +733,9 @@
     const mc = monteCarloCompleto(P, T, obj, rng, ctx);
     ctx.progreso('victorias', 0);
     const tabVict = tablaVictoriasPropias(P, T, obj, mc.propios, rng);
-    const situacion = situacionEquipo(exacto, mc.p, o);
+    const situacion = situacionEquipo(exacto, mc.p, o, obj);
     const resultado = {
-      meta: meta, estado: 'ok', situacion: situacion,
+      meta: meta, estado: 'ok', situacion: situacion, objetivo: obj,
       probabilidad: { p: mc.p, ic95: mc.ic95, metodo: 'montecarlo',
                       cotasExactas: exacto ? { min: exacto.seguro.p, max: exacto.seguro.p + exacto.filo.p } : null },
       exacto: exacto, distribucionPosicion: mc.distribucionPosicion, victoriasEsperadas: mc.victoriasEsperadas,
@@ -665,7 +744,7 @@
     };
 
     // Búsqueda de escenarios (no aplica si ya está decidido o es prácticamente seguro)
-    if (situacion === 'clasificado' || situacion === 'eliminado') { ctx.progreso('listo', 1); resultado.meta.ms = Date.now() - t0; return resultado; }
+    if (situacion === 'clasificado' || situacion === 'eliminado' || situacion === 'cumple_siempre' || situacion === 'cumple_nunca') { ctx.progreso('listo', 1); resultado.meta.ms = Date.now() - t0; return resultado; }
     if (situacion === 'favorito' && mc.p >= o.umbralPracticamenteSeguro) {
       resultado.busqueda = { omitida: true, motivo: 'practicamente_clasificado' };
       ctx.progreso('listo', 1); resultado.meta.ms = Date.now() - t0; return resultado;
@@ -716,13 +795,13 @@
   }
 
   const API = {
-    DEF: DEF, OBJETIVO_PLAYOFFS: OBJETIVO_PLAYOFFS, SEGURO: SEGURO, FILO: FILO, FUERA: FUERA,
+    DEF: DEF, OBJETIVO_PLAYOFFS: OBJETIVO_PLAYOFFS, objetivoDe: objetivoDe, esObjetivoLegado: esObjetivoLegado, SEGURO: SEGURO, FILO: FILO, FUERA: FUERA,
     crearRng: crearRng, probit: probit,
     prepararProblema: prepararProblema, ganadoresFavoritos: ganadoresFavoritos, victorias: victorias,
     marcadoresBase: marcadoresBase, tablaFinal: tablaFinal, posicionDe: posicionDe,
     clasificarVictorias: clasificarVictorias, enumerarExacto: enumerarExacto,
     crearSimulador: crearSimulador, probabilidadQ: probabilidadQ, monteCarloCompleto: monteCarloCompleto,
-    resolverDesempate: resolverDesempate, optimizarMarcadores: optimizarMarcadores,
+    resolverDesempate: resolverDesempate, resolverDesempateObj: resolverDesempateObj, resolverPorPatrones: resolverPorPatrones, optimizarMarcadores: optimizarMarcadores,
     evaluarVector: evaluarVector, buscarVectores: buscarVectores, construirFamilia: construirFamilia,
     analizar: analizar
   };

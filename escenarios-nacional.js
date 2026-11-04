@@ -11,7 +11,11 @@
      partidos ganados (PG), así que TODO el motor trabaja con victorias.
    · Desempate (regla de ONEFA, ONEFA_PRED.ordenarEmpatados): quien venció a todos los
      demás empatados va primero; el resto, por menor puntaje en contra (PC). Entre los
-     3 terceros (de grupos distintos) se compara por PG y luego por menor PC.
+     3 terceros (de grupos distintos) se compara por PG y luego por menor PC. El sembrado
+     1–8 usa la misma regla (desde 2026-11-01).
+   · Objetivos (plan-lugar-objetivos.md): el equipo recibe un "lugar final" r = sembrado
+     1..8 si clasifica, o 9 si no. Objetivo = rango [min, max] sobre r:
+     'clasificado' [1,8] · lugar k [k,k] · 'descalificado' [9,9].
    · Toda tabla final sale de ONEFA_PRED.calcularStandingsNacional: aquí NO se
      reimplementa la regla de clasificación (solo una versión rápida "por victorias"
      para la enumeración, siempre verificada contra la tabla real en la capa de marcadores).
@@ -38,7 +42,9 @@
   const SEGURO = ESC.SEGURO, FILO = ESC.FILO, FUERA = ESC.FUERA;
   const crearRng = ESC.crearRng, probit = ESC.probit, victorias = ESC.victorias,
         marcadoresBase = ESC.marcadoresBase, ganadoresFavoritos = ESC.ganadoresFavoritos,
-        optimizarMarcadores = ESC.optimizarMarcadores, buscarVectores = ESC.buscarVectores;
+        optimizarMarcadores = ESC.optimizarMarcadores, buscarVectores = ESC.buscarVectores,
+        resolverPorPatrones = ESC.resolverPorPatrones, objetivoDe = ESC.objetivoDe;
+  const R_MAX = 9;   // lugar final r: sembrado 1..8 si clasifica; 9 si no clasifica
 
   // ==========================================================================
   // PARÁMETROS (sobrescribibles vía opciones). Se heredan los de 14G salvo lo medido en Nacional.
@@ -156,8 +162,9 @@
       };
     });
     o.jornadaMax = (o.jornadaMax != null) ? o.jornadaMax : ultimaJornada(d) - 1;
+    const obj = objetivoDe(o.objetivo || 'clasificado', R_MAX);
     const gruposObj = {}; nombresGrupo.forEach(function (gn) { gruposObj[gn] = d.grupos[gn].slice(); });
-    return { o: o, conferencia: 'nacional', anio: act.anio, jj: jj, ultima: ultimaJornada(d), modelo: modelo,
+    return { o: o, obj: obj, conferencia: 'nacional', anio: act.anio, jj: jj, ultima: ultimaJornada(d), modelo: modelo,
              equipos: equipos, idx: idx, nEq: nEq, nombresGrupo: nombresGrupo, grupoDe: grupoDe, miembros: miembros,
              gruposObj: gruposObj, todos: todos, posPend: posPend, jugados: jugados, G: G, n: G.length,
              base: base, pcBase: pcBase, pj: pj, pendientesDe: pendientesDe, pk: pk, pv: pv,
@@ -179,9 +186,10 @@
   function estadoDe(P, res, T) {
     const nombre = P.equipos[T], gn = P.nombresGrupo[P.grupoDe[T]], rows = res.allRows[gn];
     let pos = -1; for (let i = 0; i < rows.length; i++) if (rows[i].equipo === nombre) { pos = i + 1; break; }
-    let enSeeds = false; for (let i = 0; i < res.seeds.length; i++) if (res.seeds[i].equipo === nombre) { enSeeds = true; break; }
-    return { clasifica: enSeeds, grupo: gn, posGrupo: pos, via: pos <= 2 ? 'top2' : (enSeeds ? 'comodin' : 'fuera') };
+    let enSeeds = false, lugar = R_MAX; for (let i = 0; i < res.seeds.length; i++) if (res.seeds[i].equipo === nombre) { enSeeds = true; lugar = res.seeds[i].seed; break; }
+    return { clasifica: enSeeds, lugar: lugar, grupo: gn, posGrupo: pos, via: pos <= 2 ? 'top2' : (enSeeds ? 'comodin' : 'fuera') };
   }
+  function califica(estado, obj) { return estado.lugar >= obj.min && estado.lugar <= obj.max; }
 
   // ==========================================================================
   // Clasificación rápida con SOLO victorias y ganadores (plan-nacional §4.3)
@@ -256,12 +264,39 @@
     return pesimista ? SEGURO : (optimista ? FILO : FUERA);
   }
 
+  // Cotas por victorias para CUALQUIER objetivo (plan-lugar-objetivos.md §3, validadas contra la tabla real).
+  // Lugares posibles de T: cierto = equipos con más victorias que SEGURO clasifican (quedan arriba);
+  // posible = equipos con ≥ victorias que PUEDEN clasificar (incluye empates). Si T clasifica: [1+cierto, min(8, 1+posible)];
+  // si puede no clasificar, también 9.
+  function clasificarObjetivoNac(P, W, hw, T, obj) {
+    const qT = evaluarVictoriasNac(P, W, hw, T, null);
+    if (obj.tipo === 'clasificado' || obj.tipo === 'playoffs') return qT;
+    let lo = 0, hi = -1;
+    if (qT !== FUERA) {
+      let cierto = 0, posible = 0;
+      const wT = W[T];
+      for (let u = 0; u < P.nEq; u++) {
+        if (u === T || W[u] < wT) continue;
+        const q = evaluarVictoriasNac(P, W, hw, u, null);
+        if (q !== FUERA) posible++;
+        if (q === SEGURO && W[u] > wT) cierto++;
+      }
+      lo = 1 + cierto; hi = Math.min(8, 1 + posible);
+    }
+    const con9 = qT !== SEGURO;                                   // T puede quedar sin clasificar (lugar 9)
+    const seg = hi >= lo;
+    const dentro9 = R_MAX >= obj.min && R_MAX <= obj.max;
+    const todosDentro = (!seg || (lo >= obj.min && hi <= obj.max)) && (!con9 || dentro9);
+    const ningunoDentro = (!seg || (hi < obj.min || lo > obj.max)) && (!con9 || !dentro9);
+    return todosDentro ? SEGURO : (ningunoDentro ? FUERA : FILO);
+  }
+
   // ==========================================================================
   // Enumeración exacta con código Gray (solo ganadores). Con `fijos` (Map id→bool)
   // calcula la distribución CONDICIONADA a esos resultados.
   // ==========================================================================
   function enumerarExacto(P, T, fijos, ctxIn) {
-    const ctx = ctxPorDefecto(ctxIn);
+    const ctx = ctxPorDefecto(ctxIn), obj = P.obj, rapido = (obj.tipo === 'clasificado' || obj.tipo === 'playoffs');
     const n = P.n, W = Int8Array.from(P.base), hw = new Uint8Array(n);
     const libres = [], ratio = [];
     let prod = 1;
@@ -285,7 +320,7 @@
         else       { hl[b] = 1; hw[libres[b]] = 1; W[iLs[b]]++; W[iVs[b]]--; prod *= ratio[b]; }
         if ((k & (paso - 1)) === 0) { ctx.progreso('enumeracion', k / total); if (ctx.cancelado()) return null; }
       }
-      const c = evaluarVictoriasNac(P, W, hw, T, null);
+      const c = rapido ? evaluarVictoriasNac(P, W, hw, T, null) : clasificarObjetivoNac(P, W, hw, T, obj);
       cnt[c]++; pr[c] += prod;
     }
     return { libres: m, total: total,
@@ -350,7 +385,7 @@
   function probabilidadQ(P, T, N, rng, forzados) {
     const S = crearSimulador(P, T, rng);
     let ok = 0;
-    for (let s = 0; s < N; s++) { S.muestrear(forzados); if (S.estado().clasifica) ok++; }
+    for (let s = 0; s < N; s++) { S.muestrear(forzados); if (califica(S.estado(), P.obj)) ok++; }
     return ok / N;
   }
 
@@ -367,13 +402,13 @@
     const tam = P.miembros[P.grupoDe[T]].length;
     const propios = []; P.G.forEach(function (x, i) { if (x.iL === T || x.iV === T) propios.push(i); });
     const mT = propios.length;
-    const posHist = new Array(tam + 1).fill(0), via = { top2: 0, comodin: 0, fuera: 0 };
+    const posHist = new Array(tam + 1).fill(0), via = { top2: 0, comodin: 0, fuera: 0 }, lugarHist = new Array(R_MAX + 1).fill(0);
     const nL = new Float64Array(n), qL = new Float64Array(n), nV = new Float64Array(n), qV = new Float64Array(n);
     let ok = 0, sumaVict = 0, hechas = 0;
     for (let s = 0; s < N; s++) {
       S.muestrear(null);
-      const e = S.estado(); posHist[e.posGrupo]++; via[e.via]++;
-      const q = e.clasifica; if (q) ok++;
+      const e = S.estado(); posHist[e.posGrupo]++; via[e.via]++; lugarHist[e.lugar]++;
+      const q = califica(e, P.obj); if (q) ok++;
       for (let i = 0; i < n; i++) { if (S.hw[i]) { nL[i]++; if (q) qL[i]++; } else { nV[i]++; if (q) qV[i]++; } }
       let k = 0; for (let j = 0; j < mT; j++) { const x = P.G[propios[j]]; if ((x.iL === T) === !!S.hw[propios[j]]) k++; }
       sumaVict += k; hechas++;
@@ -393,6 +428,7 @@
     return { N: hechas, p: p, ic95: [Math.max(0, p - ic), Math.min(1, p + ic)],
              juegosClaveOtros: clave.filter(function (c) { return !c.propio; }).slice(0, 5),
              distribucionGrupo: posHist.slice(1).map(function (c) { return c / hechas; }),
+             distribucionLugar: lugarHist.slice(1).map(function (c) { return c / hechas; }),
              viaClasificacion: { top2: via.top2 / hechas, comodin: via.comodin / hechas, fuera: via.fuera / hechas },
              victoriasEsperadas: P.base[T] + sumaVict / hechas, juegosClave: clave.slice(0, 6), propios: propios };
   }
@@ -417,7 +453,7 @@
         const forz = new Map();
         propios.forEach(function (gi, j) { const x = P.G[gi]; forz.set(gi, x.iL === T ? sel[j] : !sel[j]); });
         S.muestrear(forz);
-        if (S.estado().clasifica) ok++;
+        if (califica(S.estado(), P.obj)) ok++;
       }
       filas.push({ victorias: k, de: m, probabilidadDeEsaCantidad: dist[k], p: ok / N, sims: N });
     }
@@ -479,20 +515,48 @@
     return { ok: true, via: via, sl: mejor.sl, sv: mejor.sv, exigencia: exigenciaDe(mejor.devMax), desempate: desempateInfo(mejor.sl, mejor.sv) };
   }
 
+  // Desempate genérico para objetivos que no son "clasificado" y para buscar marcadores que hagan FALLAR el
+  // objetivo (`negar`): patrones de signo de PC + verificación con la tabla real (ESC.resolverPorPatrones).
+  function resolverDesempateObj(P, hw, T, negar) {
+    const W = victorias(P, hw), g = P.grupoDe[T], excl = P.excluidos, rivales = [];
+    for (let t = 0; t < P.nEq; t++) if (t !== T && W[t] === W[T] && excl.indexOf(P.equipos[t]) < 0) rivales.push(t);
+    rivales.sort(function (a, b) { return ((P.grupoDe[a] === g) ? 0 : 1) - ((P.grupoDe[b] === g) ? 0 : 1); });
+    const verificar = function (sl, sv) {
+      const ok = califica(estadoDe(P, tablaFinal(P, sl, sv), T), P.obj);
+      return negar ? !ok : ok;
+    };
+    const r = resolverPorPatrones(P, hw, T, rivales, verificar);
+    if (!r.ok) return { ok: false };
+    const pc = Float64Array.from(P.pcBase);
+    for (let i = 0; i < P.n; i++) { const x = P.G[i]; pc[x.iL] += r.sv[i]; pc[x.iV] += r.sl[i]; }
+    const sg = r.signos, info = {};
+    evaluarVictoriasNac(P, W, hw, T, info);
+    const clas = (P.obj.tipo === 'clasificado' || P.obj.tipo === 'playoffs');
+    return { ok: true, via: clas ? viaDe(info) : 'desempate_pc', sl: r.sl, sv: r.sv, exigencia: r.J === 0 ? 'facil' : exigenciaDe(r.devMax),
+             desempate: { grupo: [P.equipos[T]].concat(rivales.map(function (t) { return P.equipos[t]; })), pcEquipo: pc[T],
+                          pcRivales: rivales.map(function (t) {
+                            return { equipo: P.equipos[t], pc: pc[t], mismoGrupo: P.grupoDe[t] === g,
+                                     ordenPC: (sg && sg.arriba.indexOf(t) >= 0) ? 'mas' : ((sg && sg.abajo.indexOf(t) >= 0) ? 'menos' : (pc[t] > pc[T] ? 'mas' : 'menos')) };
+                          }) } };
+  }
+
   // Evalúa un vector completo de ganadores.
-  //   modo 'clasificar': el equipo clasifica (Q)          modo 'riesgo': el equipo NO clasifica (¬Q)
+  //   modo 'clasificar': el objetivo se cumple (Q)          modo 'riesgo': el objetivo FALLA (¬Q)
   function evaluarVector(P, hw, T, modo) {
-    const W = victorias(P, hw), info = {}, c = evaluarVictoriasNac(P, W, hw, T, info);
+    const W = victorias(P, hw), info = {}, obj = P.obj, c = clasificarObjetivoNac(P, W, hw, T, obj);
+    if (obj.tipo === 'clasificado' || obj.tipo === 'playoffs') evaluarVictoriasNac(P, W, hw, T, info);
     const viaGanadores = (info.empGrupo && info.barrido === 1) ? 'resultado_directo' : 'ganadores';
     if (modo === 'riesgo') {
       if (c === FUERA) { const b = marcadoresBase(P, hw); return { cumple: true, via: viaGanadores, sl: b.sl, sv: b.sv, exigencia: null }; }
       if (c === SEGURO) return { cumple: false };
       const b = marcadoresBase(P, hw);
-      return estadoDe(P, tablaFinal(P, b.sl, b.sv), T).clasifica ? { cumple: false } : { cumple: true, via: viaDe(info), sl: b.sl, sv: b.sv, exigencia: null };
+      if (!califica(estadoDe(P, tablaFinal(P, b.sl, b.sv), T), obj)) return { cumple: true, via: viaDe(info), sl: b.sl, sv: b.sv, exigencia: null };
+      const rr = resolverDesempateObj(P, hw, T, true);          // busca marcadores que le hagan FALLAR
+      return rr.ok ? Object.assign({ cumple: true }, rr) : { cumple: false };
     }
     if (c === FUERA) return { cumple: false };
     if (c === SEGURO) { const b = marcadoresBase(P, hw); return { cumple: true, via: viaGanadores, sl: b.sl, sv: b.sv, exigencia: null }; }
-    const r = resolverDesempate(P, hw, T);
+    const r = (obj.tipo === 'clasificado' || obj.tipo === 'playoffs') ? resolverDesempate(P, hw, T) : resolverDesempateObj(P, hw, T, false);
     return r.ok ? Object.assign({ cumple: true }, r) : { cumple: false };
   }
 
@@ -585,10 +649,12 @@
   // ==========================================================================
   // Situación del equipo, explicación y análisis completo
   // ==========================================================================
-  function situacionEquipo(exacto, pMC, o) {
+  // Con "clasificado": clasificado / eliminado (nombres históricos). Con otros objetivos: cumple_siempre / cumple_nunca.
+  function situacionEquipo(exacto, pMC, o, obj) {
+    const legado = !obj || obj.tipo === 'clasificado' || obj.tipo === 'playoffs';
     if (exacto) {
-      if (exacto.filo.n === 0 && exacto.fuera.n === 0) return 'clasificado';
-      if (exacto.seguro.n === 0 && exacto.filo.n === 0) return 'eliminado';
+      if (exacto.filo.n === 0 && exacto.fuera.n === 0) return legado ? 'clasificado' : 'cumple_siempre';
+      if (exacto.seguro.n === 0 && exacto.filo.n === 0) return legado ? 'eliminado' : 'cumple_nunca';
       if (exacto.seguro.n === 0) return 'solo_desempate';
     }
     if (pMC >= o.umbralFavorito) return 'favorito';
@@ -599,7 +665,13 @@
   // Texto con números concretos para equipos ya decididos (sin simular)
   function explicacionDecidido(P, T, situacion) {
     const m = P.pendientesDe[T], w = P.base[T], pj = P.pj[T];
-    const gn = P.nombresGrupo[P.grupoDe[T]];
+    const gn = P.nombresGrupo[P.grupoDe[T]], obj = P.obj;
+    if (obj.tipo === 'lugar') {
+      return [situacion === 'cumple_siempre'
+        ? 'El lugar ' + obj.k + '.º ya está asegurado: con cualquier resultado de los juegos que quedan terminas como sembrado ' + obj.k + '.'
+        : 'Ya no es posible que termines como sembrado ' + obj.k + ': en todas las combinaciones de los juegos que quedan tu lugar es otro (o no clasificas).'];
+    }
+    if (obj.tipo === 'descalificado') situacion = (situacion === 'cumple_siempre') ? 'eliminado' : 'clasificado';
     if (situacion === 'clasificado')
       return ['Ya estás clasificado a playoffs: con cualquier resultado de los juegos que quedan' + (m ? ' (incluso si pierdes ' + (m === 1 ? 'el tuyo' : 'los ' + m + ' tuyos') + ')' : '') + ' terminas dentro de los 8 de la Conferencia Nacional.'];
     const wMax = w + m;
@@ -633,10 +705,11 @@
     ctx.progreso('preparando', 0);
     const P = prepararProblema(datos, o);
     const T = validarEquipo(P, o);
+    const obj = P.obj;
     const rng = crearRng(o.semilla + T * 7919 + jj);
     const adv = P.adv.slice();
     const nVar = P.G.filter(function (x) { return !x.forzado; }).length;
-    const meta = { equipo: o.equipo, grupo: P.nombresGrupo[P.grupoDe[T]], jornadasJugadas: jj, jornadaFinal: P.ultima, juegosPorEquipo: P.pj[T],
+    const meta = { equipo: o.equipo, objetivo: obj, grupo: P.nombresGrupo[P.grupoDe[T]], jornadasJugadas: jj, jornadaFinal: P.ultima, juegosPorEquipo: P.pj[T],
                    nPendientes: P.n, nVariables: nVar, aplazados: P.G.filter(function (x) { return x.aplazado; }).length,
                    parametros: { sigma: o.sigma || PRED.SIGMA_MARGEN.nacional, pMin: o.pMin != null ? o.pMin : PRED.P_MIN, pMax: o.pMax != null ? o.pMax : PRED.P_MAX,
                                  sims: o.sims, semilla: o.semilla, K: o.K }, advertencias: adv };
@@ -646,13 +719,13 @@
     const exacto = enumerarExacto(P, T, null, ctx);
     if (!exacto) adv.push('No se calcularon las cotas exactas (demasiados juegos libres o cancelado).');
 
-    // Equipos ya decididos: respuesta exacta, sin simular
-    const sit0 = situacionEquipo(exacto, 0.5, o);
-    if (exacto && (sit0 === 'clasificado' || sit0 === 'eliminado')) {
-      const p = sit0 === 'clasificado' ? 1 : 0;
+    // Objetivo ya decidido (se cumple siempre / nunca, con prueba exacta): respuesta exacta, sin simular
+    const sit0 = situacionEquipo(exacto, 0.5, o, obj);
+    if (exacto && (sit0 === 'clasificado' || sit0 === 'eliminado' || sit0 === 'cumple_siempre' || sit0 === 'cumple_nunca')) {
+      const p = (sit0 === 'clasificado' || sit0 === 'cumple_siempre') ? 1 : 0;
       ctx.progreso('listo', 1);
       meta.ms = Date.now() - t0;
-      return { meta: meta, estado: 'ok', situacion: sit0, explicacion: explicacionDecidido(P, T, sit0),
+      return { meta: meta, objetivo: obj, estado: 'ok', situacion: sit0, explicacion: explicacionDecidido(P, T, sit0),
                probabilidad: { p: p, ic95: [p, p], metodo: 'exacto', cotasExactas: { min: p, max: p } }, exacto: exacto,
                distribucionGrupo: null, viaClasificacion: null, victoriasEsperadas: null,
                porVictoriasPropias: [], juegosClave: [], juegosClaveOtros: [], escenarios: [], busqueda: null };
@@ -662,12 +735,12 @@
     const mc = monteCarloCompleto(P, T, rng, ctx);
     ctx.progreso('victorias', 0);
     const tabVict = tablaVictoriasPropias(P, T, mc.propios, rng);
-    const situacion = situacionEquipo(exacto, mc.p, o);
+    const situacion = situacionEquipo(exacto, mc.p, o, obj);
     const resultado = {
-      meta: meta, estado: 'ok', situacion: situacion, explicacion: null,
+      meta: meta, objetivo: obj, estado: 'ok', situacion: situacion, explicacion: null,
       probabilidad: { p: mc.p, ic95: mc.ic95, metodo: 'montecarlo',
                       cotasExactas: exacto ? { min: exacto.seguro.p, max: exacto.seguro.p + exacto.filo.p } : null },
-      exacto: exacto, distribucionGrupo: mc.distribucionGrupo, viaClasificacion: mc.viaClasificacion, victoriasEsperadas: mc.victoriasEsperadas,
+      exacto: exacto, distribucionGrupo: mc.distribucionGrupo, distribucionLugar: mc.distribucionLugar, viaClasificacion: mc.viaClasificacion, victoriasEsperadas: mc.victoriasEsperadas,
       porVictoriasPropias: tabVict, juegosClave: mc.juegosClave, juegosClaveOtros: mc.juegosClaveOtros,
       escenarios: [], busqueda: null
     };
@@ -728,7 +801,7 @@
     if (!act.json) throw new Error('No hay datos de Conferencia Nacional (dnac_<año>)');
     const msg = compuertas(act.json, o);
     if (msg) return { estado: 'fuera_de_rango', mensaje: msg, equipos: [] };
-    const P = prepararProblema(datos, o), out = [];
+    const P = prepararProblema(datos, Object.assign({}, o, { objetivo: 'clasificado' })), out = [];   // el panorama siempre es "clasificado"
     const excl = new Set(PRED.EQUIPOS_EXCLUIDOS || []);
     for (let T = 0; T < P.nEq; T++) {
       ctx.progreso('panorama', T / P.nEq);
@@ -749,7 +822,7 @@
   const API = {
     DEF: DEF, datosNacionalActual: datosNacionalActual, ultimaJornada: ultimaJornada,
     prepararProblema: prepararProblema, juegosCompletos: juegosCompletos, tablaFinal: tablaFinal, estadoDe: estadoDe,
-    evaluarVictoriasNac: evaluarVictoriasNac, enumerarExacto: enumerarExacto, crearSimulador: crearSimulador,
+    evaluarVictoriasNac: evaluarVictoriasNac, clasificarObjetivoNac: clasificarObjetivoNac, califica: califica, enumerarExacto: enumerarExacto, crearSimulador: crearSimulador,
     probabilidadQ: probabilidadQ, monteCarloCompleto: monteCarloCompleto,
     resolverDesempate: resolverDesempate, evaluarVector: evaluarVector, construirFamilia: construirFamilia,
     analizar: analizar, panorama: panorama

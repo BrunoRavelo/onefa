@@ -502,14 +502,17 @@ function calcGroupStandings() {
   renderCompare();
 }
 
-// Ordena un empate de 2+ equipos en PG: 1) resultado directo entre ellos
-// (si existe un juego de temporada regular entre esos dos equipos),
-// 2) menor puntos en contra (PC). No se consideran rivales en común.
+// Ordena un empate de 2+ equipos en PG con la regla de ONEFA (la misma que el empate dentro de un grupo):
+// si un equipo venció directamente a TODOS los demás empatados (hubo juego de temporada regular y ganó
+// cada uno), va primero; el resto —y todos, si nadie venció a todos o hay equipos que no se enfrentaron—
+// se ordena por menor puntaje en contra (PC). No se consideran rivales en común.
 function ordenarEmpate(tied) {
+  let win = null;
+  for (const t of tied) {
+    if (tied.every(o => o.equipo === t.equipo || getDirecto(t.equipo, o.equipo) === 1)) { win = t; break; }
+  }
   return [...tied].sort((a, b) => {
-    const h2h = getDirecto(a.equipo, b.equipo);
-    if (h2h === 1) return -1;
-    if (h2h === -1) return 1;
+    if (win) { if (a.equipo === win.equipo) return -1; if (b.equipo === win.equipo) return 1; }
     return a.pc - b.pc;
   });
 }
@@ -527,7 +530,7 @@ function renderPlayoffs(statsMap, playoffsSet) {
     return { equipo: eq, grupo: teamGroup[eq], pg: s.pg, pp: s.pj - s.pg, pc: s.pc, pj: s.pj };
   });
   // Sembrado general: más juegos ganados primero; empates entre grupos se
-  // resuelven con resultado directo entre los empatados → menor PC.
+  // resuelven con la regla de ordenarEmpate (barrido de resultado directo → menor PC).
   teams.sort((a, b) => b.pg - a.pg);
   let gi = 0;
   while (gi < teams.length) {
