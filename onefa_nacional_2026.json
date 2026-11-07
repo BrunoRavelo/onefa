@@ -88,12 +88,12 @@
     {"jornada":8,"local":"Lobos ULM","visita":"Halcones UV","scoreLocal":0,"scoreVisita":7},
     {"jornada":8,"local":"Correcaminos UAT","visita":"Pumas Acatlán","scoreLocal":3,"scoreVisita":47},
 
-    {"jornada":9,"local":"Águilas UACH","visita":"Potros ITSON","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Indios UACJ","visita":"Lobos UA de C","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Cimarrones UABC","visita":"Liebres CD Juárez","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Toros Salvajes","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Halcones UV","visita":"Pumas Acatlán","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Búhos IPN","visita":"Frailes UT","scoreLocal":0,"scoreVisita":0}
+    {"jornada":9,"local":"Águilas UACH","visita":"Potros ITSON","scoreLocal":30,"scoreVisita":3},
+    {"jornada":9,"local":"Indios UACJ","visita":"Lobos UA de C","scoreLocal":16,"scoreVisita":17},
+    {"jornada":9,"local":"Cimarrones UABC","visita":"Liebres CD Juárez","scoreLocal":1,"scoreVisita":0},
+    {"jornada":9,"local":"Toros Salvajes","visita":"Potros Salvajes","scoreLocal":0,"scoreVisita":16},
+    {"jornada":9,"local":"Halcones UV","visita":"Pumas Acatlán","scoreLocal":26,"scoreVisita":40},
+    {"jornada":9,"local":"Búhos IPN","visita":"Frailes UT","scoreLocal":21,"scoreVisita":0}
   ],
   "scrimmages": [
     {"local":"Panteras Siglo XXI","visita":"Leones UAQ","scoreLocal":0,"scoreVisita":17},

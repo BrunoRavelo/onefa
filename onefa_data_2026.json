@@ -37,7 +37,7 @@
     {"jornada":4,"local":"Borregos PUE","visita":"Burros Blancos","scoreLocal":54,"scoreVisita":14},
     {"jornada":4,"local":"Aztecas UDLAP","visita":"Leones UAC","scoreLocal":28,"scoreVisita":8},
 
-    {"jornada":5,"local":"Auténticos Tigres","visita":"Borregos MTY","scoreLocal":0,"scoreVisita":0},
+    {"jornada":5,"local":"Auténticos Tigres","visita":"Borregos MTY","scoreLocal":34,"scoreVisita":31},
     {"jornada":5,"local":"Borregos GDL","visita":"Aztecas UDLAP","scoreLocal":20,"scoreVisita":12},
     {"jornada":5,"local":"Linces UVM","visita":"Águilas Blancas","scoreLocal":16,"scoreVisita":13},
     {"jornada":5,"local":"Borregos PUE","visita":"Borregos CCM","scoreLocal":40,"scoreVisita":35},
@@ -67,12 +67,12 @@
     {"jornada":8,"local":"Aztecas UDLAP","visita":"Pumas CU","scoreLocal":32,"scoreVisita":35},
     {"jornada":8,"local":"Águilas Blancas","visita":"Burros Blancos","scoreLocal":14,"scoreVisita":22},
 
-    {"jornada":9,"local":"Auténticos Tigres","visita":"Borregos GDL","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Borregos CCM","visita":"Linces UVM","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Borregos CEM","visita":"Zorros CETYS","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Borregos MTY","visita":"Aztecas UDLAP","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Borregos PUE","visita":"Águilas Blancas","scoreLocal":0,"scoreVisita":0},
-    {"jornada":9,"local":"Pumas CU","visita":"Leones UAC","scoreLocal":0,"scoreVisita":0},
+    {"jornada":9,"local":"Auténticos Tigres","visita":"Borregos GDL","scoreLocal":49,"scoreVisita":20},
+    {"jornada":9,"local":"Borregos CCM","visita":"Linces UVM","scoreLocal":17,"scoreVisita":16},
+    {"jornada":9,"local":"Borregos CEM","visita":"Zorros CETYS","scoreLocal":49,"scoreVisita":27},
+    {"jornada":9,"local":"Borregos MTY","visita":"Aztecas UDLAP","scoreLocal":51,"scoreVisita":7},
+    {"jornada":9,"local":"Borregos PUE","visita":"Águilas Blancas","scoreLocal":38,"scoreVisita":7},
+    {"jornada":9,"local":"Pumas CU","visita":"Leones UAC","scoreLocal":63,"scoreVisita":24},
 
     {"jornada":10,"local":"Borregos GDL","visita":"Borregos CCM","scoreLocal":0,"scoreVisita":0},
     {"jornada":10,"local":"Linces UVM","visita":"Auténticos Tigres","scoreLocal":0,"scoreVisita":0},
