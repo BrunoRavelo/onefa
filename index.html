@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ONEFA 14 Grandes</title>
+  <script src="temporadas.js"></script>
   <script>
   /* Arranca la descarga del JSON YA (en paralelo con CSS y fuentes), antes de que nada la bloquee */
-  window.__DATOS = fetch('./onefa_data_' + (new URLSearchParams(location.search).get('temporada') === '2025' ? 2025 : 2026) + '.json', { cache: 'no-cache' })
+  window.__DATOS = fetch(ONEFA_TEMP.archivo14(ONEFA_TEMP.resolver(new URLSearchParams(location.search).get('temporada'))), { cache: 'no-cache' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   window.__DATOS.catch(function () {});
   </script>
@@ -64,7 +65,7 @@
 <main class="main-wrap">
   <div id="bannerHistorico" class="banner-historico d-none">
     <strong>Temporada 2025 — Histórico.</strong>
-    Resultados oficiales hasta J10 cargados.
+    Resultados oficiales hasta J<span id="bannerJ">?</span> cargados.
     <a href="index.html?temporada=2026">Ver temporada 2026 →</a>
   </div>
 
@@ -120,7 +121,7 @@
 
 <script>
 function getTemporada() {
-  return new URLSearchParams(window.location.search).get('temporada') === '2025' ? 2025 : 2026;
+  return ONEFA_TEMP.resolver(new URLSearchParams(window.location.search).get('temporada'));
 }
 const TEMPORADA   = getTemporada();
 const STORAGE_KEY = TEMPORADA === 2025 ? 'onefa_juegos_v1' : `onefa_juegos_${TEMPORADA}_v1`;
@@ -128,10 +129,16 @@ const DATA_FILE   = `./onefa_data_${TEMPORADA}.json`;
 
 let equipos = [], juegos = [], JORNADAS_JUGADAS = 0;
 
+document.getElementById('seasonSelect').innerHTML = ONEFA_TEMP.opcionesSelector();      // temporadas.js
 document.getElementById('seasonSelect').value = String(TEMPORADA);
 document.getElementById('heroYear').textContent = TEMPORADA;
 document.title = `ONEFA 14 Grandes ${TEMPORADA}`;
-if (TEMPORADA === 2025) document.getElementById('bannerHistorico').classList.remove('d-none');
+if (!ONEFA_TEMP.esActual(TEMPORADA)) {
+  const b = document.getElementById('bannerHistorico');
+  b.querySelector('strong').textContent = `Temporada ${TEMPORADA} — Histórico.`;
+  const a = b.querySelector('a'); a.href = `index.html?temporada=${ONEFA_TEMP.actual}`; a.textContent = `Ver temporada ${ONEFA_TEMP.actual} →`;
+  b.classList.remove('d-none');
+}
 
 function cambiarTemporada(v) { window.location.href = `index.html?temporada=${v}`; }
 
@@ -141,6 +148,7 @@ async function cargarDatos() {
     equipos = d.equipos || [];
     juegos  = d.juegos  || [];
     JORNADAS_JUGADAS = Number(d.jornadas_jugadas) || 0;
+    const bj = document.getElementById('bannerJ'); if (bj) bj.textContent = JORNADAS_JUGADAS;
   } catch { equipos=[]; juegos=[]; JORNADAS_JUGADAS=0; window.__ERR = true; }
 
   const toKey = g => `${g.jornada}#${g.local}#${g.visita}`;
@@ -471,7 +479,7 @@ cargarDatos();
   <div class="pred-body">
     <div class="pred-note">
       Modelo Massey de 14 Grandes, resuelto por separado del de Nacional, con prior de
-      temporada 2025 que se va apagando cada jornada. Es de solo consulta — no guarda
+      temporada anterior que se va apagando cada jornada. Es de solo consulta — no guarda
       nada ni modifica tus pronósticos.
     </div>
     <div id="predBracketWrap"></div>
@@ -485,10 +493,11 @@ cargarDatos();
 
 <script src="prediccion.js"></script>
 <script src="escenarios-ui.js"></script>
+<script src="estado-equipos.js" data-conf="14g"></script>
 <script>
 (function () {
   const CONF = '14g';
-  const STORAGE_KEY_PRED = 'onefa_juegos_2026_v1'; // misma llave que usa esta página para guardar
+  const STORAGE_KEY_PRED = 'onefa_juegos_' + ONEFA_TEMP.actual + '_v1'; // misma llave que usa esta página para guardar
 
   function leerPronosticoUsuario() {
     const m = new Map();
@@ -615,7 +624,7 @@ cargarDatos();
     } catch (err) {
       console.error(err);
       document.getElementById('predContenido').innerHTML =
-        '<div class="pred-error">No se pudo calcular la predicción. Verifica que los 4 JSON (onefa_data_2025.json, onefa_data_2026.json, onefa_nacional_2025.json, onefa_nacional_2026.json) estén en esta misma carpeta.</div>';
+        '<div class="pred-error">No se pudo calcular la predicción. Verifica que los JSON de la temporada actual y la anterior (onefa_data_AAAA.json y onefa_nacional_AAAA.json) estén en esta misma carpeta.</div>';
     }
   }
 

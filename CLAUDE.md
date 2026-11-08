@@ -1,6 +1,6 @@
 # ONEFA Pronósticos — Contexto del Proyecto
 
-> Última actualización de este documento: 2026-10-29 (escenarios de Conferencia Nacional, ver §8.10).
+> Última actualización de este documento: 2026-11-02 (temporadas.js, marcas ✅/✖️, herramientas de temporada, sin pruebas automáticas; ver §8.11 y §17).
 > **La fuente de verdad es el código.** Si algo de aquí contradice a un archivo, gana el archivo
 > (y conviene corregir este documento). Las secciones marcadas con ⚠ son diferencias o
 > limitaciones detectadas al leer el código vigente.
@@ -69,8 +69,13 @@ Conferencias:
 ├── escenarios-nacional.js      ← MOTOR de escenarios de Conferencia Nacional (reusa piezas genéricas de escenarios.js; ver §8.10)
 ├── escenarios-worker.js        ← Web Worker: corre el motor (14G o Nacional) fuera del hilo principal (se carga con `new Worker`)
 ├── escenarios-ui.js            ← INTERFAZ ÚNICA y compartida del módulo (crea su propio overlay; estilos `.esc-*` en onefa.css)
-├── tests/escenarios.test.js    ← Pruebas del motor y del protocolo del Worker: `node tests/escenarios.test.js`
-├── tests/ui/                   ← Pruebas de interfaz con jsdom (solo desarrollo): `cd tests/ui && npm install && node ui.test.js`
+├── temporadas.js               ← ÚNICO lugar donde se declaran las temporadas (actual, disponibles); lo leen páginas, prediccion.js y sw.js (ver §8.11)
+├── estado-equipos.js           ← Marcas ✅ / ✖️ en el calendario de index.html y nacional.html (ver §8.11)
+├── tools/nueva-temporada.js    ← Crea los JSON esqueleto de una temporada nueva: `node tools/nueva-temporada.js 2027`
+├── tools/validar-temporada.js  ← Revisa los JSON de una temporada antes de publicarla: `node tools/validar-temporada.js 2027`
+├── onefa_data_2027.json / onefa_nacional_2027.json ← Esqueletos de 2027 (sin juegos; aún NO están en temporadas.js, así que nada los usa)
+├── despliegue-y-monetizacion.md ← Análisis de hosting (AWS y alternativas) y de monetización (solo documentación)
+(las pruebas automáticas —tests/— se eliminaron el 2026-11-02; ver «Sugerencia: suite de pruebas completa», §17)
 ├── plan.md                     ← Plan de diseño del módulo de escenarios 14G (decisiones, fases, resultados medidos)
 ├── plan-nacional.md            ← Plan de diseño del motor de escenarios de Conferencia Nacional
 ├── plan-lugar-objetivos.md     ← Plan (solo diseño) de los objetivos «lugar 1.º–8.º» y «desclasificado» para 14G y Nacional
@@ -493,7 +498,7 @@ Responsive: `>768px` escritorio · `≤768px` tablet · `≤540px` móvil (la ma
 
 ### 8.7 `sw.js` — Service Worker
 
-Ver §9 completo.
+Ver §9 completo. Desde 2026-11-02: `VERSION = 'v4'` y la lista de archivos de datos del `PRECACHE` sale de `temporadas.js` (`importScripts`), con lista de respaldo si no cargara.
 
 ### 8.8 `maximizar_onefa.py` — optimizador offline (solo 14 Grandes)
 
@@ -557,21 +562,17 @@ Cada escenario es una **familia** definida por su **condición mínima** (`neces
 **Rendimiento medido** (escritorio, J6 concluida): 3–9 s por análisis (enumeración ≈ 2 s, Monte Carlo 0.5 s, tabla de victorias propias 0.4 s, búsqueda 0.7–5 s, verificación de completaciones 1–2 s).
 En teléfono se **estima** ~4× más lento (por medir). Decisión D10: se acepta hasta ~1 minuto con mensaje "Simulando opciones…".
 
-**Pruebas de interfaz:** `cd tests/ui && npm install && node ui.test.js` (36 pruebas, jsdom): carga el `index.html` real con sus scripts, emula el Worker, y comprueba apertura, selector, progreso, resultados, pestañas, cancelación, respaldo sin Worker,
-solo lectura (`localStorage` vacío) y compuertas. **No verifican el aspecto visual** (jsdom no calcula estilos): hay que revisarlo en un navegador real y en un teléfono.
-
-**Pruebas del motor:** `node tests/escenarios.test.js` (54 pruebas, ~70 s, sin dependencias; incluye el protocolo del Worker): paridad de la tabla contra una referencia, enumeración exacta contra fuerza bruta, invariantes de probabilidad
-(Monte Carlo dentro de las cotas exactas), escenarios que se cumplen al reevaluarlos, monotonía, determinismo, validez de marcadores, optimalidad de la búsqueda y ausencia de falsos negativos evidentes.
+**Pruebas:** se eliminaron el 2026-11-02 (decisión del dueño del proyecto: es una página personal). La sección 17 deja una sugerencia de suite completa, con los chequeos que ya se usaron durante el desarrollo.
 
 **Limitaciones:** solo 14G; probabilidades según el modelo Massey (ratings fijos dentro de cada escenario, juegos independientes); los marcadores propuestos son sugerencias plausibles, no pronósticos;
 `σ_total` es un valor provisional; el optimizador de marcadores es heurístico (no hay falsos negativos evidentes, pero no está demostrado que no existan).
 
-- **Ajuste de ruido en `construirFamilia` (2026-10-31):** ver §8.10. Medido con los datos de esa fecha (J6/J7/J8): mismos escenarios en número (45/43/30), probabilidad total, situación y cotas exactas idénticas, y menos «resultados necesarios» (264→221, 221→182, 148→107). **Las pruebas de `tests/escenarios.test.js` no se corrieron con este cambio: ejecutarlas.**
+- **Ajuste de ruido en `construirFamilia` (2026-10-31):** ver §8.10. Medido con los datos de esa fecha (J6/J7/J8): mismos escenarios en número (45/43/30), probabilidad total, situación y cotas exactas idénticas, y menos «resultados necesarios» (264→221, 221→182, 148→107). (las pruebas automáticas se eliminaron el 2026-11-02; ver §17)
 
 - **Objetivos de lugar (2026-11-01, camino A1 de `plan-lugar-objetivos.md`):** `analizar(datos, { equipo, objetivo })` acepta `'clasificado'` (por omisión) · `'1'…'14'` (lugar exacto) · `'descalificado'` (lugares 9–14) o un rango `{min,max}`; `objetivoDe(valor, rMax)` y `esObjetivoLegado(obj)` se exportan.
   El resultado trae `objetivo` y, con objetivos distintos de «clasificado», la `situacion` usa `cumple_siempre` / `cumple_nunca` (con «clasificado» siguen `clasificado` / `eliminado`).
   Piezas nuevas: `optimizarMarcadores(P, hw, T, restr)` acepta `{ arriba:[…], abajo:[…] }` (un arreglo sigue significando «T mejor que esos»; `abajo` = T queda **peor**), `resolverPorPatrones(P, hw, T, rivales, verificar)` (prueba los ≤ 32 patrones de signo del PC y **verifica cada candidato con la tabla real**) y `resolverDesempateObj`.
-  **Camino A1:** el objetivo «clasificado» conserva `resolverDesempate` y el modo riesgo anteriores (medido: 0 diferencias en 84 análisis, J6/J7/J8 × 14 equipos); los demás objetivos usan el desempate genérico (que además busca marcadores que hagan *fallar* el objetivo). El camino antiguo de `resolverDesempate` **solo es válido con `obj.min = 1`** (tiene un atajo sin verificar). Medido: Σ P(lugar 1..14) = 1, Σ P(lugar 1..8) = P(clasificado), P(clasificado) + P(descalificado) = 1, y 73 de 73 escenarios nuevos se cumplen con la tabla real. **Pruebas de `tests/escenarios.test.js` sin correr con estos cambios: ejecutarlas.**
+  **Camino A1:** el objetivo «clasificado» conserva `resolverDesempate` y el modo riesgo anteriores (medido: 0 diferencias en 84 análisis, J6/J7/J8 × 14 equipos); los demás objetivos usan el desempate genérico (que además busca marcadores que hagan *fallar* el objetivo). El camino antiguo de `resolverDesempate` **solo es válido con `obj.min = 1`** (tiene un atajo sin verificar). Medido: Σ P(lugar 1..14) = 1, Σ P(lugar 1..8) = P(clasificado), P(clasificado) + P(descalificado) = 1, y 73 de 73 escenarios nuevos se cumplen con la tabla real. (sin pruebas automáticas desde el 2026-11-02; ver §17)
 
 ### 8.10 Escenarios de Conferencia Nacional — `escenarios-nacional.js` (motor) + `escenarios-worker.js` + `escenarios-ui.js`
 
@@ -599,8 +600,8 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
   (2.5 errores estándar de la diferencia, en la prueba piloto de 800 simulaciones y otra vez con `simsFamilia`); si no, se colaban juegos irrelevantes. Afecta solo a las listas de «resultados
   necesarios» y a la probabilidad mostrada de cada escenario; no cambia la probabilidad total, la situación ni las cotas exactas. **Si se toca esta función, hacerlo en los dos archivos.**
 - **Sin años escritos a mano:** usa el JSON `dnac_<año>` más reciente de `datos`; la última jornada regular sale de los juegos (`jornadaMax` = última − 1; `jornadaMin` = 6).
-  **Para 2027:** `ONEFA_PRED.construirModelosPorConferencia` y `cargarDatos` siguen leyendo `…_2025/2026`; al agregar la temporada hay que actualizarlos allí (ver «Agregar una temporada»).
-- **Constantes medidas en Nacional:** `sigmaPuntos = 15.0`, `maxPuntos = 70`, `sigmaTotal = 12.4` (se calibraron con `onefa_data_2025.json` de relleno vacío; reaprobar con el real).
+  **Para 2027:** `prediccion.js` (`cargarDatos`, `seleccionarTemporadas`) ya no tiene años escritos a mano; ver §8.11 y «Agregar una temporada nueva».
+- **Constantes medidas en Nacional:** `sigmaPuntos = 15.0`, `maxPuntos = 70`, `sigmaTotal = 12.4` (recalibradas con el `onefa_data_2025.json` real el 2026-11-02: el residuo medido fue 12.43, sin cambios).
 - **API:** `ONEFA_ESC_NAC.analizar(datos, { equipo }, ctx)` y `ONEFA_ESC_NAC.panorama(datos, {}, ctx)` (estado exacto de todos los equipos). El panorama **ya no se usa en el selector**; se conserva para las marcas ✅/✖️ del calendario de las páginas principales (pendiente, ver `plan-nacional.md`).
   Salida como 14G salvo: `meta.grupo`, `distribucionGrupo` (lugar dentro del grupo), `viaClasificacion` (`top2` | `comodin` | `fuera`), `explicacion`, `juegosClave[].relacion`
   (`propio` | `mi_grupo` | `carrera_comodin`) y `escenarios[].tablaFinal = { grupos:{Norte:[…],…}, seeds:[…] }`.
@@ -613,6 +614,13 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
   El desempate genérico (`resolverDesempateObj`, patrones de signo + tabla real) se usa para los objetivos de lugar/descalificado y, en Nacional, también para buscar cómo *fallar* en modo riesgo (cambio respecto al motor anterior solo en equipos en modo riesgo). La salida agrega `objetivo`, `distribucionLugar` (1..8 y fuera) y `desempate.pcRivales[].ordenPC` (`mas` = el rival termina con más PC que el equipo). `panorama` siempre usa «clasificado». Medido: 102 de 102 escenarios se cumplen con la tabla real; Σ P(lugar) = P(clasificado); P(clasificado) + P(descalificado) = 1.
 - **Estado actual (2026-10-29):** `jornadas_jugadas = 8`; solo falta la J9 (5 juegos libres): el motor ya se puede usar en la última semana.
 - **Limitación conocida:** `solo_desempate` y `FILO` siguen siendo conservadores en PC (el optimizador es heurístico: si no encuentra marcadores no prueba que sea imposible).
+
+### 8.11 Temporadas, marcas ✅/✖️ y herramientas (2026-11-02)
+
+- **`temporadas.js`** (`window.ONEFA_TEMP`, también `require` en Node y `importScripts` en el SW): `actual`, `disponibles`, `resolver(?temporada)`, `esActual`, `anterior`, `archivo14(año)`, `archivoNac(año)`, `paraModelo()`, `archivos()`, `opcionesSelector()`. Las 3 páginas lo cargan en el `<head>`. `prediccion.js` ya no tiene años escritos a mano: `seleccionarTemporadas(datos)` toma, de las llaves `d14_<año>`/`dnac_<año>` que reciba, la más reciente como actual y la siguiente como previa (sin previa, el modelo arranca sin priors). Verificado: con los datos 2026 el modelo, las predicciones y los playoffs proyectados son **idénticos** al código anterior.
+- **Motores:** `escenarios.js` usa el JSON `d14_<año>` más reciente (`jsonActual14`) y `jornadaMax` = última jornada regular − 1 (ya no fijo en 9); `escenarios-nacional.js` ya lo hacía. Los dos exponen `panorama(datos, opciones, ctx)` (estado exacto de todos los equipos con el objetivo «clasificado», con tope de 2^21 combinaciones por equipo) y, para equipos con el objetivo ya decidido, `analizar` responde al instante sin simular.
+- **`estado-equipos.js`** (`<script data-conf="14g|nacional">` al final de `index.html` y `nacional.html`): marca ✅ (clasificado a playoffs, 100 %) y ✖️ (eliminado, 100 %) junto a cada equipo en `#calendarioAccordion .t-name` (no en scrimmages), con leyenda y tooltip. Cuenta solo resultados **oficiales** del JSON. Con la J6 concluida y la temporada abierta calcula el panorama con el motor (Web Worker, respaldo en hilo principal); con la temporada regular terminada (sin juegos pendientes) usa la tabla final (top 8 ✅, el resto ✖️); antes de la J6 no marca. Guarda el resultado en `localStorage` (`onefa_estado_v1_<conf>_<año>`) con una firma de los resultados oficiales. Un `MutationObserver` vuelve a aplicar las marcas si el calendario se repinta. Falla en silencio. Medido: panorama Nacional ≈ 0.6 s con J6; 14G ≈ 0.4 s con J7 (con J6 14G tiene demasiados juegos libres y no marca).
+- **`tools/nueva-temporada.js`** y **`tools/validar-temporada.js`**: ver «Agregar una temporada nueva» (§13). El validador detectó en 2026 que varias parejas de Nacional se enfrentan **dos veces** (J1 y J7, etc.): `getDirecto` usa solo el PRIMER juego de la pareja para el resultado directo (ver §12).
 
 ---
 
@@ -701,6 +709,8 @@ prediccion.html?conf=14g | ?conf=nacional    → predicción independiente (sin 
 10. **Documentación previa desactualizada** (corregida aquí): decía que los cruces entre grupos no suman a la tabla de Nacional (sí suman); listaba "Arkansas ST QRO" (es "ASUCQ / RED WOLVES"); omitía la clave de Nacional 2025 y el Service Worker.
 
 ---
+- **Resultado directo con dos juegos entre los mismos equipos (Nacional):** `getDirecto` (y la regla de desempate) toman el PRIMER juego entre la pareja en el orden del JSON. En 2026 hay varias parejas con dos juegos (J1 y J7, J0 y J3…). Si la liga usara el global de ambos juegos o el más reciente, el desempate podría diferir. Pendiente de confirmar la regla oficial.
+
 
 ## 13. Guía rápida de tareas comunes
 
@@ -710,9 +720,14 @@ prediccion.html?conf=14g | ?conf=nacional    → predicción independiente (sin 
 
 **Cambiar el comportamiento del modelo:** editar las constantes al inicio de `prediccion.js`. Si se cambia el nombre/forma de lo que devuelve `ONEFA_PRED`, actualizar las 3 copias de render (§4).
 
-**Agregar una temporada nueva:** crear `onefa_data_YYYY.json` y `onefa_nacional_YYYY.json`, ampliar los selectores de temporada y las condiciones `=== 2025 ? 2025 : 2026` de las páginas, definir sus claves de `localStorage`, añadir los JSON a `PRECACHE`, y revisar que los equipos puente se detecten (comparar rosters entre años).
-
-**Correr las pruebas del motor de escenarios:** `node tests/escenarios.test.js` (usa los JSON reales de la raíz; ~70 s). **De interfaz:** `cd tests/ui && npm install && node ui.test.js` (no subir `tests/ui/node_modules` al repo).
+**Agregar una temporada nueva (p. ej. 2027):**
+1. `node tools/nueva-temporada.js 2027` → crea `onefa_data_2027.json` y `onefa_nacional_2027.json` partiendo de los equipos/grupos de la temporada anterior (juegos vacíos).
+2. Edita ambos: ascensos/descensos, grupos de Nacional y el calendario (`juegos`; los de Nacional entre grupos también; `cuentaSoloPara` si algún juego solo cuenta para un equipo).
+3. `node tools/validar-temporada.js 2027` → revisa nombres, juegos por equipo (en Nacional deben ser iguales), jornadas, resultados «del futuro», parejas que se enfrentan dos veces y que la temporada esté configurada.
+4. En `temporadas.js`: `ACTUAL = 2027` y agrega `2027` al inicio de `DISPONIBLES`. (Con eso cambian solos: selectores de temporada, JSON que cargan las páginas, banner de «Histórico», `STORAGE_KEY_PRED`, archivos del Service Worker, qué temporadas usa `cargarDatos` y el modelo —actual + anterior—, y los motores de escenarios.)
+5. Sube `VERSION` en `sw.js` (v5…).
+6. Revisa las listas por temporada que sí son manuales: `EQUIPOS_EXCLUIDOS` en `prediccion.js` y `EQUIPOS_14G` en `nacional.html`; y que el equipo puente (ascenso/descenso) se detecte (el modelo compara rosters entre años y soporta un solo movimiento).
+7. Verificado el 2026-11-02 simulando 2027 como temporada actual (páginas, marcas ✅/✖️ y escenarios sin cambiar código).
 
 **Probar el modelo sin navegador (Node):**
 ```js
@@ -753,10 +768,10 @@ Pendientes del proyecto:
 - [x] Jornada 8 de Nacional: contiene 6 cruces Bajío–Centro de temporada regular (no son de otra conferencia).
 
 Módulo de escenarios (ver `plan.md`):
-- [x] Fase 1: motor 14G + corrección de aplazados + pruebas (`escenarios.js`, `tests/escenarios.test.js`).
+- [x] Fase 1: motor 14G + corrección de aplazados + pruebas (que se eliminaron el 2026-11-02).
 - [x] Fase 2: interfaz (botón en `index.html`, overlay compartido, Web Worker + respaldo, `sw.js` PRECACHE + VERSION v2, estilos `.esc-*`). [ ] Falta revisarla visualmente en un navegador/teléfono reales y medir tiempos en un teléfono.
 - [ ] Fase 3: pulido ("ver más", copiar a mis pronósticos, fijar resultados propios). [ ] Fase 4: posición específica.
-- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [x] Objetivos «lugar 1.º…N.º» y «Desclasificado» en ambas conferencias (ver §8.9 y §8.10; diseño y decisiones en `plan-lugar-objetivos.md`). [ ] Pendiente: marcas ✅ (100 % clasificado) / ✖️ (100 % desclasificado) en el calendario de `index.html` y `nacional.html`, que exige calcular ese estado también en las páginas principales (detalle en `plan-nacional.md`, «Funciones a continuar»). [ ] Siguiente sprint: pruebas del motor y de la interfaz de Nacional; revisar en teléfono real; calibrar con `onefa_data_2025.json` real.
+- [x] Fase 5: Nacional — motor `escenarios-nacional.js`, botón en `nacional.html` (ver §8.10 y `plan-nacional.md`). [x] Objetivos «lugar 1.º…N.º» y «Desclasificado» en ambas conferencias (ver §8.9 y §8.10; diseño y decisiones en `plan-lugar-objetivos.md`). [x] Marcas ✅ (100 % clasificado) / ✖️ (100 % eliminado) en el calendario de `index.html` y `nacional.html` (`estado-equipos.js`, ver §8.11). [x] `temporadas.js` + herramientas para agregar 2027. Revisado en teléfono real (funciona bien) y calibrado con `onefa_data_2025.json` real (sin cambios). Sin pruebas automáticas: ver §17 (sugerencia).
 
 Mejoras sugeridas al documentar (no solicitadas aún):
 - [x] Juegos aplazados 0-0 como pendientes en el modelo (hecho). [ ] Falta desbloquear sus inputs en los calendarios (§12.1).
@@ -774,3 +789,34 @@ git commit -m "descripción del cambio"
 git push
 # GitHub Pages se actualiza automáticamente en ~1 min
 ```
+
+---
+
+## 17. Sugerencia: suite de pruebas completa (opcional)
+
+Las pruebas automáticas anteriores (`tests/escenarios.test.js`, 54 pruebas del motor 14G y del Worker; `tests/ui/`, 36 pruebas de interfaz con jsdom) **se eliminaron el 2026-11-02** porque es una página personal y no son prioridad. Si algún día se quiere volver a proteger el proyecto, esto es lo que convendría elaborar (los chequeos marcados con ✔ ya se usaron como scripts de verificación durante el desarrollo y bastaría convertirlos en pruebas):
+
+**Modelo y tablas (`prediccion.js`)**
+- ✔ Desempate: `ordenarEmpatados` y `calcularStandings14G` / `calcularStandingsNacional` contra una referencia independiente (incluye ciclos de 3 equipos y el sembrado general).
+- ✔ `construirModelosPorConferencia`, `generarPredicciones` y `proyectarPlayoffs` con los datos reales: resultados estables (regresión) y con llaves de una temporada futura simulada (`seleccionarTemporadas`).
+
+**Motores de escenarios (`escenarios.js`, `escenarios-nacional.js`)**
+- ✔ Cotas por victorias (`SEGURO`/`FILO`/`FUERA`) contra la tabla real con marcadores aleatorios, para todos los objetivos (clasificado, lugar 1–14 / 1–8, descalificado): ninguna violación.
+- ✔ Coherencias de probabilidad: Σ P(lugar) = 1, Σ P(1..8) = P(clasificado), P(clasificado) + P(descalificado) = 1.
+- ✔ Todo escenario devuelto se cumple al reevaluar sus marcadores con la tabla real (y en modo riesgo, falla).
+- ✔ Regresión: con el objetivo «clasificado» los resultados no cambian entre versiones del motor (J6, J7, J8 × todos los equipos).
+- Optimizador de marcadores con signo: restricciones `arriba`/`abajo` satisfechas, ganadores sin cambiar, marcadores dentro de los topes.
+- Enumeración exacta contra fuerza bruta en casos pequeños; Monte Carlo dentro de las cotas exactas.
+- Equipos decididos (clasificado/eliminado/lugar asegurado/imposible) con prueba exacta; compuertas de jornada (J6 a última − 1); equipos excluidos; juegos forzados; determinismo con semilla.
+- Protocolo del Worker (`analizar`, `panorama`, errores, cancelación).
+
+**Interfaz y páginas (jsdom; no verifica el aspecto visual)**
+- ✔ Selector de equipo (formato `N. Equipo (PG-PP)`), selector «Lugar final», texto por objetivo, modo «solo estado» para equipos decididos, aviso «Casi imposible» con su botón, filtro de juegos clave de poco impacto, respaldo sin Worker.
+- ✔ Marcas ✅/✖️ (con y sin Worker, temporada terminada, antes de la J6, calendario que se repinta, scrimmages sin marca).
+- ✔ Temporadas: selector, banner de histórico y botón de escenarios oculto en temporadas históricas, con una temporada actual simulada (2027).
+- Service Worker: lista de precache (con `temporadas.js`), recarga automática ante `DATA_UPDATED`.
+
+**Datos**
+- `node tools/validar-temporada.js <año>` ya cubre la validación de los JSON; se puede correr antes de cada publicación.
+
+Herramientas usadas: Node ≥ 18 y `jsdom@24` (solo desarrollo; no subir `node_modules`).

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendario — ONEFA</title>
+  <script src="temporadas.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Fuentes NO bloqueantes: si Google Fonts tarda o no responde, la página igual se pinta con la fuente de respaldo -->
@@ -70,7 +71,7 @@ const EQUIPO   = getP('equipo') || '';
 const rawTemp  = getP('temporada');
 const CONF     = getP('conferencia') || '14g';
 const isNac    = CONF === 'nacional';
-const TEMPORADA = rawTemp === '2025' ? 2025 : 2026;   // aplica igual a 14G y Nacional
+const TEMPORADA = ONEFA_TEMP.resolver(rawTemp);   // aplica igual a 14G y Nacional (temporadas.js)
 const DATA_FILE = isNac ? `./onefa_nacional_${TEMPORADA}.json` : `./onefa_data_${TEMPORADA}.json`;
 const SK        = isNac
   ? `onefa_nacional_${TEMPORADA}_v1`
@@ -85,12 +86,12 @@ document.getElementById('btnBack').href   = backBase;
 if (isNac) {
   document.getElementById('tabNac').classList.add('active');
   const s = document.getElementById('seasonSelect');
-  s.innerHTML = '<option value="2026">2026</option><option value="2025">2025</option>';
+  s.innerHTML = ONEFA_TEMP.opcionesSelector();
   s.value = String(TEMPORADA);
 } else {
   document.getElementById('tab14').classList.add('active');
   const s = document.getElementById('seasonSelect');
-  s.innerHTML = '<option value="2026">2026</option><option value="2025">2025</option>';
+  s.innerHTML = ONEFA_TEMP.opcionesSelector();
   s.value = String(TEMPORADA);
 }
 

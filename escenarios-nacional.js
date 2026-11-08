@@ -803,6 +803,8 @@
     if (msg) return { estado: 'fuera_de_rango', mensaje: msg, equipos: [] };
     const P = prepararProblema(datos, Object.assign({}, o, { objetivo: 'clasificado' })), out = [];   // el panorama siempre es "clasificado"
     const excl = new Set(PRED.EQUIPOS_EXCLUIDOS || []);
+    // El panorama corre al cargar las páginas: tope propio de juegos libres (2^21 ≈ 2 M de combinaciones por equipo)
+    P.o.enumeracionMaxN = Math.min(P.o.enumeracionMaxN, o.panoramaMaxN != null ? o.panoramaMaxN : 21);
     for (let T = 0; T < P.nEq; T++) {
       ctx.progreso('panorama', T / P.nEq);
       if (ctx.cancelado()) break;

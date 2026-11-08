@@ -7,13 +7,26 @@
  *   2) En segundo plano pide la versión nueva y la guarda para la próxima vez.
  *   3) Si un .json cambió, avisa a la página con { type: 'DATA_UPDATED' } y ella se recarga sola.
  *
- * Para forzar que todos descarguen una versión nueva de todo, cambia VERSION.
+ * Para forzar que todos descarguen una versión nueva de todo, cambia VERSION (v4: temporadas.js y estado-equipos.js).
  */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = 'onefa-' + VERSION;
 
+// Las temporadas (archivos JSON) salen de temporadas.js: así agregar 2027 no obliga a editar este archivo.
+// Si por lo que sea no se pudiera cargar, se usa la lista de respaldo.
+let ARCHIVOS_DATOS = [
+  './onefa_data_2025.json',
+  './onefa_data_2026.json',
+  './onefa_nacional_2025.json',
+  './onefa_nacional_2026.json',
+];
+try {
+  importScripts('./temporadas.js');                       // define self.ONEFA_TEMP
+  if (self.ONEFA_TEMP && self.ONEFA_TEMP.archivos) ARCHIVOS_DATOS = self.ONEFA_TEMP.archivos();
+} catch (_) { /* se queda la lista de respaldo */ }
+
 // Archivos que se guardan al instalar. Si alguno no existe se omite sin romper nada.
-// Si agregas un archivo nuevo al sitio (otra página, otro JSON), añádelo aquí.
+// Si agregas un archivo nuevo al sitio (otra página, otro script), añádelo aquí.
 const PRECACHE = [
   './',
   './index.html',
@@ -21,16 +34,14 @@ const PRECACHE = [
   './calendario_equipo.html',
   './prediccion.html',
   './onefa.css',
+  './temporadas.js',
   './prediccion.js',
   './escenarios.js',
   './escenarios-nacional.js',
   './escenarios-worker.js',
   './escenarios-ui.js',
-  './onefa_data_2025.json',
-  './onefa_data_2026.json',
-  './onefa_nacional_2025.json',
-  './onefa_nacional_2026.json',
-];
+  './estado-equipos.js',
+].concat(ARCHIVOS_DATOS);
 
 // Google Fonts también se guarda (hoja de estilos + archivos .woff2).
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];

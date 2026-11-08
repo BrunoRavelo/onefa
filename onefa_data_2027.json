@@ -1,0 +1,22 @@
+{
+  "temporada": 2027,
+  "jornadas_jugadas": 0,
+  "equipos": [
+    "Auténticos Tigres",
+    "Borregos CCM",
+    "Borregos GDL",
+    "Linces UVM",
+    "Leones UAC",
+    "Leones UAMN",
+    "Zorros CETYS",
+    "Águilas Blancas",
+    "Borregos MTY",
+    "Borregos PUE",
+    "Burros Blancos",
+    "Borregos CEM",
+    "Pumas CU",
+    "Aztecas UDLAP"
+  ],
+  "juegos": [],
+  "_nota": "Esqueleto generado desde la temporada 2026: revisa ascensos/descensos en \"equipos\" y llena \"juegos\" con el calendario (jornada, local, visita, scoreLocal 0, scoreVisita 0)."
+}

@@ -237,19 +237,40 @@
   // no se toca: no hace falta subir ni bajar a nadie más, porque las dos
   // conferencias ya nunca se comparan en una sola tabla.
   // ==========================================================================
+  // Temporada actual y su anterior, SIN años escritos a mano: se toman de las llaves d14_<año> / dnac_<año> que
+  // vengan en `datos` (la actual = la más reciente que tenga ambas conferencias; la previa = la siguiente).
+  // Sin temporada previa, el modelo arranca sin priors (rosters vacíos).
+  function seleccionarTemporadas(datos) {
+    const anios = [];
+    Object.keys(datos).forEach(k => {
+      const m = /^d14_(\d{4})$/.exec(k);
+      if (m && datos[k] && datos['dnac_' + m[1]]) anios.push(+m[1]);
+    });
+    anios.sort((a, b) => b - a);
+    const act = anios[0], prev = anios.length > 1 ? anios[1] : null;
+    if (act === undefined) throw new Error('prediccion.js: faltan los JSON d14_<año> y dnac_<año>');
+    return {
+      act, prev,
+      d14_act: datos['d14_' + act], dnac_act: datos['dnac_' + act],
+      d14_prev: prev ? datos['d14_' + prev] : { equipos: [], juegos: [], liguilla: [] },
+      dnac_prev: prev ? datos['dnac_' + prev] : { grupos: {}, juegos: [], liguilla: [] }
+    };
+  }
+
   function construirModelosPorConferencia(datos) {
-    const { d14_2025, d14_2026, dnac_2025, dnac_2026 } = datos;
+    const S = seleccionarTemporadas(datos);
+    const d14_prev = S.d14_prev, d14_act = S.d14_act, dnac_prev = S.dnac_prev, dnac_act = S.dnac_act;
     const excl = new Set(EQUIPOS_EXCLUIDOS);
 
-    const teams14_2026 = d14_2026.equipos.filter(t => !excl.has(t));
-    const teamsNac_2026 = equiposNacional(dnac_2026).filter(t => !excl.has(t));
+    const teams14_act = d14_act.equipos.filter(t => !excl.has(t));
+    const teamsNac_act = equiposNacional(dnac_act).filter(t => !excl.has(t));
 
     // ---- Detección de equipos puente (comparando rosters 2025 vs 2026) ----
-    const teamsSet14_2025 = new Set(d14_2025.equipos);
-    const teamsSetNac_2025 = new Set(equiposNacional(dnac_2025));
+    const teamsSet14_prev = new Set(d14_prev.equipos);
+    const teamsSetNac_prev = new Set(equiposNacional(dnac_prev));
     let equipoAscendido = null, equipoDescendido = null;
-    teams14_2026.forEach(t => { if (teamsSetNac_2025.has(t)) equipoAscendido = t; });
-    teamsNac_2026.forEach(t => { if (teamsSet14_2025.has(t)) equipoDescendido = t; });
+    teams14_act.forEach(t => { if (teamsSetNac_prev.has(t)) equipoAscendido = t; });
+    teamsNac_act.forEach(t => { if (teamsSet14_prev.has(t)) equipoDescendido = t; });
 
     // ---- Ratings 2025, cada conferencia calculada y centrada por separado.
     // La liguilla (playoffs) 2025 SÍ debe contar para el rating de cada liga:
@@ -257,31 +278,31 @@
     // real), y omitirla deja huecos graves — ej. un equipo invicto en
     // temporada regular que perdió la final se vería, sin la liguilla, mejor
     // que el campeón real. ----
-    const teams14_2025 = d14_2025.equipos;
-    const juegos14_2025 = [...d14_2025.juegos, ...(d14_2025.liguilla || [])];
-    const ratings14_2025 = centrar(masseyRatings(teams14_2025, juegos14_2025));
+    const teams14_prev = d14_prev.equipos;
+    const juegos14_prev = [...d14_prev.juegos, ...(d14_prev.liguilla || [])];
+    const ratings14_prev = centrar(masseyRatings(teams14_prev, juegos14_prev));
 
-    const teamsNac_2025 = equiposNacional(dnac_2025);
-    const juegosNac_2025 = [...dnac_2025.juegos, ...(dnac_2025.liguilla || [])];
-    const ratingsNac_2025 = centrar(masseyRatings(teamsNac_2025, juegosNac_2025));
+    const teamsNac_prev = equiposNacional(dnac_prev);
+    const juegosNac_prev = [...dnac_prev.juegos, ...(dnac_prev.liguilla || [])];
+    const ratingsNac_prev = centrar(masseyRatings(teamsNac_prev, juegosNac_prev));
 
     // ---- Intercambio de prior entre los equipos puente (ver comentario de
     // la función completo arriba). Si por lo que sea no se detecta un par
     // ascenso/descenso claro, cada quien usa su propio rating 2025 sin tocar
     // — no hay arithmetic de respaldo que inventar. ----
-    const prior14 = Object.assign({}, ratings14_2025);
-    const priorNac = Object.assign({}, ratingsNac_2025);
+    const prior14 = Object.assign({}, ratings14_prev);
+    const priorNac = Object.assign({}, ratingsNac_prev);
     if (equipoAscendido && equipoDescendido) {
-      if (ratings14_2025[equipoDescendido] != null) prior14[equipoAscendido] = ratings14_2025[equipoDescendido];
-      if (ratingsNac_2025[equipoAscendido] != null) priorNac[equipoDescendido] = ratingsNac_2025[equipoAscendido];
+      if (ratings14_prev[equipoDescendido] != null) prior14[equipoAscendido] = ratings14_prev[equipoDescendido];
+      if (ratingsNac_prev[equipoAscendido] != null) priorNac[equipoDescendido] = ratingsNac_prev[equipoAscendido];
     }
 
     const modelo14 = construirModeloConferencia(
-      teams14_2026, d14_2026.juegos, d14_2026.jornadas_jugadas, prior14,
+      teams14_act, d14_act.juegos, d14_act.jornadas_jugadas, prior14,
       equipoAscendido ? { [equipoAscendido]: 'sube' } : {}
     );
     const modeloNac = construirModeloConferencia(
-      teamsNac_2026, dnac_2026.juegos, dnac_2026.jornadas_jugadas, priorNac,
+      teamsNac_act, dnac_act.juegos, dnac_act.jornadas_jugadas, priorNac,
       equipoDescendido ? { [equipoDescendido]: 'baja' } : {}
     );
 
@@ -291,7 +312,8 @@
       equipoAscendido,
       equipoDescendido,
       // se expone por si se quiere mostrar/depurar en la UI
-      ratings2025: { catorceGrandes: ratings14_2025, nacional: ratingsNac_2025 }
+      ratings2025: { catorceGrandes: ratings14_prev, nacional: ratingsNac_prev },   // (nombre histórico) ratings de la temporada anterior
+      temporada: S.act, temporadaPrevia: S.prev
     };
   }
 
@@ -528,18 +550,18 @@
   // (generarPredicciones) ya los tiene a la mano.
   // ==========================================================================
   function proyectarPlayoffsConModelos(datos, conferencia, modelos) {
-    const { d14_2026, dnac_2026 } = datos;
+    const S = seleccionarTemporadas(datos), d14_act = S.d14_act, dnac_act = S.dnac_act;
     if (conferencia === '14g') {
       const modelo = modelos.modelo14;
-      const juegosProyectados = proyectarJuegos(d14_2026.juegos, d14_2026.jornadas_jugadas, modelo);
-      const standings = calcularStandings14G(d14_2026.equipos, juegosProyectados);
+      const juegosProyectados = proyectarJuegos(d14_act.juegos, d14_act.jornadas_jugadas, modelo);
+      const standings = calcularStandings14G(d14_act.equipos, juegosProyectados);
       const seeds = standings.slice(0, 8);
       const bracket = construirBracketPrediccion(seeds, modelo);
       return { standings, seeds, bracket };
     } else {
       const modelo = modelos.modeloNac;
-      const juegosProyectados = proyectarJuegos(dnac_2026.juegos, dnac_2026.jornadas_jugadas, modelo);
-      const { allRows, seeds } = calcularStandingsNacional(dnac_2026.grupos, juegosProyectados);
+      const juegosProyectados = proyectarJuegos(dnac_act.juegos, dnac_act.jornadas_jugadas, modelo);
+      const { allRows, seeds } = calcularStandingsNacional(dnac_act.grupos, juegosProyectados);
       const bracket = construirBracketPrediccion(seeds, modelo);
       return { allRows, seeds, bracket };
     }
@@ -594,7 +616,8 @@
   function generarPredicciones(datos, conferencia) {
     const modelos = construirModelosPorConferencia(datos);
     const modelo = conferencia === '14g' ? modelos.modelo14 : modelos.modeloNac;
-    const json = conferencia === '14g' ? datos.d14_2026 : datos.dnac_2026;
+    const TS = seleccionarTemporadas(datos);
+    const json = conferencia === '14g' ? TS.d14_act : TS.dnac_act;
     const jj = json.jornadas_jugadas;
 
     const predicciones = json.juegos
@@ -625,12 +648,14 @@
       const res = await fetch(baseUrl + nombre, { cache: 'no-cache' });
       return res.json();
     };
-    _cacheDatos = Promise.all([
-      fetchJSON('onefa_data_2025.json'),
-      fetchJSON('onefa_data_2026.json'),
-      fetchJSON('onefa_nacional_2025.json'),
-      fetchJSON('onefa_nacional_2026.json')
-    ]).then(([d14_2025, d14_2026, dnac_2025, dnac_2026]) => ({ d14_2025, d14_2026, dnac_2025, dnac_2026 }));
+    // Archivos de la temporada actual y su anterior, según temporadas.js (sin años escritos a mano)
+    const T = (typeof ONEFA_TEMP !== 'undefined') ? ONEFA_TEMP : (typeof module !== 'undefined' && module.exports ? require('./temporadas.js') : null);
+    const anios = T ? T.paraModelo() : [2026, 2025];
+    const pedidos = [];
+    anios.forEach(y => { pedidos.push(['d14_' + y, 'onefa_data_' + y + '.json'], ['dnac_' + y, 'onefa_nacional_' + y + '.json']); });
+    _cacheDatos = Promise.all(pedidos.map(([, nombre]) => fetchJSON(nombre))).then(arr => {
+      const datos = {}; pedidos.forEach(([llave], i) => { datos[llave] = arr[i]; }); return datos;
+    });
     _cacheDatos.catch(() => { _cacheDatos = null; }); // si falla, el siguiente intento vuelve a pedir
     return _cacheDatos;
   }
@@ -657,6 +682,7 @@
     calcularStandingsNacional,
     getDirecto,
     ordenarEmpatados,
+    seleccionarTemporadas,
     esPendiente,
     probabilidadVictoria,
     Phi,

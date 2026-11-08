@@ -1,0 +1,36 @@
+{
+  "temporada": 2027,
+  "conferencia": "Nacional",
+  "jornadas_jugadas": 0,
+  "grupos": {
+    "Norte": [
+      "Águilas UACH",
+      "Potros ITSON",
+      "Indios UACJ",
+      "Lobos UA de C",
+      "Cimarrones UABC",
+      "Liebres CD Juárez"
+    ],
+    "Centro": [
+      "Panteras Siglo XXI",
+      "Halcones UV",
+      "Búhos IPN",
+      "Frailes UT",
+      "Potros Salvajes",
+      "Toros Salvajes",
+      "Pumas Acatlán"
+    ],
+    "Bajío": [
+      "ASUCQ / RED WOLVES",
+      "Lobos ULM",
+      "Cardinals UIW",
+      "Tecos UAG",
+      "Correcaminos UAT",
+      "Leones UAQ"
+    ]
+  },
+  "nota_desempate": "Los criterios de desempate pueden variar según el reglamento oficial de la conferencia. El mostrado es referencial: resultado directo, luego menor puntaje en contra.",
+  "juegos": [],
+  "scrimmages": [],
+  "_nota": "Esqueleto generado desde la temporada 2026: revisa equipos y grupos y llena \"juegos\" (los juegos entre grupos también). Si algún juego solo cuenta para un equipo, agrega \"cuentaSoloPara\":[\"Equipo\"]."
+}

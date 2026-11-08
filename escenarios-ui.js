@@ -25,7 +25,8 @@
       nota: 'Elige un equipo de 14 Grandes y el lugar que quieres que logre (por omisión, clasificar a playoffs: Top 8) y calculamos qué tiene que pasar. ' +
             'Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
       nLugares: 14, notaLugar: 'Lugar = posición final en la tabla general (1.º a 14.º). «Desclasificado» = quedar fuera del Top 8.',
-      jornadaMax: function () { return 9; }, motor: 'ONEFA_ESC', scripts: ['escenarios.js']
+      jornadaMax: function (d) { let u = 0; d.juegos.forEach(function (g) { if (g.jornada > u) u = g.jornada; }); return u - 1; },   // última jornada regular − 1 (14G: 10 → 9)
+      motor: 'ONEFA_ESC', scripts: ['escenarios.js']
     },
     'nacional': {
       clave: 'nacional', prefijo: 'dnac', nombre: 'Conferencia Nacional', pagina: 'nacional.html',
@@ -335,7 +336,6 @@
     res.innerHTML = '';
     mostrarProgreso(false);
     const opciones = { equipo: equipo, conferencia: CONF.clave, jornadaMin: ESC_JORNADA_MIN, objetivo: $('escLugar').value || 'clasificado' };
-    if (CONF.clave === '14g') opciones.jornadaMax = CONF.jornadaMax();     // Nacional: el motor la deriva de los datos
     correrEnWorker(opciones, id)
       .catch(function (err) {
         if (err && err.fallback && id === corrida) return correrEnHiloPrincipal(opciones, id);
@@ -624,9 +624,11 @@
 
   // ---------------------------------------------------------------- arranque
   function iniciar() {
+    // Solo la temporada en curso (temporadas.js); si no está cargado, se asume que ?temporada=2025 es histórico
     const temp = new URLSearchParams(window.location.search).get('temporada');
+    const historica = (typeof ONEFA_TEMP !== 'undefined') ? !ONEFA_TEMP.esActual(ONEFA_TEMP.resolver(temp)) : (temp === '2025');
     document.querySelectorAll('[data-esc-conf]').forEach(function (btn) {
-      if (temp === '2025') { btn.style.display = 'none'; return; }   // solo temporada en curso
+      if (historica) { btn.style.display = 'none'; return; }
       btn.addEventListener('click', function () {
         const conf = btn.getAttribute('data-esc-conf');
         if (!CONFS[conf]) return;

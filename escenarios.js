@@ -47,7 +47,7 @@
     umbralCasiEliminado: 0.02,
     umbralPracticamenteSeguro: 0.995,   // favorito con P ≥ esto: no se buscan escenarios de riesgo
     maxMsCasiEliminado: 5000,           // presupuesto de búsqueda para equipos casi eliminados
-    jornadaMin: 6, jornadaMax: 9,   // el módulo se habilita con J6..J9 concluidas
+    jornadaMin: 6, jornadaMax: null,   // el módulo se habilita desde la J6 concluida; jornadaMax null = última jornada regular − 1 (14G: 10 jornadas → 9), derivada de los datos
     enumeracionMaxN: 26,    // enumeración exacta solo si los juegos libres son ≤ este número
     verificarCompletacionesMaxF: 22
   };
@@ -99,10 +99,22 @@
   // ==========================================================================
   // Etapa 0 y 1 — Preparación del problema y probabilidades por juego
   // ==========================================================================
+  // JSON de 14 Grandes de la temporada más reciente que venga en `datos` (d14_2026, d14_2027…): sin años escritos a mano
+  function jsonActual14(datos) {
+    let json = null, anio = -1;
+    Object.keys(datos).forEach(function (k) {
+      const m = /^d14_(\d{4})$/.exec(k);
+      if (m && +m[1] > anio && datos[k] && datos[k].juegos) { anio = +m[1]; json = datos[k]; }
+    });
+    return json;
+  }
+  function ultimaJornada(d) { let u = 0; d.juegos.forEach(function (g) { if (g.jornada > u) u = g.jornada; }); return u; }
+
   function prepararProblema(datos, opciones) {
     const o = Object.assign({}, DEF, opciones || {});
-    if (o.conferencia !== '14g') throw new Error('Conferencia no soportada todavía (Nacional = Fase 5)');
-    const d = datos.d14_2026, jj = d.jornadas_jugadas;
+    if (o.conferencia !== '14g') throw new Error('Este motor es de 14 Grandes; Conferencia Nacional usa escenarios-nacional.js');
+    const d = jsonActual14(datos), jj = d.jornadas_jugadas;
+    if (o.jornadaMax == null) o.jornadaMax = ultimaJornada(d) - 1;
     const modelo = PRED.construirModelosPorConferencia(datos).modelo14;
     const equipos = d.equipos.slice(), idx = {};
     equipos.forEach(function (t, i) { idx[t] = i; });
@@ -708,10 +720,11 @@
   function analizar(datos, opciones, ctxIn) {
     const ctx = ctxPorDefecto(ctxIn), o = Object.assign({}, DEF, opciones || {});
     const t0 = Date.now(), adv = [];
-    const jj = datos.d14_2026.jornadas_jugadas;
+    const d14 = jsonActual14(datos), jj = d14.jornadas_jugadas;
+    const jmax = (o.jornadaMax != null) ? o.jornadaMax : ultimaJornada(d14) - 1;
     const meta0 = { equipo: o.equipo, jornadasJugadas: jj, parametros: o };
     if (jj < o.jornadaMin) return { meta: meta0, estado: 'fuera_de_rango', mensaje: 'Disponible a partir de la Jornada ' + o.jornadaMin + ' concluida.' };
-    if (jj > o.jornadaMax) return { meta: meta0, estado: 'fuera_de_rango', mensaje: 'La temporada regular ya concluyó.' };
+    if (jj > jmax) return { meta: meta0, estado: 'fuera_de_rango', mensaje: 'La temporada regular ya concluyó.' };
     ctx.progreso('preparando', 0);
     const P = prepararProblema(datos, o);
     const T = P.idx[o.equipo];
@@ -727,6 +740,17 @@
     ctx.progreso('enumeracion', 0);
     const exacto = enumerarExacto(P, T, obj, null, ctx);
     if (!exacto) adv.push('No se calcularon las cotas exactas (demasiados juegos libres o cancelado).');
+
+    // Objetivo ya decidido (prueba exacta): respuesta inmediata, sin simular ni buscar escenarios (la pantalla solo muestra el estado)
+    const sit0 = exacto ? situacionEquipo(exacto, 0.5, o, obj) : null;
+    if (sit0 === 'clasificado' || sit0 === 'eliminado' || sit0 === 'cumple_siempre' || sit0 === 'cumple_nunca') {
+      const p = (sit0 === 'clasificado' || sit0 === 'cumple_siempre') ? 1 : 0;
+      ctx.progreso('listo', 1); meta.ms = Date.now() - t0;
+      return { meta: meta, estado: 'ok', situacion: sit0, objetivo: obj,
+               probabilidad: { p: p, ic95: [p, p], metodo: 'exacto', cotasExactas: { min: p, max: p } }, exacto: exacto,
+               distribucionPosicion: null, victoriasEsperadas: null, porVictoriasPropias: [], juegosClave: [], juegosClaveOtros: [],
+               escenarios: [], busqueda: null };
+    }
 
     // Monte Carlo
     ctx.progreso('montecarlo', 0);
@@ -794,8 +818,33 @@
     return resultado;
   }
 
+  // Panorama: estado exacto de TODOS los equipos con el objetivo «clasificado» (para las marcas ✅ / ✖️ de las páginas principales)
+  //   'clasificado' | 'eliminado' | 'abierto' | null (sin prueba exacta: demasiados juegos libres)
+  function panorama(datos, opciones, ctxIn) {
+    const ctx = ctxPorDefecto(ctxIn), o = Object.assign({}, DEF, opciones || {}, { objetivo: 'clasificado' });
+    const d = jsonActual14(datos), jj = d.jornadas_jugadas, jmax = (o.jornadaMax != null) ? o.jornadaMax : ultimaJornada(d) - 1;
+    if (jj < o.jornadaMin) return { estado: 'fuera_de_rango', mensaje: 'Disponible a partir de la Jornada ' + o.jornadaMin + ' concluida.', equipos: [] };
+    if (jj > jmax) return { estado: 'fuera_de_rango', mensaje: 'La temporada regular ya concluyó.', equipos: [] };
+    const P = prepararProblema(datos, o), out = [];
+    // El panorama corre al cargar las páginas: tope propio de juegos libres (2^21 ≈ 2 M de combinaciones por equipo). Con más, el estado queda en null (sin prueba exacta).
+    P.o.enumeracionMaxN = Math.min(P.o.enumeracionMaxN, o.panoramaMaxN != null ? o.panoramaMaxN : 21);
+    for (let T = 0; T < P.nEq; T++) {
+      ctx.progreso('panorama', T / P.nEq);
+      if (ctx.cancelado()) break;
+      const ex = enumerarExacto(P, T, OBJETIVO_PLAYOFFS, null, { progreso: function () {}, cancelado: ctx.cancelado });
+      let estado = null, min = null, max = null;
+      if (ex) {
+        min = ex.seguro.p; max = ex.seguro.p + ex.filo.p;
+        estado = (ex.filo.n === 0 && ex.fuera.n === 0) ? 'clasificado' : ((ex.seguro.n === 0 && ex.filo.n === 0) ? 'eliminado' : 'abierto');
+      }
+      out.push({ equipo: P.equipos[T], estado: estado, min: min, max: max });
+    }
+    ctx.progreso('listo', 1);
+    return { estado: 'ok', jornadasJugadas: jj, equipos: out };
+  }
+
   const API = {
-    DEF: DEF, OBJETIVO_PLAYOFFS: OBJETIVO_PLAYOFFS, objetivoDe: objetivoDe, esObjetivoLegado: esObjetivoLegado, SEGURO: SEGURO, FILO: FILO, FUERA: FUERA,
+    DEF: DEF, panorama: panorama, jsonActual14: jsonActual14, ultimaJornada: ultimaJornada, OBJETIVO_PLAYOFFS: OBJETIVO_PLAYOFFS, objetivoDe: objetivoDe, esObjetivoLegado: esObjetivoLegado, SEGURO: SEGURO, FILO: FILO, FUERA: FUERA,
     crearRng: crearRng, probit: probit,
     prepararProblema: prepararProblema, ganadoresFavoritos: ganadoresFavoritos, victorias: victorias,
     marcadoresBase: marcadoresBase, tablaFinal: tablaFinal, posicionDe: posicionDe,
