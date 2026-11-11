@@ -1,12 +1,14 @@
-/* estado-equipos.js — ✅ / ✖️ junto a los equipos 100 % clasificados o 100 % eliminados
+/* estado-equipos.js — (c) / (e) junto a los equipos 100 % clasificados o 100 % eliminados
    ============================================================================
-   Se carga en las páginas principales (index.html y nacional.html) y marca, en el CALENDARIO, a cada equipo que
-   ya está matemáticamente clasificado a playoffs (✅) o eliminado (✖️). "100 %" = prueba exacta (enumeración de
-   todas las combinaciones de los juegos que faltan), nunca una simulación.
+   Se carga en las páginas principales (index.html y nacional.html) y marca, SOLO en la(s) tabla(s) de posiciones del
+   final de la página (14 Grandes: «Tabla de Posiciones»; Nacional: «Tablas por Grupo»), a cada equipo que ya está
+   matemáticamente clasificado a playoffs «(c)» o eliminado «(e)», con una leyenda sobre la tabla. NO se marca el
+   calendario semanal. "100 %" = prueba exacta (enumeración de todas las combinaciones de los juegos que faltan),
+   nunca una simulación.
 
    Cuándo marca:
      · jornada concluida ≥ 6 y la temporada regular sigue abierta → calcula el panorama con el motor (Web Worker);
-     · temporada regular terminada (ya no hay juegos pendientes) → usa la tabla final: top 8 ✅, el resto ✖️ (sin motor);
+     · temporada regular terminada (ya no hay juegos pendientes) → usa la tabla final: top 8 (c), el resto (e) (sin motor);
      · antes de la J6 → no marca nada.
    Solo cuentan los resultados OFICIALES del JSON (no los marcadores que la persona escribe en su simulación).
 
@@ -22,8 +24,11 @@
   const CONF = (script && script.getAttribute('data-conf')) || (/nacional/.test(location.pathname) ? 'nacional' : '14g');
   const NAC = CONF === 'nacional';
   const JORNADA_MIN = 6;                      // igual que el módulo de escenarios
-  const MARCA = { c: '✅', e: '✖️' };
+  const MARCA = { c: '(c)', e: '(e)' };
   const TITULO = { c: 'Clasificado a playoffs (100 %)', e: 'Eliminado: ya no puede clasificar (100 %)' };
+  // Celdas con el nombre del equipo en las tablas de posiciones (las mismas que pinta cada página)
+  const TABLAS = NAC ? ['#tblNorte', '#tblCentro', '#tblBajio'] : ['#tablaPosiciones'];
+  const CELDAS = TABLAS.map(function (t) { return t + ' tbody td.s-eq'; }).join(', ');
 
   let estados = null;                         // { equipo: 'c' | 'e' }
   let observador = null, pendiente = null;
@@ -43,32 +48,34 @@
     return n.trim();
   }
   function aplicar() {
-    const cal = document.getElementById('calendarioAccordion');
-    if (!cal || !estados) return;
-    cal.querySelectorAll('.t-name').forEach(function (el) {
-      if (el.closest('.scrim-item')) return;                          // los scrimmages no cuentan
+    if (!estados) return;
+    document.querySelectorAll(CELDAS).forEach(function (el) {
       const st = estados[nombreDe(el)];
       const actual = el.querySelector('.est-mark');
       if (!st) { if (actual) actual.remove(); return; }
       if (actual && actual.getAttribute('data-e') === st) return;      // ya está bien: no se toca el DOM
       if (actual) actual.remove();
       const m = document.createElement('span');
-      m.className = 'est-mark'; m.setAttribute('data-e', st); m.title = TITULO[st]; m.textContent = MARCA[st];
-      m.style.cssText = 'margin-left:.35em;font-size:.85em;white-space:nowrap';
+      m.className = 'est-mark'; m.setAttribute('data-e', st); m.title = TITULO[st]; m.textContent = ' ' + MARCA[st];
+      m.style.cssText = 'font-size:.8em;opacity:.8;white-space:nowrap';
       el.appendChild(m);
     });
-    leyenda(cal);
+    leyenda();
   }
-  function leyenda(cal) {
+  // Leyenda justo debajo del título de la sección de posiciones
+  function leyenda() {
     let l = document.getElementById('estLeyenda');
     const hay = estados && Object.keys(estados).length > 0;
     if (!hay) { if (l) l.remove(); return; }
+    const txt = MARCA.c + ' clasificado a playoffs · ' + MARCA.e + ' eliminado — matemáticamente, con los resultados oficiales (no con tus marcadores simulados).';
     if (!l) {
+      let titulo = null;
+      document.querySelectorAll('.s-label').forEach(function (e) { if (!titulo && /Tabla(s)? (de Posiciones|por Grupo)/i.test(e.textContent)) titulo = e; });
+      if (!titulo) return;
       l = document.createElement('div'); l.id = 'estLeyenda';
       l.style.cssText = 'font-size:.8rem;opacity:.75;margin:.25rem 0 .6rem';
-      cal.parentNode.insertBefore(l, cal);
+      titulo.parentNode.insertBefore(l, titulo.nextSibling);
     }
-    const txt = MARCA.c + ' clasificado a playoffs · ' + MARCA.e + ' eliminado (matemáticamente, con los resultados oficiales)';
     if (l.textContent !== txt) l.textContent = txt;
   }
   function programar() {
@@ -76,10 +83,9 @@
     pendiente = setTimeout(function () { pendiente = null; aplicar(); }, 60);
   }
   function observar() {
-    const cal = document.getElementById('calendarioAccordion');
-    if (!cal || observador || typeof MutationObserver === 'undefined') return;
-    observador = new MutationObserver(programar);                       // el calendario se vuelve a pintar al editar marcadores
-    observador.observe(cal, { childList: true, subtree: true });
+    if (observador || typeof MutationObserver === 'undefined') return;
+    observador = new MutationObserver(programar);                       // las tablas se vuelven a pintar al editar marcadores
+    TABLAS.forEach(function (t) { const el = document.querySelector(t); if (el) observador.observe(el, { childList: true, subtree: true }); });
   }
 
   // ------------------------------------------------------------------ cálculo

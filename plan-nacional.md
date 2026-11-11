@@ -43,8 +43,8 @@ El impacto de un juego se estima con Monte Carlo: `P(clasifica | gana el local) 
 2. **`Desclasificado (cualquier lugar)`:** el modo «riesgo» ya existe (qué podría hacerte fallar); falta exponerlo como objetivo elegible y poner textos propios.
 3. Pasar el valor elegido a las opciones del motor (`opciones.lugar`) y ajustar los textos («Escenarios más probables para…»). Hoy el valor no se envía.
 
-**Marcas ✅ y ✖️ en el calendario de las páginas principales (`index.html` y `nacional.html`) — HECHO el 2026-11-02** (`estado-equipos.js`, `panorama` también para 14 Grandes; ver `CLAUDE.md` §8.11). Lo que sigue describe el plan original:
-- ✅ junto a los equipos **100 % clasificados** y ✖️ junto a los **100 % desclasificados** (prueba exacta, nunca por simulación) en el calendario de esas páginas.
+**Marcas `(c)` / `(e)` en la tabla de posiciones de las páginas principales (`index.html` y `nacional.html`) — HECHO el 2026-11-02** (se movieron del calendario a la tabla de posiciones y se cambiaron de emoji a texto por indicación del dueño) (`estado-equipos.js`, `panorama` también para 14 Grandes; ver `CLAUDE.md` §8.11). Lo que sigue describe el plan original:
+- (c) junto a los equipos **100 % clasificados** y (e) junto a los **100 % eliminados** (prueba exacta, nunca por simulación) en la tabla de posiciones de esas páginas (decisión original: ✅/✖️ en el calendario; cambiada el 2026-11-02).
 - Eso obliga a **calcular el estado también en las páginas principales**, no solo al abrir «Escenarios». Nacional ya tiene la función `ONEFA_ESC_NAC.panorama(datos)` (estado exacto de los 18 equipos en ~0.6 s con J6; también está disponible por el Worker con el mensaje `panorama`). **14 Grandes no tiene equivalente:** hay que escribir `panorama` en `escenarios.js` (o un `panorama14g` en archivo aparte) reutilizando `enumerarExacto` por equipo.
 - A decidir al programarlo: cargar el motor (y el Worker) también en las páginas principales; cachear el resultado en `sessionStorage` por `jornadas_jugadas`; que corra solo con `jornadaMin ≤ jornadas_jugadas ≤ jornadaMax` (J6–última−1) y limpiar las marcas fuera de ese rango; y, al terminar la temporada regular, mantener la marca final (clasificado/eliminado definitivo) sin recalcular. Agregar los archivos nuevos a `PRECACHE` de `sw.js` y subir `VERSION`.
 - Criterio de «100 %»: `situacion` = `clasificado` / `eliminado` según la enumeración exacta (todas las combinaciones `SEGURO` o todas `FUERA`).
@@ -470,5 +470,5 @@ Límites que se comunican en la pantalla (igual que 14G): probabilidades según 
 
 1. **H3:** ¿alineamos `calcularStandingsNacional` con el desempate de `nacional.html` (barrido de resultado directo → PC)? Mi recomendación: sí.
 2. **J9:** ¿sabes cuándo se juega? Define si conviene publicar primero la versión mínima (orden 0 → 1 → 4).
-3. ~~Panorama ✓/✕ en el selector~~ — **resuelto el 2026-10-30:** no va en el selector; irá como marca ✅ / ✖️ en el calendario de las páginas principales (ver «Funciones a continuar»).
+3. ~~Panorama ✓/✕ en el selector~~ — **resuelto el 2026-10-30:** no va en el selector; quedó como marca (c) / (e) en la tabla de posiciones de las páginas principales (ver «Funciones a continuar»).
 4. **Comodín:** confirmo que los terceros se comparan por victorias y, si empatan, por menor PC (como hoy en `nacional.html`). Si la liga usa otra regla, dímelo ahora.

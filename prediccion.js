@@ -382,10 +382,22 @@
   // completo (real + proyectado). Empate en el marcador o juego inexistente
   // -> null (no cuenta para desempate). Idéntica lógica a la que ya usan
   // index.html y nacional.html.
+  // Resultado directo entre t1 y t2 con TODOS los juegos que ya jugaron entre sí (en Nacional hay parejas que se
+  // enfrentan dos veces): 1 si t1 ganó todos, -1 si t2 ganó todos, null si no se enfrentaron o se repartieron
+  // las victorias (un juego cada quien, o hubo empate) → en ese caso decide el menor puntaje en contra.
   function getDirecto(juegos, t1, t2) {
-    const g = juegos.find(x => (x.local === t1 && x.visita === t2) || (x.local === t2 && x.visita === t1));
-    if (!g || (g.scoreLocal + g.scoreVisita) === 0 || g.scoreLocal === g.scoreVisita) return null;
-    return g.local === t1 ? (g.scoreLocal > g.scoreVisita ? 1 : -1) : (g.scoreVisita > g.scoreLocal ? 1 : -1);
+    let jugados = 0, gana1 = 0, gana2 = 0;
+    for (let i = 0; i < juegos.length; i++) {
+      const g = juegos[i];
+      if (!((g.local === t1 && g.visita === t2) || (g.local === t2 && g.visita === t1))) continue;
+      if ((g.scoreLocal + g.scoreVisita) === 0) continue;               // sin jugar
+      jugados++;
+      if (g.scoreLocal === g.scoreVisita) continue;                     // empate: nadie gana ese juego
+      const unoGana = g.local === t1 ? g.scoreLocal > g.scoreVisita : g.scoreVisita > g.scoreLocal;
+      if (unoGana) gana1++; else gana2++;
+    }
+    if (jugados === 0) return null;
+    return gana1 === jugados ? 1 : (gana2 === jugados ? -1 : null);
   }
 
   // Un juego está PENDIENTE si su jornada es posterior a "jornadasJugadas" O si

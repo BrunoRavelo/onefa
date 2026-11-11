@@ -126,21 +126,18 @@
     let pjDistinto = false; for (let t = 1; t < nEq; t++) if (pj[t] !== pj[0]) pjDistinto = true;
     if (pjDistinto) adv.push('Los equipos no terminan con los mismos juegos oficiales: el motor ordena por victorias y la tabla de la app por porcentaje; el resultado puede diferir.');
 
-    // Resultado directo (mismo criterio que getDirecto: el PRIMER juego entre la pareja).
-    // pk: 0 sin juego · 1 jugado (pv = 1/-1/0 desde la óptica de a) · 2 pendiente (pv = id del juego)
-    const pk = new Uint8Array(nEq * nEq), pv = new Int16Array(nEq * nEq);
+    // Resultado directo (mismo criterio que getDirecto): se consideran TODOS los juegos entre la pareja (en Nacional
+    // algunas se enfrentan dos veces). pares[a*n+b] = lista de juegos entre a y b: jugados { fl: índice del local,
+    // r: 1/-1/0 desde la óptica del local } o pendientes { id } (su ganador sale del vector de ganadores).
+    const pares = new Array(nEq * nEq).fill(null);
     let ip = 0;
     todos.forEach(function (g) {
       const a = idx[g.local], b = idx[g.visita];
       if (a === undefined || b === undefined) return;
       const esPend = PRED.esPendiente(g, jj);
-      const id = esPend ? ip++ : -1;
-      if (pk[a * nEq + b] !== 0) return;
-      if (esPend) { pk[a * nEq + b] = pk[b * nEq + a] = 2; pv[a * nEq + b] = pv[b * nEq + a] = id; }
-      else {
-        const r = g.scoreLocal === g.scoreVisita ? 0 : (g.scoreLocal > g.scoreVisita ? 1 : -1);
-        pk[a * nEq + b] = pk[b * nEq + a] = 1; pv[a * nEq + b] = r; pv[b * nEq + a] = -r;
-      }
+      const item = esPend ? { id: ip++ } : { fl: a, r: g.scoreLocal === g.scoreVisita ? 0 : (g.scoreLocal > g.scoreVisita ? 1 : -1) };
+      if (pares[a * nEq + b] === null) pares[a * nEq + b] = pares[b * nEq + a] = [];
+      pares[a * nEq + b].push(item);
     });
 
     const popc = { conferencia: 'nacional', sigma: o.sigma || undefined };
@@ -167,7 +164,7 @@
     return { o: o, obj: obj, conferencia: 'nacional', anio: act.anio, jj: jj, ultima: ultimaJornada(d), modelo: modelo,
              equipos: equipos, idx: idx, nEq: nEq, nombresGrupo: nombresGrupo, grupoDe: grupoDe, miembros: miembros,
              gruposObj: gruposObj, todos: todos, posPend: posPend, jugados: jugados, G: G, n: G.length,
-             base: base, pcBase: pcBase, pj: pj, pendientesDe: pendientesDe, pk: pk, pv: pv,
+             base: base, pcBase: pcBase, pj: pj, pendientesDe: pendientesDe, pares: pares,
              emp: new Int16Array(nEq), adv: adv, excluidos: PRED.EQUIPOS_EXCLUIDOS || [] };
   }
 
@@ -196,16 +193,25 @@
   //   SEGURO: clasifica pase lo que pase con los marcadores
   //   FUERA : no clasifica pase lo que pase con los marcadores
   //   FILO  : depende de un desempate por PC (necesita marcadores)
-  // El resultado directo SÍ se resuelve aquí: con los ganadores fijos ya se conoce.
+  // El resultado directo SÍ se resuelve aquí: con los ganadores fijos ya se conoce (con todos los juegos de la pareja).
   // `info` (opcional) recibe { empGrupo, barrido: 0 nadie · 1 T · 2 otro } para etiquetar la vía.
   // ==========================================================================
+  // Resultado directo de a sobre b con todos sus juegos: 1 si a ganó todos, -1 si b ganó todos, 0 si no hay juego,
+  // se repartieron las victorias o hubo empate (entonces decide el PC).
   function h2h(P, hw, a, b) {
-    const k = a * P.nEq + b, t = P.pk[k];
-    if (t === 0) return 0;
-    if (t === 1) return P.pv[k];
-    const i = P.pv[k], x = P.G[i];
-    return ((x.iL === a) === !!hw[i]) ? 1 : -1;
+    const L = P.pares[a * P.nEq + b];
+    if (L === null) return 0;
+    let gana = 0, pierde = 0;
+    for (let k = 0; k < L.length; k++) {
+      const d = L[k];
+      let r;
+      if (d.id === undefined) r = (d.fl === a) ? d.r : -d.r;
+      else { const x = P.G[d.id]; r = ((x.iL === a) === !!hw[d.id]) ? 1 : -1; }
+      if (r > 0) gana++; else if (r < 0) pierde++;
+    }
+    return gana === L.length ? 1 : (pierde === L.length ? -1 : 0);
   }
+
   function tercerMayor(P, W, h) {
     let a = -1, b = -1, c = -1;
     const mem = P.miembros[h];

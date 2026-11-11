@@ -1,213 +1,284 @@
-# Despliegue (AWS y alternativas) y monetización de la página
+# Despliegue, costos y monetización de la página
 
-> Análisis · 2026-11-02 · Solo documentación: no se cambió código por este documento.
-> **Cómo leer las cifras:** las marcadas **[fuente]** las leí en esta sesión en la página citada (sección 6). Las marcadas **[medido]** salen de tus archivos reales. Las marcadas **[estimación]** son supuestos míos para razonar, **no** datos verificados; confírmalas antes de decidir.
-
----
-
-## 1. La idea que lo cambia todo: el motor corre en el teléfono de cada visitante
-
-Los escenarios, el panorama y las marcas ✅/✖️ se calculan en un Web Worker **dentro del navegador de quien visita**. Tu servidor nunca ejecuta el motor de playoffs. Por eso:
-
-- **No se paga cada vez que alguien corre el motor.** Costo por cálculo en tu infraestructura: cero. El «gasto» lo asume el teléfono del visitante (batería y entre 1 y 20 segundos).
-- Lo que sí se paga (o se consume de un cupo gratis) es **entregar archivos estáticos**: bytes transferidos y número de peticiones HTTP.
-- Tampoco necesitas servidor, base de datos ni cuentas. Es un sitio estático: HTML + JS + JSON.
-
-**Cuánto pesa tu sitio [medido, comprimido con gzip]:** `nacional.html` 13 KB, `index.html` 8.5 KB, `prediccion.js` 10.7 KB, `escenarios.js` 15 KB, `escenarios-nacional.js` 14.4 KB, `escenarios-ui.js` 12 KB, `estado-equipos.js` 3.5 KB, los 4 JSON de datos ≈ 5 KB en total. Una primera visita a `nacional.html` descarga ≈ **42 KB** y, si se abre el módulo de escenarios, ≈ **76 KB** (sin contar `onefa.css` ni las fuentes de Google, que no están en tu servidor). Con la precarga del Service Worker, un visitante nuevo baja en total del orden de **0.1–0.2 MB [estimación]**; los que regresan casi no descargan (revalidaciones de unos pocos bytes).
+> Versión 2 · 2026-11-02. Solo documentación: no se cambió código por este documento.
+> **Cómo leer las cifras:** **[AWS]** = la leí en una página oficial de AWS en esta sesión. **[fuente]** = la leí en la página citada (sección 9; muchas son guías de terceros, no oficiales). **[medido]** = sale de tus archivos reales. **[estimación]** = supuesto mío para razonar; **no** es un dato verificado. **[conflicto]** = las fuentes se contradicen y debes confirmarlo en la página oficial.
 
 ---
 
-## 2. Qué cobra Amazon (y qué no)
+## 0. Resumen y recomendación (corregida)
 
-**CloudFront (la red de distribución de Amazon) [fuente: página de precios de AWS, actualizada 2026-11-05]:**
+1. **El motor corre en el teléfono del visitante.** Tu servidor nunca calcula playoffs, así que **no pagas por cada vez que alguien corre el motor**. Lo único que se factura es entregar archivos estáticos (bytes y peticiones).
+2. **Mejor opción para este proyecto: Cloudflare Pages** (sitio estático, ancho de banda sin factura, uso comercial permitido según las guías consultadas). **Segunda: S3 + CloudFront** si prefieres quedarte en AWS. **EC2 no la necesitas.**
+3. **Por qué antes no puse Cloudflare como la mejor:** en la versión 1 solo había verificado precios de AWS (que fue lo que preguntaste) y no los términos de Cloudflare, así que lo dejé como «alternativa, verifica». Con las fuentes de esta versión, Cloudflare Pages gana para tu caso: costo cero a cualquier escala, sin riesgo de factura sorpresa y sin restricción comercial conocida. El único motivo para preferir AWS es tener todo en una sola cuenta o planear un backend.
+4. **Costo vs ingreso:** el hosting cuesta $0–$70 al mes incluso con millones de visitas; el ingreso por anuncios depende de la audiencia, no del costo. **El cuello de botella no es la factura, es el tráfico** (sección 7).
+
+---
+
+## 1. Qué consume tu página (y una persona promedio)
+
+- **Tu sitio [medido, gzip]:** una primera visita a `nacional.html` baja ≈ **42 KB**; con el módulo de escenarios ≈ **76 KB** (sin `onefa.css` ni fuentes de Google, que no salen de tu servidor). Con la precarga del Service Worker, un visitante nuevo baja del orden de **0.1–0.2 MB [estimación]**. Quien regresa descarga casi nada.
+- **La página web promedio [fuente: HTTP Archive 2025, vía SQ Magazine]:** una página de inicio móvil pesa **2,362 KB** (mediana), 8.4 % más que el año anterior, con 632 KB solo de JavaScript. Tu sitio es del orden de **30 a 55 veces más ligero** que la mediana.
+- **Anuncios:** los scripts y creatividades de los anuncios los sirve la red de anuncios, no tu servidor: **no aumentan tu factura**, pero sí el peso y el tiempo de carga que sufre el visitante (y por eso afectan Core Web Vitals; solo el 48 % de los sitios móviles pasa [fuente: CrUX 2025]).
+- **Visitas por sesión y duración:** no encontré cifras verificadas para un sitio deportivo mexicano. En las proyecciones uso **1.5 a 3 páginas por visita [estimación]**; con tus estadísticas reales conviene reemplazarlas.
+
+---
+
+## 2. Qué cobra Amazon
+
+**CloudFront [AWS, página de precios actualizada 2026-11-05]:**
 
 | Concepto | Condición |
 |---|---|
-| Transferencia de salida a internet | **Primer 1 TB al mes gratis** (siempre, no solo el primer año); después, para Estados Unidos, México y Canadá: **$0.085 por GB** (hasta 10 TB más) |
-| Peticiones HTTP/HTTPS | **Primeras 10 millones al mes gratis**; después, HTTPS **$0.01 por cada 10,000** (Estados Unidos, México y Canadá) |
-| Datos entre S3/EC2 y CloudFront | Gratis |
+| Transferencia a internet | **Primer 1 TB al mes gratis (siempre)**; después, para Estados Unidos, México y Canadá, **$0.085 por GB** |
+| Peticiones HTTP/HTTPS | **Primeras 10 millones al mes gratis**; después HTTPS **$0.01 por cada 10,000** |
+| Origen (S3/EC2) → CloudFront | Gratis |
 | Certificado SSL | Gratis |
-| Invalidaciones de caché | Primeras 1,000 rutas al mes gratis; luego $0.005 por ruta |
-| Lambda@Edge | Sin capa gratuita (no se necesita para tu sitio) |
-| Ejemplo oficial de AWS (sitio estático, 100 GB y 1 M de peticiones) | **$0** de transferencia y peticiones |
+| Invalidaciones | 1,000 rutas al mes gratis |
+| Lambda@Edge | Sin capa gratuita (no la necesitas) |
 
-AWS menciona además un esquema de **precio fijo («flat-rate pricing»)** para CloudFront; no leí sus condiciones, así que no lo recomiendo ni descarto.
+**[conflicto]** Algunas comparativas de 2026 listan para las cuentas nuevas con «plan gratuito» solo **100 GB y 1 millón de peticiones** al mes en CloudFront. La página oficial dice 1 TB y 10 millones como «siempre gratis». **Confírmalo en tu cuenta (Billing → Free Tier)** antes de depender de ese cupo.
 
-**Cuentas nuevas [fuente: anuncio de AWS del 16 de julio de 2025]:** el plan gratuito da hasta **$200 en créditos** ($100 al registrarse y $100 más por usar servicios como EC2) y **expira a los 6 meses o cuando se agotan los créditos**; además hay más de 30 servicios con capa «siempre gratis». Ojo: ya no es el esquema antiguo de «12 meses gratis de EC2».
+**Otras partidas de AWS que sí aparecen en la factura:**
 
-**Lo que NO está en esa lista y también cuesta (orden de magnitud [estimación], verifica en la calculadora de AWS):** almacenamiento en S3 (tus archivos pesan menos de 1 MB: centavos), una zona DNS en Route 53 (≈ $0.50 al mes) y el dominio (≈ $10–15 al año).
-
-### ¿Cuánto costaría con más visitas? [estimación con los datos de arriba]
-
-Supuestos: visitante nuevo ≈ 0.2 MB y ≈ 25 peticiones; cada vista de página de un visitante que regresa ≈ 12 peticiones condicionales.
-
-| Escala | Transferencia | Peticiones | CloudFront al mes |
-|---|---|---|---|
-| 10,000 visitas | ≈ 2 GB | ≈ 0.2 M | **$0** |
-| 100,000 visitas | ≈ 20 GB | ≈ 2–4 M | **$0** |
-| 1,000,000 visitas | ≈ 200 GB (dentro del 1 TB gratis) | ≈ 20–40 M | **≈ $10–$30** (solo por peticiones) |
-
-Conclusión: **a mediana escala el costo de hosting es prácticamente cero o de pocas decenas de dólares al mes**, y el factor que primero se cobra son las *peticiones*, no los GB.
-
-### ¿Qué sí se volvería caro?
-
-1. Agregar un **backend por petición** (funciones, API, base de datos) que calcule algo en el servidor.
-2. **Cuentas de usuario / suscripciones** (las descartaste; implicarían base de datos y seguridad).
-3. Imágenes o video pesados (por ejemplo, tarjetas para compartir generadas en servidor).
-4. Pasar de **1 TB al mes** (equivale a unos 5 millones de visitantes nuevos).
-5. Un **ataque o bot** que pida tus archivos en masa (mitigación: alarma de presupuesto y límites).
-6. Servicios opcionales: WAF, registros en tiempo real ($0.01 por millón de líneas), Lambda@Edge.
+| Partida | Dato |
+|---|---|
+| **IP pública IPv4** [AWS, anuncio de 2023/2024] | **$0.005 por IP por hora** (≈ $3.65 al mes) desde febrero de 2024, también en EC2. Antes se regalaba con la instancia |
+| **Transferencia de salida de EC2/S3/otros servicios** [AWS, página de precios de EC2] | **100 GB al mes gratis, sumando todos los servicios y regiones**; CloudFront tiene su propio 1 TB aparte |
+| S3 (almacenamiento) y Route 53 (zona DNS) | No leí sus tarifas en esta sesión. Para ~1 MB de archivos es del orden de centavos; una zona DNS ≈ $0.50 al mes [estimación] |
 
 ---
 
-## 3. Opciones de despliegue
+## 3. EC2: qué es «gratis» hoy
 
-| # | Opción | Qué es | Costo típico | Mantenimiento | Veredicto |
+**[AWS, anuncio del 16 de julio de 2025]** AWS cambió el programa gratuito:
+
+- **Cuentas creadas a partir del 15 de julio de 2025:** ya no hay «12 meses de EC2 gratis». Reciben hasta **$200 en créditos** ($100 al registrarse y $100 más por usar servicios como EC2) y un **plan gratuito que termina a los 6 meses o cuando se agotan los créditos**. Al terminar hay que pasar al plan de pago o la cuenta se cierra. Los créditos cubren EC2 de tipos pequeños, pero no existe un «EC2 gratis para siempre».
+- **Cuentas creadas antes del 15 de julio de 2025:** conservan el esquema anterior de 12 meses (750 horas al mes de una instancia pequeña y 750 horas de IPv4) hasta que se les acabe el año. **[fuente: guías de 2026; confirma la fecha de tu cuenta]**
+- Siguen existiendo más de 30 servicios con capa «siempre gratis» (por ejemplo Lambda y DynamoDB, además de CloudFront en sus límites).
+
+**Costo de una EC2 después de los créditos [estimación, verifica en la calculadora de AWS]:** una instancia pequeña (por ejemplo la clase t3.micro) ronda de **$7 a $10 al mes** encendida las 24 horas, **más** $3.65 de IPv4 **más** el disco (EBS). Se cobra aunque nadie visite.
+
+### ¿Puedo tener una EC2 para otros proyectos y a la vez mi S3 + CloudFront con la página, sin costos adicionales?
+
+**Sí se puede en la misma cuenta, y la EC2 no encarece la página, pero la EC2 sí cuesta por sí misma.** Los detalles:
+
+| Tema | Qué pasa |
+|---|---|
+| ¿La EC2 sube el costo de S3/CloudFront? | **No.** Cada servicio se factura por su propio uso. El tráfico de la página no depende de tu EC2 |
+| ¿La EC2 es gratis? | Solo mientras duren los créditos / el año de la cuenta antigua. Después se paga por hora (+ IPv4 + disco) |
+| Créditos compartidos | Los créditos de una cuenta nueva son **de toda la cuenta**: una EC2 los gasta más rápido y puede acortar el plan gratuito de 6 meses. Para mantener la página después hay que pasar al plan de pago |
+| Los 100 GB gratis de salida | Se **reparten** entre EC2, S3 y demás servicios (CloudFront tiene su 1 TB aparte) |
+| Riesgo de una sola cuenta | Una EC2 mal configurada o vulnerada (minería, ataques) puede generar una factura grande **en la misma cuenta que tu página** |
+| Cómo aislarlo | **AWS Organizations** (sin costo) permite una cuenta para la página y otra para experimentos; así las facturas, los créditos y los permisos no se mezclan. Si no, usa etiquetas por proyecto, alarmas de presupuesto y permisos mínimos |
+
+**Alternativas para «proyectos personales» sin pagar EC2:** una máquina virtual gratuita de Oracle Cloud o la `e2-micro` de Google Cloud (sección 4), o simplemente detener las instancias cuando no se usen.
+
+---
+
+## 4. Capas gratuitas de otros proveedores y si permiten monetizar
+
+**[fuente]** Guías de 2026 (freetier.co, agentdeals.dev, flaviocopes.com, dev.to y otras); los términos pueden cambiar: **confirma en la página oficial antes de decidir**.
+
+| Proveedor | Qué da gratis | Límite relevante | ¿Permite anuncios / uso comercial? |
+|---|---|---|---|
+| **Cloudflare Pages** | Hosting estático; ancho de banda **ilimitado** | 500 compilaciones al mes, 20,000 archivos, 25 MiB por archivo, ~100 dominios propios | **Sí** según las guías consultadas |
+| **AWS (CloudFront + S3)** | Ver sección 2 | Cupo gratis de CloudFront; luego por uso | Sí (no encontré restricción; revisa la política de uso aceptable) |
+| **Google Cloud** | Crédito de $300 por 90 días; VM `e2-micro` «siempre gratis» | Solo regiones de Estados Unidos, 30 GB de disco y **~1 GB de salida al mes**: no sirve para servir una página | Sí (sin restricción reportada) |
+| **Firebase Hosting** (Google) | Plan gratuito con dominio y SSL | ~10 GB de almacenamiento y ~360 MB de transferencia **por día** (≈ 10.8 GB al mes); tope duro | Sí (sin restricción reportada) |
+| **Microsoft Azure** | 12 meses de una VM B1s (750 h) y $200 por 30 días | Después se paga | Sí (sin restricción reportada) |
+| **Oracle Cloud** | VM «siempre gratis» (Ampere ARM) y 10 TB de salida al mes | La mayoría de guías dice 4 vCPU/24 GB; **[conflicto]** una fuente reporta que desde junio de 2026 se redujo a 2 vCPU/12 GB. Pueden recuperar instancias ociosas | Sin restricción reportada; confirma sus términos |
+| **Netlify** | Plan gratuito por créditos (~300 al mes, aprox. 30 GB de ancho de banda) | Al agotar los créditos el sitio se **pausa** (no cobra extra) | **[conflicto]** casi todas las fuentes dicen que sí; una dice que el plan Hobby es no comercial |
+| **Vercel (Hobby)** | Hosting estático con CDN | Plan de uso personal | **No**: es no comercial y los anuncios o enlaces de afiliado cuentan como comercial |
+| **GitHub Pages** | Hosting gratis desde el repositorio | ~1 GB de sitio y ~100 GB al mes (límites «blandos») | **[conflicto]** los términos prohíben usarlo como negocio o comercio electrónico; las fuentes se contradicen sobre los anuncios. **Con anuncios, evítalo** |
+| **Render (sitios estáticos)** | Hosting estático gratis | ~100 GB de ancho de banda | Sí según las guías |
+
+---
+
+## 5. Alternativas de despliegue, ordenadas para tu caso
+
+| # | Opción | Costo al mes | Riesgo de factura sorpresa | Mantenimiento | Comentario |
 |---|---|---|---|---|---|
-| 1 | **S3 + CloudFront** | Los archivos en un «bucket» privado y CloudFront delante | **$0–2 al mes** (+ dominio) mientras uses el cupo gratuito | Casi nulo | **La mejor opción dentro de AWS** |
-| 2 | AWS Amplify Hosting | Hosting estático con despliegue automático desde GitHub | No verifiqué su tarifa (se cobra por minutos de compilación y GB) | Bajo | Cómodo; revisa precios antes |
-| 3 | **EC2** (servidor virtual) | Una máquina encendida 24/7 con nginx | Se paga **por hora encendida aunque nadie visite**; la instancia más pequeña cuesta algunos dólares al mes [estimación] | **Alto**: sistema operativo, parches, certificado, copias | **No la necesitas.** Solo tendría sentido con un backend |
-| 4 | Lightsail | Servidor virtual de precio fijo mensual | No verifiqué tarifas | Medio | Solo si añades backend |
-| 5 | Cloudflare Pages | Hosting estático gratuito con CDN | Gratis para sitios estáticos (según las comparativas que leí) | Casi nulo | **Alternativa muy buena y sin factura sorpresa**; verifica sus límites vigentes |
-| 6 | GitHub Pages (lo que usas hoy) | Hosting gratuito desde el repositorio | Gratis | Nulo | Funciona, pero sus condiciones de uso restringen sitios comerciales; **con anuncios conviene verificar sus términos** |
-| 7 | Netlify / Vercel | Hosting estático con planes gratuitos | Gratis con límites | Bajo | Los planes gratuitos de Vercel suelen restringir uso comercial; **verifica los términos** |
+| **1** | **Cloudflare Pages** | **$0** (más dominio) | **Casi nulo**: no cobra por ancho de banda estático | Mínimo | **La mejor para este proyecto.** Despliegue desde el repositorio o subiendo la carpeta |
+| 2 | S3 + CloudFront | $0 hasta ~500,000 visitas; ≈ $6 con 1 M; ≈ $70 con 5 M (sin optimizar) | Bajo si pones alarma de presupuesto | Bajo | La mejor dentro de AWS; conviene si quieres todo en tu cuenta o agregar servicios después |
+| 3 | Netlify (plan gratuito) | $0 con límite de créditos | Nulo (se pausa) | Bajo | Si se pausa en un partido importante, la página cae: riesgo de disponibilidad |
+| 4 | Firebase Hosting | $0 con tope de ≈ 10 GB al mes | Bajo (tope duro) | Bajo | Se queda corto si crece el tráfico |
+| 5 | EC2 / VM propia (AWS, Oracle, Google) | $0 solo mientras duren créditos o la capa gratuita; luego ≈ $10–15 | Medio | **Alto** (sistema operativo, parches, certificado, copias) | Innecesaria para un sitio estático |
+| ✘ | Vercel Hobby, GitHub Pages | $0 | — | — | **No** para una página con anuncios (términos) |
 
-**Recomendación:** mientras no haya anuncios, tu GitHub Pages actual sirve. Al monetizar, pasar a **Cloudflare Pages** o a **S3 + CloudFront** y poner **alarma de presupuesto** en la cuenta de AWS. EC2 solo si algún día agregas un backend.
-
-### Cómo desplegar en S3 + CloudFront (resumen)
-
-1. Bucket de S3 **privado** con los archivos de la raíz del proyecto.
-2. Distribución de CloudFront con acceso al bucket por «Origin Access Control» y **compresión activada** (gzip/brotli).
-3. Certificado gratuito (ACM) y tu dominio en Route 53 (o en tu registrador).
-4. Políticas de caché: `*.json` con vida corta (por ejemplo 60 segundos, con revalidación) para que los resultados nuevos se vean pronto; `*.js` y `*.css` con vida más larga; **no** cachear `sw.js` más de unos minutos.
-5. Actualizar datos = subir el JSON a S3 (con vida corta no hace falta invalidar).
-6. **AWS Budgets:** alarma a $5 y a $20 al mes.
+**Recomendación:** pasar de GitHub Pages a **Cloudflare Pages** antes de poner anuncios. Si prefieres AWS, S3 + CloudFront con alarma de presupuesto.
 
 ---
 
-## 4. Qué conviene cambiar en la página para que siga siendo barata
+## 6. Cómo bajar el costo a fondo
 
-Ya está bien encaminada: es estática, comprime y usa Service Worker. Mejoras concretas:
+Con tus archivos [medidos], el sitio ya es muy ligero. Estas son las palancas, de mayor a menor efecto. «Ahorro» está en términos de lo que mide cada proveedor: **bytes** (CloudFront, tras el 1 TB gratis) y **peticiones** (CloudFront, tras 10 millones gratis; en tu caso es lo que primero se factura).
 
-1. **Reducir peticiones por vista.** El Service Worker (`stale-while-revalidate`) pregunta al servidor por cada archivo en cada vista (respuestas 304). Es barato en bytes pero cuenta como petición. Opción: darle a los `.js`/`.css` una vida de caché de CDN de unas horas, o nombres con versión (`prediccion.js?v=…`), y dejar la revalidación inmediata solo para los `.json`.
-2. **Cargar los motores solo cuando hacen falta.** Hoy `estado-equipos.js` baja el Worker y los motores al abrir la página para calcular las marcas (una vez por cada cambio de resultados, luego se guarda en `localStorage`). Es correcto; si algún día preocupa el consumo en datos móviles, se puede pedir confirmación o retrasar el cálculo.
-3. **Mantener las fuentes de Google fuera de tu cuenta** (ya lo están: no cuentan en tu transferencia).
-4. **Evitar rutas dinámicas** que obliguen a un servidor (por ejemplo `?conferencia=` se resuelve en el navegador; sigue así).
-5. **Alarma de presupuesto** (sección 3, paso 6) y revisar el panel de uso una vez al mes.
-6. **No registrar de más:** no habilites registros en tiempo real de CloudFront salvo para investigar un problema.
+### 6.1 Elegir un anfitrión que no cobre por ancho de banda
+Cloudflare Pages: el costo de entrega es **$0 a cualquier escala** (con las limitaciones de la sección 4). Es el mayor ahorro posible y no requiere tocar el código.
+
+### 6.2 Reducir peticiones por visita (la palanca más importante en AWS)
+Hoy cada vista de página dispara unas **12 peticiones de revalidación** (el Service Worker pregunta por cada archivo) y una visita nueva descarga ≈ 25 archivos. Con la estimación de 30 % de visitantes nuevos, son ≈ **16 peticiones por visita**.
+
+| Cambio | Efecto | Esfuerzo |
+|---|---|---|
+| **Juntar los scripts en uno o dos archivos** (`prediccion.js`, `escenarios*.js`, `temporadas.js`, `estado-equipos.js`…) con una herramienta de empaquetado | De ~10 archivos de código a 1–2 | Medio |
+| **Nombres con versión** (`prediccion.3f9a.js`) y caché de un año sin revalidar | Las vistas de quien regresa dejan de preguntar por el código | Medio |
+| **Service Worker: caché primero para archivos versionados** y revalidar solo los `.json` | De ~12 a ~3 peticiones por vista | Medio |
+| **Vida corta (60–300 s) para los `.json` en la CDN** | Muchas visitas simultáneas se resuelven con una sola consulta al origen | Bajo |
+
+**Efecto [estimación]:** de ≈ 16 a ≈ 5 peticiones por visita. Con 1 millón de visitas al mes, eso baja la factura de CloudFront de ≈ $6 a **$0**; con 5 millones, de ≈ $70 a ≈ $15.
+
+### 6.3 Reducir bytes
+| Cambio | Efecto | Esfuerzo |
+|---|---|---|
+| **Minificar** los JavaScript (hoy están sin minificar) | ≈ 25–35 % menos de código [estimación] | Bajo (una herramienta) |
+| Brotli en lugar de gzip (lo activan Cloudflare y CloudFront) | ≈ 10–15 % menos [estimación] | Nulo |
+| **Cargar el panorama (marcas (c)/(e)) solo cuando la tabla esté cerca de la pantalla** (hoy se calcula al abrir la página) | Quien no baja a la tabla no descarga ni ejecuta los motores | Bajo |
+| Quitar los JSON de la temporada anterior de la precarga del Service Worker | ≈ 5 KB menos por visitante nuevo | Bajo |
+| Reutilizar las fuentes de Google ya instaladas en el teléfono o usar fuentes del sistema | Menos bytes y mejor velocidad; no cuenta en tu factura | Bajo |
+
+### 6.4 Evitar lo que sí encarece
+No agregar un backend por petición (funciones, API, base de datos), cuentas de usuario, imágenes o video pesados, ni servicios opcionales como WAF o registros en tiempo real. Si algún día se agrega un servicio de pago, ponerlo en otra cuenta o proyecto.
+
+### 6.5 Protección contra sorpresas
+- **AWS:** presupuesto mensual con alarmas a $5 y $20 y detección de anomalías de costo. Revisa la sección 3 si compartes cuenta con una EC2.
+- **Cloudflare:** al no cobrar ancho de banda, el riesgo es mínimo; vigila los límites de compilaciones (500 al mes) y de archivos.
+- Un ataque de bots no te cuesta con Cloudflare Pages; con AWS sí podría (por eso la alarma).
+
+### 6.6 DNS y dominio
+El dominio cuesta ≈ $10–15 al año [estimación]. El DNS de Cloudflare es gratuito; una zona en Route 53 ≈ $0.50 al mes.
+
+### 6.7 Costo por escala después de optimizar
+Con cambios 6.2 y 6.3 una visita pesa del orden de **0.05 MB y ≈ 5 peticiones** [estimación]. Con 1 millón de visitas son ≈ 50 GB y ≈ 5 millones de peticiones: **$0 en CloudFront y en Cloudflare**.
 
 ---
 
-## 5. Monetización
+## 7. Balance costo vs ingreso
 
-### 5.1 Realidad de partida
+### 7.1 Costo de entrega por escala
 
-- Es un **nicho** (futbol americano universitario de México) y **estacional**: temporada regular de agosto a noviembre con picos en fines de semana de juego y liguilla.
-- La mayor parte del tráfico será de México, un país que los anunciantes pagan menos que Estados Unidos. Por eso no uses cifras de blogs estadounidenses como expectativa.
-- Ingreso = **vistas de página × RPM ÷ 1,000**, donde RPM es lo que ganas por cada mil vistas de página. No tengo una cifra verificada de RPM para México; para razonar uso un rango **[estimación]** de $0.5 a $3:
+Modelo [estimación]: 30 % de las visitas son de visitantes nuevos (0.2 MB, 25 peticiones) y 70 % de personas que regresan (≈ 0.01 MB, 12 peticiones). Resultado: ≈ 0.067 MB y ≈ 16 peticiones por visita (≈ 5 con las mejoras de la sección 6.2). Precios de CloudFront de la sección 2.
 
-| Vistas de página al mes | RPM $0.5 | RPM $1.5 | RPM $3 |
+| Visitas al mes | GB | Peticiones (millones) | Cloudflare Pages | S3 + CloudFront actual | S3 + CloudFront optimizado |
+|---|---|---|---|---|---|
+| 10,000 | 0.7 | 0.2 | $0 | $0 | $0 |
+| 50,000 | 3.3 | 0.8 | $0 | $0 | $0 |
+| 100,000 | 6.5 | 1.6 | $0 | $0 | $0 |
+| 500,000 | 33 | 7.9 | $0 | $0 | $0 |
+| 1,000,000 | 65 | 16 | $0 | ≈ $6 | $0 |
+| 5,000,000 | 327 | 80 | $0 | ≈ $70 | ≈ $15 |
+| 10,000,000 | 654 | 159 | $0 | ≈ $149 | ≈ $41 |
+
+Costos fijos: dominio ≈ $1 al mes. Una **EC2 pequeña** sumaría ≈ **$10–15 al mes fijos** (instancia + IPv4 + disco) sin importar las visitas.
+
+### 7.2 Ingreso por anuncios por escala
+
+**Fórmula:** ingreso = visitas × páginas por visita × RPM ÷ 1,000, donde RPM es el ingreso por cada mil vistas de página.
+
+**Qué sé de RPM para México [fuente, con salvedades]:** casi todas las cifras públicas son de **YouTube**, no de sitios web. Esas guías ubican a México como mercado de nivel medio-bajo: CPM de $0.80 a $2.50 y RPM de creador de $0.70 a $2, con variaciones grandes según el tipo de contenido (un reporte de canales de música llegó a $3.17). Para publicidad gráfica en sitios, una guía lista a México en el nivel con CPM de $0.30 a $2.00 y otra estima el CPC de AdSense en $0.10 a $0.50. **No tengo una medición de sitios deportivos mexicanos**, por eso uso tres casos:
+
+| Caso | Páginas por visita | RPM | Ingreso por cada 1,000 visitas |
 |---|---|---|---|
-| 50,000 | $25 | $75 | $150 |
-| 200,000 | $100 | $300 | $600 |
-| 1,000,000 | $500 | $1,500 | $3,000 |
+| Bajo | 1.5 | $0.50 | $0.75 |
+| Medio | 2 | $1.50 | $3 |
+| Alto | 3 | $3 | $9 |
 
-Con tráfico estacional, los meses sin juegos valen casi cero. **La publicidad automática por sí sola, en este nicho, difícilmente será un negocio; los patrocinios directos suelen pagar más por visita.**
+| Visitas al mes | Bajo | Medio | Alto |
+|---|---|---|---|
+| 10,000 | $8 | $30 | $90 |
+| 50,000 | $38 | $150 | $450 |
+| 100,000 | $75 | $300 | $900 |
+| 500,000 | $375 | $1,500 | $4,500 |
+| 1,000,000 | $750 | $3,000 | $9,000 |
 
-### 5.2 ¿Los anuncios pagan por mostrarse o por clic?
+Con las cifras de México, el caso **bajo** es el más prudente y el **alto** es optimista.
 
-- **[fuente: Publisher Collective, octubre de 2025]** Google AdSense cambió su modelo de pago de clic (CPC) a **impresiones (CPM) en marzo de 2024**, con una participación de ingresos para el editor de aproximadamente **68 %**. Es decir, hoy se gana principalmente por **mostrar** el anuncio (y cuenta que se vea: «visibilidad»), no por el clic. Es una fuente comercial que cita a Google: confírmalo en tu cuenta de AdSense.
-- Los anunciantes siguen pagando por clic o por acción en otros canales (afiliados, patrocinios con enlace).
-- Más impresiones **vistas** = más ingreso; pero llenar la pantalla de anuncios baja la calidad y puede hacer que Google limite la cuenta.
+### 7.3 La balanza
 
-### 5.3 Métricas que importan
+| Pregunta | Resultado |
+|---|---|
+| ¿Cuántas visitas al mes para ganar $100? | ≈ **133,000** (bajo), **33,000** (medio), **11,000** (alto) |
+| ¿Cuántas para cubrir una EC2 pequeña (≈ $12 al mes)? | ≈ 16,000 (bajo), 4,000 (medio), 1,300 (alto) |
+| ¿Y para cubrir el hosting en Cloudflare Pages? | Ninguna: cuesta $0 |
+| ¿Dónde se acaba la ganancia por costo de entrega? | En ningún escenario de esta tabla: aun sin optimizar, con 1 M de visitas el costo ($6) es menos del 1 % del ingreso bajo ($750) |
 
-| Métrica | Qué es | Para qué sirve |
+**Conclusiones:**
+
+1. **Los costos de infraestructura son despreciables frente al ingreso posible; el límite es la audiencia.** Con 1 millón de visitas al mes, el hosting cuesta $0–$6 y el ingreso estimado es de $750 a $9,000.
+2. **Con poco tráfico (menos de 10,000 visitas al mes) la publicidad deja decenas de dólares como mucho.** Ahí conviene priorizar patrocinios directos y donaciones (sección 8).
+3. **La estacionalidad pesa:** la temporada regular dura de agosto a noviembre más la liguilla; el ingreso se concentra en 4–5 meses y los demás casi no producen. Calcula el año con esos meses, no con 12.
+4. **Los costos «ocultos» no son del hosting:** impuestos sobre el ingreso (consulta a un contador), tiempo de mantenimiento y, si no lo cuidas, **perder la cuenta de anuncios** por infringir políticas (sección 8.2).
+5. Una EC2 **no se justifica** por costo: añade $10–15 fijos para algo que una página estática no necesita.
+
+---
+
+## 8. Monetización
+
+### 8.1 ¿Pagan por mostrar o por clic?
+**[fuente: Publisher Collective, 2025]** AdSense pasó de pago por clic a pago por **impresiones (CPM)** en marzo de 2024, con una participación del editor de ≈ **68 %**; hoy se gana principalmente por **mostrar** el anuncio y cuenta que se vea (visibilidad). Es una fuente comercial que cita a Google: confírmalo en tu cuenta. Los patrocinios con enlace y los afiliados sí pagan por clic o compra.
+
+### 8.2 Reglas de Google que afectan a tu página [fuente: política «Google-served ads on screens without publisher-content»]
+Google **no permite** anuncios en pantallas sin contenido del editor, «en construcción», usadas para alertas, navegación u otros fines de comportamiento, ni sobre **contenido generado automáticamente sin revisión o curaduría**. Por eso:
+- **No pongas anuncios de Google en la pantalla de «calculando…»** del módulo de escenarios.
+- **Tampoco dentro del panel de resultados de escenarios** (es contenido generado por el motor).
+- Sí en las páginas con contenido curado: tablas y calendario, **lejos de los campos de marcadores** (evita clics accidentales; regla general de colocación que conviene verificar al abrir la cuenta).
+- Para algo visible durante el cálculo, un **patrocinador propio** (imagen y enlace tuyos, no servido por Google).
+
+### 8.3 Redes de anuncios y sus requisitos
+| Opción | Requisito | Realismo |
 |---|---|---|
-| Sesiones y usuarios | Visitas y personas distintas | Tamaño de la audiencia |
-| Vistas por sesión | Páginas que ve cada visita | Más vistas = más anuncios mostrados |
-| RPM de página y RPM por sesión | Ingreso por mil vistas / por visita | La métrica central |
-| Visibilidad (viewability) | % de anuncios que realmente se ven | Define cuánto paga cada impresión |
-| País y dispositivo | Dónde y con qué entran | México y móvil bajan el RPM |
-| Tasa de retorno | % que vuelve | Valor para patrocinadores |
-| Picos por jornada | Tráfico en días de juego | Para vender patrocinios por jornada |
-| Core Web Vitals (LCP, CLS, INP) | Velocidad y estabilidad de la página | Los anuncios mal puestos empeoran CLS y el posicionamiento |
+| **Google AdSense** | Contenido propio, política de privacidad, navegación clara. No encontré un mínimo oficial de visitas [verifica]; la aprobación es manual | **Puerta de entrada realista** |
+| Mediavine (red principal) | **[fuente: guía de 2026 que cita a Mediavine]** ≈ **$5,000 al año** en ingresos publicitarios; prioriza tráfico de Estados Unidos, Reino Unido, Canadá y Australia | No realista con tráfico de México |
+| Journey by Mediavine | **[misma fuente]** desde **1,000 sesiones al mes**; 70 % de participación; pasa a la red principal con $5,000 en 12 meses | Posible, pero sigue pesando el tráfico de nivel 1 |
+| Raptive, Ezoic, Media.net, Carbon Ads | Umbrales propios y cambiantes (hay reportes de que Ezoic subió el suyo; sin verificar) | Revisar cuando crezca el tráfico |
+| Pujas de encabezado | **[fuente]** suelen requerir de 500,000 a 2 millones de vistas al mes | Muy lejos de la escala actual |
 
-### 5.4 Redes de anuncios: requisitos
-
-| Opción | Qué pide | Realismo para ti |
-|---|---|---|
-| **Google AdSense** | Contenido propio, política de privacidad, navegación clara, cumplir las políticas del programa. No encontré en esta sesión un mínimo oficial de visitas; la aprobación es manual [verifica] | **La puerta de entrada realista** |
-| Mediavine (red principal) | **[fuente: guía de 2026 que cita a Mediavine]** unos **$5,000 al año** en ingresos publicitarios; prioriza tráfico de Estados Unidos, Reino Unido, Canadá y Australia | No realista con tráfico de México |
-| **Journey by Mediavine** | **[misma fuente]** desde **1,000 sesiones al mes**, 70 % de participación, pasa a la red principal al llegar a $5,000 en 12 meses | Posible, pero sigue pesando el tráfico de países «Tier 1» |
-| Raptive, Ezoic, Media.net, Carbon Ads, etc. | Umbrales de tráfico propios y cambiantes (vi reportes de que Ezoic subió su umbral; no los verifiqué) | Revisar cuando el tráfico crezca |
-| Pujas de encabezado (header bidding) | **[fuente: Publisher Collective]** suelen requerir de **500,000 a 2 millones** de vistas al mes | Muy lejos de la escala actual |
-
-### 5.5 Reglas de Google que afectan **a tu página en particular** [fuente: política «Google-served ads on screens without publisher-content»]
-
-Google **no permite** anuncios en pantallas:
-- sin contenido del editor o con contenido de poco valor,
-- «en construcción»,
-- usadas para **alertas, navegación u otros fines de comportamiento**,
-
-y tampoco en pantallas de «callejón sin salida» (gracias, salida, error), ni sobre **contenido generado automáticamente sin revisión o curaduría manual**.
-
-Consecuencias:
-
-1. **No pongas anuncios de Google en la pantalla de «calculando…»** del módulo de escenarios (es una pantalla de espera sin contenido). Mostrar anuncios mientras se calculan los playoffs es justo lo que más se parece a la infracción.
-2. **Tampoco dentro del panel de resultados de escenarios**: es contenido generado automáticamente por el motor. El riesgo es que Google limite o cierre la cuenta, y eso sí perjudica todo el sitio.
-3. Los anuncios van en las **páginas con contenido curado**: tablas, calendario, posiciones.
-4. Lejos de los **campos de marcadores** y botones (evita clics accidentales; es una regla general de colocación que conviene verificar al abrir la cuenta).
-5. Si quieres algo visible durante el cálculo, usa un **patrocinador propio** (imagen y enlace tuyos, no servido por Google) o un mensaje de tu marca.
-
-### 5.6 Dónde poner los anuncios (menos molestia, más ingreso)
-
+### 8.4 Dónde poner los anuncios
 **Teléfono:**
-
 | Ubicación | Ingreso | Molestia | Comentario |
 |---|---|---|---|
-| Bloque en medio del calendario (por ejemplo cada 3 jornadas) | Medio-alto | Baja si el hueco tiene altura fija | **Mi primera opción** |
-| Banner fijo al fondo de la pantalla (anchor) | Alto | Media: tapa contenido y puede dar clics accidentales | Con botón de cerrar y margen seguro |
-| Debajo de la tabla de posiciones | Medio | Baja | Buena opción complementaria |
-| Arriba de todo, antes de la tabla | Alto | **Alta**: empuja el contenido | Evitar |
-| Pantalla completa entre páginas (interstitial) | Alto | **Muy alta** | Evitar |
-| En la pantalla de «calculando…» o en los resultados de escenarios | — | — | **No** (sección 5.5) |
+| Bloque en medio del calendario (cada ~3 jornadas) | Medio-alto | Baja si la altura es fija | **Primera opción** |
+| Debajo de la tabla de posiciones | Medio | Baja | Buena complementaria |
+| Banner fijo al fondo (anchor) | Alto | Media: tapa contenido, posibles clics accidentales | Con botón de cerrar |
+| Arriba de todo | Alto | **Alta** | Evitar |
+| Pantalla completa entre páginas | Alto | **Muy alta** | Evitar |
+| En «calculando…» o en los resultados de escenarios | — | — | **No** (8.2) |
 
-**Computadora:** columna lateral derecha fija (300×250 o 300×600) junto al calendario; un bloque horizontal bajo el encabezado; otro entre tablas. Máximo **tres** anuncios por página.
+**Computadora:** columna derecha fija (300×250 o 300×600) junto al calendario, un bloque bajo el encabezado y otro entre tablas. Máximo tres por página. Reserva altura fija para cada hueco (protege el CLS) y carga los de abajo de forma diferida.
 
-**Buenas prácticas técnicas:** reservar una altura fija para cada hueco (evita el salto de diseño y protege el CLS), cargar los de abajo de forma diferida, no precargar scripts de anuncios en el Service Worker y no cargarlos en el módulo de escenarios.
-
-### 5.7 Alternativas a los anuncios (sin cuentas ni suscripciones)
-
+### 8.5 Alternativas a los anuncios (sin cuentas ni suscripciones)
 | Opción | Cómo funciona | Potencial | Esfuerzo |
 |---|---|---|---|
-| **Patrocinio directo** | Marca o negocio (tienda deportiva, nutrición, universidad, bar de partidos) paga una cuota fija por un bloque «Presentado por…» con enlace, o por patrocinar una jornada | **El más alto para un nicho**; funciona con poco tráfico si muestras estadísticas y picos por jornada | Medio (vender y armar un *media kit*) |
-| **Afiliados** | Enlaces a jerseys, equipo deportivo, boletos o transmisiones; ganas comisión por compra (por ejemplo programas de afiliados de grandes tiendas en línea de México) | Bajo-medio | Bajo |
-| **Apuestas deportivas (afiliados)** | Pagan bien, pero hay regulación en México, restricciones de las redes de anuncios y riesgo reputacional; **no lo recomiendo sin revisar la ley y las políticas** | Alto, con riesgo | Alto |
-| **Donaciones** | Un enlace tipo «invítame un café» (Ko-fi, Buy Me a Coffee o una liga de pago local); sin cuentas en tu sitio | Bajo, pero casi sin costo | Muy bajo |
-| **Licencia del motor / widgets** | Vender o licenciar a la liga, medios, canales de YouTube o podcasts un widget de «qué necesita tu equipo» con su marca | Potencialmente el mayor ingreso por acuerdo | Alto |
-| **Tarjetas para compartir** | Imagen del escenario («Mis Borregos necesitan esto») con tu dirección y, si hay, el logo de un patrocinador | Crece el tráfico y da valor al patrocinador | Medio |
-| **Canal de WhatsApp/Telegram o boletín gratis** | Resumen semanal «combinaciones de la jornada», con patrocinador | Medio | Medio |
-| **Contenido en redes** | Clips cortos de «qué necesita tu equipo» que llevan tráfico al sitio | Indirecto | Medio |
-| Premium / pago por uso | Descartado: implica cuentas o cobros | — | — |
+| **Patrocinio directo** | Una marca (tienda deportiva, nutrición, universidad, bar) paga cuota fija por «Presentado por…» con enlace o por patrocinar una jornada | **El más alto para un nicho**; funciona con poco tráfico si muestras estadísticas y picos por jornada | Medio |
+| **Afiliados** | Enlaces a jerseys, equipo, boletos o transmisiones; comisión por compra | Bajo-medio | Bajo |
+| Apuestas deportivas (afiliados) | Pagan bien, pero hay regulación en México y restricciones de las redes de anuncios; **no lo recomiendo sin revisar la ley y las políticas** | Alto, con riesgo | Alto |
+| **Donaciones** | Enlace «invítame un café» (Ko-fi, Buy Me a Coffee o liga de pago local) | Bajo, casi sin costo | Muy bajo |
+| **Licencia del motor / widgets** | Vender o licenciar a la liga, medios, canales o podcasts un widget «qué necesita tu equipo» | Potencialmente el mayor ingreso por acuerdo | Alto |
+| Tarjetas para compartir | Imagen del escenario con tu dirección y, si hay, el logo de un patrocinador | Crece el tráfico | Medio |
+| Canal de WhatsApp / boletín gratis | Resumen semanal con patrocinador | Medio | Medio |
 
-### 5.8 Ruta recomendada
-
-1. **Base (sin costo):** página de privacidad y de contacto, estadísticas de uso (con aviso de privacidad), sitemap y etiquetas para compartir en redes. Medir 1–2 temporadas de tráfico real.
-2. **Ingreso sin depender de una red:** enlace de donaciones + **un espacio de patrocinador directo** (bloque fijo) + afiliados discretos.
-3. **AdSense en páginas curadas**, con 1–2 bloques en el teléfono y 2–3 en computadora, alturas fijas, sin anuncios en el módulo de escenarios. Medir RPM y CLS antes de agregar más.
-4. Si las sesiones crecen y hay tráfico significativo de fuera de México, evaluar Journey/Raptive/Ezoic.
-5. Probar el camino **B2B** (widget o licencia) con la liga o medios deportivos: puede valer más que todos los anuncios juntos.
+### 8.6 Ruta recomendada
+1. **Base sin costo:** pasar a Cloudflare Pages, página de privacidad y contacto, estadísticas de uso con aviso de privacidad, sitemap y etiquetas para compartir. Medir 1–2 temporadas de tráfico real (visitas, páginas por visita, país, dispositivo).
+2. **Ingreso sin red de anuncios:** donaciones + un espacio de patrocinador directo + afiliados discretos.
+3. **AdSense en páginas curadas** con 1–2 bloques en teléfono, alturas fijas, sin anuncios en el módulo de escenarios. Medir RPM y CLS antes de agregar más.
+4. Si las sesiones crecen y hay tráfico significativo de fuera de México, evaluar Journey, Raptive o Ezoic.
+5. Probar el camino B2B (widget o licencia) con la liga o medios deportivos.
 
 ---
 
-## 6. Fuentes consultadas
+## 9. Fuentes consultadas
 
-- Precios de CloudFront (pago por uso), AWS, actualizada 2026-11-05: https://aws.amazon.com/cloudfront/pricing/pay-as-you-go
+- Precios de CloudFront (AWS, actualizada 2026-11-05): https://aws.amazon.com/cloudfront/pricing/pay-as-you-go
 - Plan gratuito de AWS con $200 en créditos (16 de julio de 2025): https://aws.amazon.com/about-aws/whats-new/2025/07/aws-free-tier-credits-month-free-plan/
-- Política de Google «anuncios en pantallas sin contenido del editor»: https://support.google.com/publisherpolicies/answer/11112688
-- «CPM vs CPC: la nueva estructura de pago de AdSense», Publisher Collective (2025): https://www.publisher-collective.com/blog/cpm-vs-cpc
-- Requisitos de Mediavine en 2026 (guía de terceros que cita a Mediavine): https://www.jupiter.co/blog/mediavine-requirements-2026-how-to-qualify
-- Pesos de archivos: medidos con los archivos del proyecto el 2026-11-02.
+- Cargo por IPv4 públicas (AWS, 2023/2024): https://aws.amazon.com/blogs/aws/new-aws-public-ipv4-address-charge-public-ip-insights
+- Precios de EC2 bajo demanda (AWS): https://aws.amazon.com/en/ec2/pricing/on-demand/
+- Capas gratuitas comparadas 2026: https://freetier.co/articles/cloud-provider-free-tiers-2026 · https://agentdeals.dev/hosting-free-tier-comparison-2026 · https://flaviocopes.com/hosting-free-tiers/
+- Oracle Cloud (recursos «Always Free»): https://docs.oracle.com/en-us/iaas/Content/FreeTier/resourceref.htm y guías de terceros
+- Política de Google sobre anuncios en pantallas sin contenido: https://support.google.com/publisherpolicies/answer/11112688
+- «CPM vs CPC: la nueva estructura de pago de AdSense» (Publisher Collective): https://www.publisher-collective.com/blog/cpm-vs-cpc
+- Requisitos de Mediavine 2026 (guía de terceros): https://www.jupiter.co/blog/mediavine-requirements-2026-how-to-qualify
+- RPM/CPM de México (YouTube y guías de AdSense): https://dynamoi.com/nl/data/youtube-adsense-rpm/mx · https://fluxnote.io/guides/youtube-earnings-by-country-comparison · https://weforads.com/blog/what-is-ecpm/ · https://khrisdigital.com/?p=526259
+- Peso medio de las páginas (HTTP Archive 2025): https://sqmagazine.co.uk/web-design-statistics/
+- Pesos de tus archivos: medidos con los archivos del proyecto el 2026-11-02.
 
-Lo que **no** verifiqué y debes confirmar antes de decidir: tarifas de EC2, Lightsail, Amplify, S3 y Route 53; condiciones de uso de GitHub Pages, Vercel, Netlify y Cloudflare Pages; mínimo de tráfico y umbral de pago de AdSense; RPM real de México; regulación de afiliados de apuestas.
+**No verifiqué y debes confirmar antes de decidir:** tarifas de EC2, S3 y Route 53; términos vigentes de Cloudflare, Netlify, GitHub Pages y Oracle; mínimo de tráfico y umbral de pago de AdSense; RPM real de tu sitio; páginas por visita; regulación de afiliados de apuestas.

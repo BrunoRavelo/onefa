@@ -35,7 +35,7 @@
 - Las cotas de lugar de Nacional **no** incluyen todavía el afinamiento con resultado directo entre empatados (mejora opcional de la sección 3).
 - La opción «Desclasificado» vale `[9, 14]` en 14 Grandes y `[9, 9]` en Nacional.
 
-**Pendiente:** correr `tests/escenarios.test.js` de 14 Grandes con estos cambios; pruebas automáticas (sección 10); revisar tiempos y aspecto en teléfono; marcas ✅/✖️ del calendario (ver `plan-nacional.md`).
+**Pendiente:** correr `tests/escenarios.test.js` de 14 Grandes con estos cambios; pruebas automáticas (sección 10); revisar tiempos y aspecto en teléfono; marcas (c)/(e) de la tabla de posiciones (ya hechas; ver `plan-nacional.md`).
 
 ---
 
@@ -106,7 +106,7 @@ Observaciones:
 - **«Desclasificado» no es un modo nuevo:** es el rango de abajo con la misma búsqueda. Lo que sí hace falta es que el desempate sepa **perder**.
 - Las probabilidades se **reparten** entre lugares, así que casi todos los escenarios de «lugar `k`» serán de probabilidad baja. El umbral «casi imposible» (0.5 %) y el botón «Ver escenarios poco probables» ya existen y servirán tal cual.
 - Coherencias que se pueden comprobar sin simular: `P(clasificado) + P(desclasificado) = 1` y `Σ P(lugar k, k=1..8) = P(clasificado)`.
-- Las marcas ✅/✖️ del calendario de las páginas principales siguen usando solo «clasificado» (no cambian).
+- Las marcas (c)/(e) de la tabla de posiciones de las páginas principales siguen usando solo «clasificado» (no cambian).
 
 ---
 
