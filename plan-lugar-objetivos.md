@@ -1,5 +1,11 @@
 # Plan — Objetivos de «lugar final» y «desclasificado» (14 Grandes y Nacional)
 
+> **Nota 2026-11-16 — cambio de regla en Conferencia Nacional.** El sembrado 1–8 ya NO es general por PG: va por bloques
+> (1–3 primeros de cada grupo · 4–6 segundos · 7–8 los 2 mejores terceros; cada bloque por PG y desempate). Las cotas de
+> «lugar» de Nacional descritas abajo (contar equipos con más victorias que clasifican) quedaron **obsoletas** y se
+> reemplazaron por `lugaresPosiblesNac` en `escenarios-nacional.js` (posición en el grupo + orden dentro del bloque).
+> Los objetivos `clasificado`/`descalificado` y todo lo de 14 Grandes no cambian. Ver CLAUDE.md §8.10.
+
 > Propuesta (implementada el 2026-11-01, ver «Estado de implementación») · Complementa `plan-nacional.md` (sección «Funciones a continuar»).
 > **Leído:** `escenarios.js`, `escenarios-nacional.js`, `escenarios-ui.js`, `prediccion.js` (sembrado de Nacional), `nacional.html` (`ordenarEmpate`), `plan-nacional.md`.
 > **Medido:** un prototipo (no se entrega) de las cotas de lugar de Nacional, validado contra la tabla real con marcadores aleatorios (sección 3).

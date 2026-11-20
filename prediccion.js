@@ -470,10 +470,17 @@
   }
 
   // Tablas de grupo + sembrado general de Conferencia Nacional — misma
-  // lógica que calcGroupStandings()/renderPlayoffs() en nacional.html:
-  // top 2 de cada grupo + los 2 mejores terceros lugares (comodines, tope de
-  // 3 equipos por grupo), sembrado general 1-8 por PG con desempate por
-  // resultado directo -> menor PC.
+  // lógica que calcGroupStandings()/renderPlayoffs() en nacional.html.
+  // Clasifican el 1.º y 2.º de cada grupo + los 2 mejores terceros lugares
+  // (comodines). Sembrado 1–8 POR BLOQUES (regla vigente desde 2026-11-16):
+  //   · 1–3: los primeros lugares de cada grupo        (bloque 'primero')
+  //   · 4–6: los segundos lugares de cada grupo        (bloque 'segundo')
+  //   · 7–8: los 2 mejores terceros lugares            (bloque 'comodin')
+  // Cada bloque se ordena por PG y, entre empatados (aunque sean de grupos
+  // distintos), con la regla de desempate de ONEFA (ordenarEmpatados:
+  // resultado directo contra todos los demás empatados → menor PC).
+  // Un 2.º lugar NUNCA se siembra por encima de un 1.º, aunque tenga más PG.
+  // Cada fila de `seeds` trae `seed` (1–8) y `bloque`.
   function calcularStandingsNacional(grupos, juegos) {
     const stats = {};
     Object.values(grupos).forEach(teams => teams.forEach(t => { stats[t] = { pj: 0, pg: 0, pc: 0 }; }));
@@ -502,23 +509,26 @@
       allRows[grp] = rows;
     });
 
-    const playoffs = new Set();
-    Object.values(allRows).forEach(rows => rows.slice(0, 2).forEach(r => playoffs.add(r.equipo)));
-    const terceros = Object.values(allRows).map(rows => rows[2]).filter(Boolean);
-    terceros.sort((a, b) => b.pct - a.pct || a.pc - b.pc);
-    terceros.slice(0, 2).forEach(r => playoffs.add(r.equipo));
-
-    const flat = {};
-    Object.values(allRows).forEach(rows => rows.forEach(r => { flat[r.equipo] = r; }));
-    let seeds = [...playoffs].map(eq => flat[eq]);
-    seeds.sort((a, b) => b.pg - a.pg);
-    let gi = 0;
-    while (gi < seeds.length) {
-      let gj = gi;
-      while (gj < seeds.length && seeds[gj].pg === seeds[gi].pg) gj++;
-      if (gj - gi > 1) seeds.splice(gi, gj - gi, ...ordenarEmpatados(seeds.slice(gi, gj), juegos));
-      gi = gj;
-    }
+    // Orden por PG y, dentro de cada empate en PG, la regla de desempate de ONEFA.
+    const ordenarPorPG = filas => {
+      const r = [...filas].sort((a, b) => b.pg - a.pg);
+      let i = 0;
+      while (i < r.length) {
+        let j = i;
+        while (j < r.length && r[j].pg === r[i].pg) j++;
+        if (j - i > 1) r.splice(i, j - i, ...ordenarEmpatados(r.slice(i, j), juegos));
+        i = j;
+      }
+      return r;
+    };
+    const porLugar = k => Object.values(allRows).map(rows => rows[k]).filter(Boolean);
+    const primeros = ordenarPorPG(porLugar(0));
+    const segundos = ordenarPorPG(porLugar(1));
+    const comodines = ordenarPorPG(porLugar(2)).slice(0, 2);
+    primeros.forEach(r => { r.bloque = 'primero'; });
+    segundos.forEach(r => { r.bloque = 'segundo'; });
+    comodines.forEach(r => { r.bloque = 'comodin'; });
+    const seeds = [...primeros, ...segundos, ...comodines];
     seeds.forEach((t, i) => { t.seed = i + 1; });
 
     return { allRows, seeds };

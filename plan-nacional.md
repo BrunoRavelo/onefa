@@ -1,5 +1,9 @@
 # Plan — Motor de escenarios de clasificación para Conferencia Nacional
 
+> **Nota 2026-11-16:** el sembrado de Nacional pasó a ser por bloques (1–3 primeros de grupo · 4–6 segundos · 7–8 mejores
+> terceros). El conjunto de 8 clasificados y la clasificación rápida por victorias (§4.3) no cambian; lo que cambió es el
+> «lugar final» de los objetivos de lugar (ver plan-lugar-objetivos.md y CLAUDE.md §8.10).
+
 > Versión 2 · 2026-10-28 · Reemplaza el borrador anterior.
 > Nombre: `plan-nacional.md`, para no pisar el `plan.md` de 14 Grandes.
 >

@@ -33,7 +33,7 @@
       obj: 'los 8 de playoffs', totalJuegos: null,
       nota: 'Elige un equipo de la Conferencia Nacional y el lugar que quieres que logre (por omisión, clasificar a playoffs: los 2 primeros de cada grupo ' +
             'y los 2 mejores terceros lugares) y calculamos qué tiene que pasar. Usa el modelo de predicción de marcadores; puede tardar unos segundos.',
-      nLugares: 8, notaLugar: 'Lugar = sembrado 1–8 por partidos ganados (el del bracket de playoffs). «Desclasificado» = no entrar a los 8.',
+      nLugares: 8, notaLugar: 'Lugar = sembrado 1–8 del bracket de playoffs: del 1.º al 3.º los primeros lugares de cada grupo, del 4.º al 6.º los segundos y el 7.º y 8.º los 2 mejores terceros (cada bloque por partidos ganados y desempate). «Desclasificado» = no entrar a los 8.',
       jornadaMax: function (d) { let u = 0; d.juegos.forEach(function (g) { if (g.jornada > u) u = g.jornada; }); return u - 1; },
       motor: 'ONEFA_ESC_NAC', scripts: ['escenarios.js', 'escenarios-nacional.js']
     }
@@ -573,7 +573,7 @@
       });
       h += '</tbody></table></div>';
     });
-    h += '<div class="esc-jl">Los 8 clasificados (sembrado por PG)</div><div class="s-wrap"><table class="s-tbl"><thead><tr><th style="width:36px">#</th><th>Equipo</th><th class="ta-r">PG</th><th class="ta-r">PC</th></tr></thead><tbody>';
+    h += '<div class="esc-jl">Los 8 clasificados (1–3 primeros de grupo · 4–6 segundos · 7–8 comodines)</div><div class="s-wrap"><table class="s-tbl"><thead><tr><th style="width:36px">#</th><th>Equipo</th><th class="ta-r">PG</th><th class="ta-r">PC</th></tr></thead><tbody>';
     t.seeds.forEach(function (r) {
       h += '<tr class="r-playoff' + (r.equipo === equipo ? ' esc-row-eq' : '') + '"><td><span class="pos-n' + (r.pos === 1 ? ' top' : '') + '">' + r.pos + '</span></td><td class="s-eq">' + esc(r.equipo) + '</td>' +
         '<td class="ta-r s-num">' + r.pg + '</td><td class="ta-r s-num">' + r.pc + '</td></tr>';

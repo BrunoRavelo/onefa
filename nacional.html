@@ -137,7 +137,7 @@
   <hr class="s-divider">
 
   <div class="s-label">Playoffs <small>(8 equipos — proyección)</small></div>
-  <p class="tiebreak-note">Clasifican los 2 primeros lugares de cada grupo (6 equipos) más los 2 mejores terceros lugares entre grupos (comodines). El sembrado general 1–8 se ordena por juegos ganados (PG) y, en caso de empate, por menor puntos en contra (PC). Bracket clásico 1v8 · 2v7 · 3v6 · 4v5, con localía para el mejor sembrado en cada ronda hasta la final.</p>
+  <p class="tiebreak-note">Clasifican los 2 primeros lugares de cada grupo (6 equipos) más los 2 mejores terceros lugares entre grupos (comodines). El sembrado 1–8 va por bloques: del 1 al 3 los primeros lugares de cada grupo, del 4 al 6 los segundos lugares y los lugares 7 y 8 para los 2 mejores terceros. Dentro de cada bloque se ordena por juegos ganados (PG) y, en caso de empate, por resultado directo y luego por menor puntos en contra (PC). Bracket clásico 1v8 · 2v7 · 3v6 · 4v5, con localía para el mejor sembrado en cada ronda hasta la final.</p>
 
   <div class="s-wrap" style="margin-top:1rem;">
     <table class="s-tbl" id="tblPlayoffs">
@@ -411,7 +411,7 @@ function leerScores() {
 
 function calcGroupStandings() {
   leerScores();
-  buildGraph(); // el grafo de rivales debe estar fresco ANTES de calcular el sembrado general
+  buildGraph(); // el grafo de rivales debe estar fresco ANTES de calcular el sembrado
   const stats = {};
   allTeams.forEach(t => { stats[t] = { pj:0, pg:0, pc:0 }; });
   juegos.forEach(g => {
@@ -477,18 +477,11 @@ function calcGroupStandings() {
     allRows[grp] = rows;
   }
 
-  const playoffs = new Set();
-  // Top 2 de cada grupo
-  for (const rows of Object.values(allRows)) {
-    rows.slice(0, 2).forEach(r => playoffs.add(r.equipo));
-  }
-  // Solo los terceros (índice 2) de cada grupo
-  const terceros = Object.values(allRows)
-    .map(rows => rows[2]) // Toma el tercer lugar (si existe)
-    .filter(r => r !== undefined);
-  // Ordenar terceros por PCT y PC, tomar los 2 mejores
-  terceros.sort((a, b) => b.pct - a.pct || a.pc - b.pc);
-  terceros.slice(0, 2).forEach(r => playoffs.add(r.equipo));
+  // Sembrado por BLOQUES (regla vigente desde 2026-11-16; misma lógica que calcularStandingsNacional en prediccion.js):
+  //   1–3 primeros lugares de cada grupo · 4–6 segundos lugares · 7–8 los 2 mejores terceros.
+  // Cada bloque se ordena por PG y, entre empatados, con ordenarEmpate (resultado directo → menor PC).
+  const bloques = sembrarBloquesNacional(allRows);
+  const playoffs = new Set([...bloques.primeros, ...bloques.segundos, ...bloques.comodines].map(r => r.equipo));
 
   for (const [grp, rows] of Object.entries(allRows)) {
     const tblId = tblIds[grp]; if (!tblId) continue;
@@ -508,7 +501,7 @@ function calcGroupStandings() {
     });
   }
 
-  renderPlayoffs(stats, playoffs);
+  renderPlayoffs(stats, playoffs, bloques);
   renderCompare();
 }
 
@@ -527,31 +520,50 @@ function ordenarEmpate(tied) {
   });
 }
 
+// Ordena filas { pg, pc, equipo } por PG y, dentro de cada empate en PG (aunque sean de grupos distintos),
+// con la regla de ONEFA (ordenarEmpate).
+function ordenarPorPG(filas) {
+  const r = [...filas].sort((a, b) => b.pg - a.pg);
+  let i = 0;
+  while (i < r.length) {
+    let j = i;
+    while (j < r.length && r[j].pg === r[i].pg) j++;
+    if (j - i > 1) r.splice(i, j - i, ...ordenarEmpate(r.slice(i, j)));
+    i = j;
+  }
+  return r;
+}
+
+// Bloques del sembrado de playoffs a partir de las tablas de grupo ya ordenadas (allRows: { grupo: filas }):
+//   primeros (sembrados 1–3) · segundos (4–6) · comodines (7–8: los 2 mejores terceros).
+function sembrarBloquesNacional(allRows) {
+  const porLugar = k => Object.values(allRows).map(rows => rows[k]).filter(r => r !== undefined);
+  return {
+    primeros:  ordenarPorPG(porLugar(0)),
+    segundos:  ordenarPorPG(porLugar(1)),
+    comodines: ordenarPorPG(porLugar(2)).slice(0, 2)
+  };
+}
+
 // ── Playoffs: tabla general de 8 sembrados + bracket clásico 1v8/2v7/3v6/4v5 ──
 // Se recalcula cada vez que calcGroupStandings corre (siempre en sync con las
 // tablas por grupo). No participa en generarCalendario ni afecta la temporada.
-function renderPlayoffs(statsMap, playoffsSet) {
+function renderPlayoffs(statsMap, playoffsSet, bloques) {
   const tbody = document.querySelector('#tblPlayoffs tbody');
   const bracketWrap = document.getElementById('bracketWrap');
   if (!tbody || !bracketWrap) return;
 
-  const teams = [...playoffsSet].map(eq => {
-    const s = statsMap[eq] || { pj:0, pg:0, pc:0 };
-    return { equipo: eq, grupo: teamGroup[eq], pg: s.pg, pp: s.pj - s.pg, pc: s.pc, pj: s.pj };
+  // Sembrado 1–8 por bloques: primeros de grupo (1–3) · segundos (4–6) · mejores terceros (7–8).
+  // Cada bloque ya viene ordenado por PG → resultado directo → menor PC (ver sembrarBloquesNacional).
+  const etiqueta = { primero: '1.º de grupo', segundo: '2.º de grupo', comodin: 'Comodín' };
+  const teams = [
+    ...bloques.primeros.map(r => [r, 'primero']),
+    ...bloques.segundos.map(r => [r, 'segundo']),
+    ...bloques.comodines.map(r => [r, 'comodin'])
+  ].map(([r, bloque]) => {
+    const s = statsMap[r.equipo] || { pj:0, pg:0, pc:0 };
+    return { equipo: r.equipo, grupo: teamGroup[r.equipo], pg: s.pg, pp: s.pj - s.pg, pc: s.pc, pj: s.pj, bloque, etiqueta: etiqueta[bloque] };
   });
-  // Sembrado general: más juegos ganados primero; empates entre grupos se
-  // resuelven con la regla de ordenarEmpate (barrido de resultado directo → menor PC).
-  teams.sort((a, b) => b.pg - a.pg);
-  let gi = 0;
-  while (gi < teams.length) {
-    let gj = gi;
-    while (gj < teams.length && teams[gj].pg === teams[gi].pg) gj++;
-    if (gj - gi > 1) {
-      const ordenado = ordenarEmpate(teams.slice(gi, gj));
-      teams.splice(gi, gj - gi, ...ordenado);
-    }
-    gi = gj;
-  }
   teams.forEach((t, i) => t.seed = i + 1);
 
   // Tabla general (8 clasificados)
@@ -559,7 +571,7 @@ function renderPlayoffs(statsMap, playoffsSet) {
   teams.forEach(t => {
     tbody.insertAdjacentHTML('beforeend', `<tr class="r-playoff">
       <td><span class="pos-n top">${t.seed}</span></td>
-      <td class="s-eq">${t.equipo}</td>
+      <td class="s-eq">${t.equipo} <span style="font-size:.7rem;color:var(--muted);white-space:nowrap">${t.etiqueta}</span></td>
       <td>${t.grupo ? badgeHtml(t.grupo) : ''}</td>
       <td class="s-num">${t.pg}</td>
       <td class="s-num">${t.pp}</td>

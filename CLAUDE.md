@@ -151,6 +151,7 @@ empatados de un mismo grupo vive en UNA sola función de `prediccion.js` (`orden
 empate dentro de cada grupo de `calcularStandingsNacional`; sigue siendo la misma regla que `index.html` y `nacional.html`
 (*venció a todos los demás empatados → primero; el resto, por menor PC*). Antes, Nacional ordenaba los empates de 3 o más por pares y
 discrepaba de la página. **Desde 2026-11-01 el sembrado general 1–8 de Nacional también usa `ordenarEmpatados`** (en `prediccion.js` y en `ordenarEmpate` de `nacional.html`); `ordenarEmpateDirecto` (por pares) se eliminó. En 4,000 temporadas aleatorias el sembrado antiguo y el nuevo diferían en 537.
+**Desde 2026-11-16 el sembrado de Nacional va POR BLOQUES** (ver §8.2): 1–3 primeros de grupo, 4–6 segundos, 7–8 los 2 mejores terceros; cada bloque por PG y `ordenarEmpatados`. Implementado en `calcularStandingsNacional` (`prediccion.js`) y en `sembrarBloquesNacional` (`nacional.html`); los dos deben mantenerse idénticos.
 
 ---
 
@@ -380,8 +381,11 @@ Parámetro de URL: `?temporada=2025|2026` (default 2026). Estructura similar a `
     La insignia `✕` es solo visual.
   - Zona de clasificación marcada con `r-playoff`; la línea punteada (`r-cutoff`) va tras el 2.º lugar de cada grupo.
 - **Playoffs (8 equipos)** (`renderPlayoffs`): clasifican el **1.º y 2.º de cada grupo** (6) + los **2 mejores terceros**
-  (comodines; se compara solo el 3.er lugar de cada grupo por % Vict y luego menor PC). **Sembrado general 1–8 por
-  juegos ganados (PG)**; empates por resultado directo → menor PC. Bracket clásico **1v8 · 4v5 · 2v7 · 3v6**
+  (comodines: se comparan los 3.os lugares de los 3 grupos por PG y, si empatan, resultado directo → menor PC).
+  **Sembrado 1–8 por bloques (regla vigente desde 2026-11-16):** **1–3** los primeros lugares de cada grupo, **4–6** los
+  segundos lugares, **7–8** los 2 mejores terceros; cada bloque se ordena por PG y, entre empatados (aunque sean de grupos
+  distintos), por resultado directo → menor PC (`ordenarPorPG` + `sembrarBloquesNacional`). Un 2.º nunca queda sembrado
+  arriba de un 1.º aunque tenga más PG. La tabla de 8 muestra la etiqueta del bloque (1.º de grupo / 2.º de grupo / Comodín). Bracket clásico **1v8 · 4v5 · 2v7 · 3v6**
   (CF1–CF4 → SF1/SF2 → Final), localía para el mejor sembrado. En esta sección en vivo **solo se llenan los Cuartos**;
   Semifinal y Final dicen "Ganador CFx / Por definir" hasta que haya resultados reales. (El overlay de predicción sí proyecta el bracket completo.)
 - **Comparador de equipos** (`buildGraph`, `bfsPath`, `renderCompare`): grafo de rivales (juegos con marcador + scrimmages) y camino más
@@ -465,7 +469,7 @@ Si participa un equipo excluido, devuelve el marcador forzado (1-0 contra él) c
 1. `proyectarJuegos`: rellena con el marcador predicho **todo juego con `jornada > jornadas_jugadas`**; los demás quedan intactos.
 2. Se recalcula la tabla con **la misma lógica de desempate de las páginas** (récord, nunca el rating):
    - 14G: `calcularStandings14G` → top 8 de la tabla única (orden % Vict, desempate directo → menor PC).
-   - Nacional: `calcularStandingsNacional` → tablas por grupo, 2 primeros + 2 mejores terceros, sembrado 1-8 por PG.
+   - Nacional: `calcularStandingsNacional` → tablas por grupo, 2 primeros + 2 mejores terceros, sembrado 1-8 por bloques (1–3 primeros de grupo · 4–6 segundos · 7–8 mejores terceros; cada bloque por PG y `ordenarEmpatados`); cada fila de `seeds` trae `seed` y `bloque`.
 3. `construirBracketPrediccion`: CF1 = 1v8, CF2 = 4v5, CF3 = 2v7, CF4 = 3v6; SF1 = ganador CF1 vs ganador CF2; SF2 = ganador CF3 vs ganador CF4;
    la **final** enfrenta a los ganadores de SF. En cada ronda el **mejor sembrado es local**. Cada partido se predice con `predecirPartido`
    usando el modelo de esa conferencia; gana quien tenga mayor marcador (si empatan, el local/mejor sembrado).
@@ -583,7 +587,7 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
 - **Todo por victorias (PG):** todos los equipos terminan con los mismos juegos oficiales y la liga ordena por partidos ganados. Si algún día no fuera así
   (o un juego pendiente trajera `cuentaSoloPara`) el motor avisa en `meta.advertencias`, no se detiene.
 - **Desempate (regla de ONEFA):** si dos equipos empatan y se enfrentaron, gana el vencedor; si no, el de menor PC. Con 3 o más, va primero quien venció a todos
-  los demás; el resto por menor PC. Entre los 3 terceros de grupos distintos: PG y luego menor PC. Vive en `ONEFA_PRED.ordenarEmpatados`; el motor **no reimplementa**
+  los demás; el resto por menor PC. Los 3 terceros de grupos distintos (y cada bloque del sembrado) se ordenan por PG y luego con esta misma regla (desde 2026-11-16; antes los terceros se comparaban por % y menor PC, sin resultado directo). Vive en `ONEFA_PRED.ordenarEmpatados`; el motor **no reimplementa**
   la tabla: toda tabla final sale de `ONEFA_PRED.calcularStandingsNacional`.
 - **Reuso (sin duplicar):** de `escenarios.js` toma `crearRng`, `probit`, `victorias`, `marcadoresBase`, `ganadoresFavoritos`, `optimizarMarcadores` y la búsqueda
   `buscarVectores`. Lo propio de Nacional (preparación del problema, clasificación rápida, enumeración, simulador, desempate, familias, escenarios, panorama) está duplicado a
@@ -609,8 +613,8 @@ Diseño y decisiones en `plan-nacional.md`. Misma pregunta que 14G (¿qué tiene
   debajo, selector **«Lugar final»** activo (`Clasificado (cualquier lugar)` · `1.º…N.º` · `Desclasificado (cualquier lugar)`; N = 14 en 14G, 8 en Nacional) que viaja al motor como `opciones.objetivo`, con una frase que explica qué es «lugar» en cada conferencia; un equipo ya `clasificado` o `eliminado` muestra **solo su estado**
   (sin probabilidad ni tablas, en 14G y Nacional); en «Ayuda de otros equipos» se ocultan los juegos con impacto < 2 puntos (`UMBRAL_CLAVE`, ruido de la simulación); los escenarios con probabilidad < 0.5 % (`UMBRAL_POCO_PROBABLE`) se ocultan tras el aviso «Casi imposible» y el botón «Ver escenarios poco probables».
   `nacional.html` solo agrega el botón `#btnEscenarios` (`data-esc-conf="nacional"`) y `<script src="escenarios-ui.js">`.
-- **Objetivos (2026-11-01):** el equipo tiene un «lugar final» `r` = **sembrado 1–8 por PG** si clasifica, o **9** si no. Objetivo = rango sobre `r` (`'clasificado'` [1,8] · `'1'…'8'` · `'descalificado'` [9,9]; `ESC.objetivoDe(valor, 9)`). `estadoDe` devuelve `lugar`; `califica(estado, obj)` compara.
-  Cotas por victorias para cualquier objetivo: `clasificarObjetivoNac` (lugares posibles = `[1 + (equipos con más victorias que SEGURO clasifican), min(8, 1 + equipos con ≥ victorias que PUEDEN clasificar)]`, más el 9 si puede no clasificar). Medido contra la tabla real con marcadores aleatorios: **0 violaciones en 64,800 comprobaciones** (J6/J7/J8 × 10 objetivos). Para «lugar exacto» hay más combinaciones «en el filo» (≈ 6–19 %) porque los empates entre grupos se resuelven por PC.
+- **Objetivos (2026-11-01):** el equipo tiene un «lugar final» `r` = **sembrado 1–8 por bloques (2026-11-16)** si clasifica, o **9** si no. Objetivo = rango sobre `r` (`'clasificado'` [1,8] · `'1'…'8'` · `'descalificado'` [9,9]; `ESC.objetivoDe(valor, 9)`). `estadoDe` devuelve `lugar`; `califica(estado, obj)` compara.
+  Cotas por victorias para cualquier objetivo: `clasificarObjetivoNac` → `lugaresPosiblesNac` (**reescrito el 2026-11-16 para el sembrado por bloques**). El conjunto de clasificados NO cambió, solo su orden, así que la clasificación rápida de `'clasificado'` (`evaluarVictoriasNac`) y `panorama` quedaron intactos (570 de 570 equipos idénticos al motor anterior). Para un objetivo de lugar: (a) la posición de T en su grupo, `info.mejor..info.peor` de `evaluarVictoriasNac`; (b) su orden dentro del bloque de esa posición: lo superan los equipos de otros grupos con MÁS victorias en esa misma posición (`gt`) y con las mismas puede ir antes o después (`eq`) → rango `[1+gt, 1+gt+eq]`; el sembrado es `0 / 3 / 6 + orden`, y para 3.º solo los órdenes 1–2 clasifican (7.º y 8.º), el 3.º es 9. Las victorias del k-ésimo lugar de cada grupo no dependen de desempates (`top3Grupos`). Medido contra la tabla real con marcadores aleatorios en temporadas sintéticas (20 equipos, grupos 7/7/6, todos con los mismos juegos): **0 violaciones en 1,123,200 comprobaciones** (J6/J7/J8 × 13 objetivos, incl. rangos 1–3, 4–6, 7–9); el motor anterior contra la tabla nueva fallaba en ≈24,000. «En el filo»: 6–15 % según el objetivo (los empates en el bloque se resuelven por resultado directo/PC). Los escenarios de `analizar` se verificaron con la tabla real (95 de 95 correctos).
   El desempate genérico (`resolverDesempateObj`, patrones de signo + tabla real) se usa para los objetivos de lugar/descalificado y, en Nacional, también para buscar cómo *fallar* en modo riesgo (cambio respecto al motor anterior solo en equipos en modo riesgo). La salida agrega `objetivo`, `distribucionLugar` (1..8 y fuera) y `desempate.pcRivales[].ordenPC` (`mas` = el rival termina con más PC que el equipo). `panorama` siempre usa «clasificado». Medido: 102 de 102 escenarios se cumplen con la tabla real; Σ P(lugar) = P(clasificado); P(clasificado) + P(descalificado) = 1.
 - **Estado actual (2026-10-29):** `jornadas_jugadas = 8`; solo falta la J9 (5 juegos libres): el motor ya se puede usar en la última semana.
 - **Limitación conocida:** `solo_desempate` y `FILO` siguen siendo conservadores en PC (el optimizador es heurístico: si no encuentra marcadores no prueba que sea imposible).
@@ -670,7 +674,7 @@ Detalles de implementación:
 ## 10. Reglas de negocio (resumen)
 
 - **Playoffs 14 Grandes:** top 8 de la tabla. Cuartos 1v8, 2v7, 3v6, 4v5; mejor sembrado de local; semis y final con localía del mejor sembrado.
-- **Playoffs Nacional:** 1.º y 2.º de cada grupo + 2 mejores terceros (tope de 3 por grupo, que se cumple al elegir comodines solo entre terceros); sembrado 1-8 por PG; mismo bracket.
+- **Playoffs Nacional:** 1.º y 2.º de cada grupo + 2 mejores terceros (tope de 3 por grupo, que se cumple al elegir comodines solo entre terceros); sembrado 1-8 por bloques (1–3 primeros de grupo, 4–6 segundos, 7–8 mejores terceros; cada bloque por PG y desempate); mismo bracket.
 - **Desempate (todas las tablas):** (1) un equipo que haya vencido directamente a todos los demás empatados queda primero; (2) menor puntos en contra (PC).
   Es una versión simplificada; el reglamento oficial puede diferir (`nota_desempate` lo advierte en Nacional).
 - **Ascenso/descenso:** campeón de Nacional sube; último de 14G baja (1 y 1 por año).
@@ -704,7 +708,7 @@ prediccion.html?conf=14g | ?conf=nacional    → predicción independiente (sin 
 5. **Código duplicado** entre `index.html`, `nacional.html` y `prediccion.html` (render del overlay) y triple implementación de la lógica de tabla/desempate (ver §4).
 6. **Bracket en vivo de `nacional.html`** solo llena Cuartos; Semifinal/Final quedan "Por definir". `index.html` no tiene bracket en vivo (solo el proyectado en el overlay).
 7. **Secciones ocultas con código activo:** Ranking Colley (`index.html`) y Comparador de equipos (`nacional.html`) están en `display:none` pero se recalculan en cada cambio.
-8. **Sembrado Nacional por PG (no por % Vict)**: comparar juegos ganados entre grupos de distinto tamaño puede favorecer a equipos con más juegos. Es consistente entre `nacional.html` y `prediccion.js`; si se cambia, cambiar ambos.
+8. **Sembrado Nacional por bloques, con PG (no por % Vict) entre grupos**: comparar juegos ganados entre grupos de distinto tamaño puede favorecer a equipos con más juegos (dentro del grupo sí se ordena por %). Es consistente entre `nacional.html` (`sembrarBloquesNacional`) y `prediccion.js` (`calcularStandingsNacional`); si se cambia, cambiar ambos y revisar `lugaresPosiblesNac` en `escenarios-nacional.js`.
 9. `calcularPredicciones` no revisa `res.ok`; un JSON faltante cae al `catch` y muestra el mensaje de error del overlay.
 10. **Documentación previa desactualizada** (corregida aquí): decía que los cruces entre grupos no suman a la tabla de Nacional (sí suman); listaba "Arkansas ST QRO" (es "ASUCQ / RED WOLVES"); omitía la clave de Nacional 2025 y el Service Worker.
 

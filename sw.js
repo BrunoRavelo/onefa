@@ -7,9 +7,9 @@
  *   2) En segundo plano pide la versión nueva y la guarda para la próxima vez.
  *   3) Si un .json cambió, avisa a la página con { type: 'DATA_UPDATED' } y ella se recarga sola.
  *
- * Para forzar que todos descarguen una versión nueva de todo, cambia VERSION (v4: temporadas.js y estado-equipos.js).
+ * Para forzar que todos descarguen una versión nueva de todo, cambia VERSION (v5: sembrado de Nacional por bloques).
  */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'onefa-' + VERSION;
 
 // Las temporadas (archivos JSON) salen de temporadas.js: así agregar 2027 no obliga a editar este archivo.

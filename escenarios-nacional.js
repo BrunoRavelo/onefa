@@ -10,9 +10,12 @@
    · Todos los equipos juegan los mismos juegos oficiales y la liga ordena por
      partidos ganados (PG), así que TODO el motor trabaja con victorias.
    · Desempate (regla de ONEFA, ONEFA_PRED.ordenarEmpatados): quien venció a todos los
-     demás empatados va primero; el resto, por menor puntaje en contra (PC). Entre los
-     3 terceros (de grupos distintos) se compara por PG y luego por menor PC. El sembrado
-     1–8 usa la misma regla (desde 2026-11-01).
+     demás empatados va primero; el resto, por menor puntaje en contra (PC). La misma regla
+     ordena a los 3 terceros (de grupos distintos) y cada bloque del sembrado.
+   · Sembrado 1–8 POR BLOQUES (regla vigente desde 2026-11-16): 1–3 los primeros lugares de
+     cada grupo · 4–6 los segundos lugares · 7–8 los 2 mejores terceros; cada bloque por PG y
+     desempate. El conjunto de clasificados NO cambió (solo el orden), así que la clasificación
+     rápida de "clasificado" sigue igual; lo que cambió son las cotas de los objetivos de lugar.
    · Objetivos (plan-lugar-objetivos.md): el equipo recibe un "lugar final" r = sembrado
      1..8 si clasifica, o 9 si no. Objetivo = rango [min, max] sobre r:
      'clasificado' [1,8] · lugar k [k,k] · 'descalificado' [9,9].
@@ -254,7 +257,7 @@
         }
       }
     }
-    if (info) { info.empGrupo = nEmp > 0; info.barrido = barrido; }
+    if (info) { info.empGrupo = nEmp > 0; info.barrido = barrido; info.mejor = mejor; info.peor = peor; }   // mejor/peor: posición posible en el grupo
     if (mejor > 3) return FUERA;                     // ni con todos los desempates a favor
     if (peor <= 2) return SEGURO;                    // top 2 pase lo que pase
     // Carrera por el comodín: pasan 2 de los 3 terceros; T (3.º) clasifica si no es el peor
@@ -270,31 +273,66 @@
     return pesimista ? SEGURO : (optimista ? FILO : FUERA);
   }
 
-  // Cotas por victorias para CUALQUIER objetivo (plan-lugar-objetivos.md §3, validadas contra la tabla real).
-  // Lugares posibles de T: cierto = equipos con más victorias que SEGURO clasifican (quedan arriba);
-  // posible = equipos con ≥ victorias que PUEDEN clasificar (incluye empates). Si T clasifica: [1+cierto, min(8, 1+posible)];
-  // si puede no clasificar, también 9.
-  function clasificarObjetivoNac(P, W, hw, T, obj) {
-    const qT = evaluarVictoriasNac(P, W, hw, T, null);
-    if (obj.tipo === 'clasificado' || obj.tipo === 'playoffs') return qT;
-    let lo = 0, hi = -1;
-    if (qT !== FUERA) {
-      let cierto = 0, posible = 0;
-      const wT = W[T];
-      for (let u = 0; u < P.nEq; u++) {
-        if (u === T || W[u] < wT) continue;
-        const q = evaluarVictoriasNac(P, W, hw, u, null);
-        if (q !== FUERA) posible++;
-        if (q === SEGURO && W[u] > wT) cierto++;
+  // Victorias del 1.º, 2.º y 3.º lugar de cada grupo: el k-ésimo mayor número de victorias del grupo (NO depende de
+  // los desempates). TOP3[h*3 + (k-1)]; -1 si el grupo tiene menos de k equipos. Memoria compartida (un solo hilo).
+  const TOP3 = new Int16Array(9);
+  const POSIBLES = new Int8Array(R_MAX + 1);
+  function top3Grupos(P, W) {
+    for (let h = 0; h < 3; h++) {
+      let a = -1, b = -1, c = -1;
+      const mem = P.miembros[h];
+      for (let k = 0; k < mem.length; k++) {
+        const w = W[mem[k]];
+        if (w > a) { c = b; b = a; a = w; } else if (w > b) { c = b; b = w; } else if (w > c) c = w;
       }
-      lo = 1 + cierto; hi = Math.min(8, 1 + posible);
+      TOP3[h * 3] = a; TOP3[h * 3 + 1] = b; TOP3[h * 3 + 2] = c;
     }
-    const con9 = qT !== SEGURO;                                   // T puede quedar sin clasificar (lugar 9)
-    const seg = hi >= lo;
-    const dentro9 = R_MAX >= obj.min && R_MAX <= obj.max;
-    const todosDentro = (!seg || (lo >= obj.min && hi <= obj.max)) && (!con9 || dentro9);
-    const ningunoDentro = (!seg || (hi < obj.min || lo > obj.max)) && (!con9 || !dentro9);
-    return todosDentro ? SEGURO : (ningunoDentro ? FUERA : FILO);
+  }
+
+  // Lugares finales POSIBLES de T (1..8 sembrado, 9 = no clasifica) con solo victorias y ganadores. Llena POSIBLES[r] = 1.
+  // Sembrado por bloques (regla 2026-11-16): el lugar sale de (a) la posición de T en su grupo y (b) su orden dentro del
+  // bloque de esa posición (los 1.º de cada grupo → 1–3, los 2.º → 4–6, los 3.º → 7–8 si es de los 2 mejores).
+  //   · (a) lo acota evaluarVictoriasNac (info.mejor..info.peor: depende del resultado directo / PC dentro del grupo).
+  //   · (b) el orden en el bloque es por PG: lo superan los equipos de OTROS grupos con más victorias en esa misma posición
+  //     (gt) y con las mismas puede ir antes o después, según resultado directo / PC (eq) → rango [1+gt, 1+gt+eq].
+  // Es una cota (contiene todos los lugares reales); la tabla real la verifica en la capa de marcadores.
+  function lugaresPosiblesNac(P, W, hw, T) {
+    const info = {};
+    evaluarVictoriasNac(P, W, hw, T, info);
+    top3Grupos(P, W);
+    POSIBLES.fill(0);
+    const g = P.grupoDe[T], wT = W[T];
+    for (let p = info.mejor; p <= info.peor; p++) {
+      if (p > 3) { POSIBLES[R_MAX] = 1; continue; }                       // 4.º o peor en su grupo: no clasifica
+      let gt = 0, eq = 0;
+      for (let h = 0; h < 3; h++) {
+        if (h === g) continue;
+        const w = TOP3[h * 3 + p - 1];
+        if (w > wT) gt++; else if (w === wT) eq++;
+      }
+      const r0 = 1 + gt, r1 = 1 + gt + eq;                                // orden posible dentro del bloque (1..3)
+      if (p === 1) { for (let r = r0; r <= r1; r++) POSIBLES[r] = 1; }
+      else if (p === 2) { for (let r = r0; r <= r1; r++) POSIBLES[3 + r] = 1; }
+      else {                                                              // 3.º: solo los 2 mejores terceros clasifican (7.º y 8.º)
+        for (let r = r0; r <= Math.min(r1, 2); r++) POSIBLES[6 + r] = 1;
+        if (r1 >= 3) POSIBLES[R_MAX] = 1;
+      }
+    }
+  }
+
+  // Cotas por victorias para CUALQUIER objetivo. SEGURO: todos los lugares posibles caen dentro del objetivo;
+  // FUERA: ninguno; FILO: depende de desempates (necesita marcadores). Con el sembrado por bloques las cotas salen de
+  // lugaresPosiblesNac (antes, con sembrado general por PG, salían de contar equipos con más victorias).
+  function clasificarObjetivoNac(P, W, hw, T, obj) {
+    if (obj.tipo === 'clasificado' || obj.tipo === 'playoffs') return evaluarVictoriasNac(P, W, hw, T, null);
+    lugaresPosiblesNac(P, W, hw, T);
+    let dentro = false, fuera = false;
+    for (let r = 1; r <= R_MAX; r++) {
+      if (!POSIBLES[r]) continue;
+      if (r >= obj.min && r <= obj.max) dentro = true; else fuera = true;
+    }
+    if (!dentro && !fuera) return FILO;                                   // no debería pasar: por seguridad, que lo decida la tabla real
+    return !fuera ? SEGURO : (!dentro ? FUERA : FILO);
   }
 
   // ==========================================================================
@@ -625,7 +663,7 @@
         return { pos: i + 1, equipo: r.equipo, pg: r.pg, pc: r.pc, estado: i < 2 ? 'top2' : (enSeeds[r.equipo] ? 'comodin' : 'fuera') };
       });
     });
-    return { grupos: grupos, seeds: res.seeds.map(function (r) { return { pos: r.seed, equipo: r.equipo, grupo: r.grupo, pg: r.pg, pc: r.pc }; }) };
+    return { grupos: grupos, seeds: res.seeds.map(function (r) { return { pos: r.seed, equipo: r.equipo, grupo: r.grupo, pg: r.pg, pc: r.pc, bloque: r.bloque }; }) };
   }
 
   function escenarioDesdeFamilia(P, T, modo, fam, hwVector, idEsc) {
@@ -830,7 +868,7 @@
   const API = {
     DEF: DEF, datosNacionalActual: datosNacionalActual, ultimaJornada: ultimaJornada,
     prepararProblema: prepararProblema, juegosCompletos: juegosCompletos, tablaFinal: tablaFinal, estadoDe: estadoDe,
-    evaluarVictoriasNac: evaluarVictoriasNac, clasificarObjetivoNac: clasificarObjetivoNac, califica: califica, enumerarExacto: enumerarExacto, crearSimulador: crearSimulador,
+    evaluarVictoriasNac: evaluarVictoriasNac, clasificarObjetivoNac: clasificarObjetivoNac, lugaresPosiblesNac: lugaresPosiblesNac, califica: califica, enumerarExacto: enumerarExacto, crearSimulador: crearSimulador,
     probabilidadQ: probabilidadQ, monteCarloCompleto: monteCarloCompleto,
     resolverDesempate: resolverDesempate, evaluarVector: evaluarVector, construirFamilia: construirFamilia,
     analizar: analizar, panorama: panorama
